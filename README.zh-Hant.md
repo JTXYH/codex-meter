@@ -39,9 +39,9 @@ Codex Meter 預設使用簡體中文，目前支援：
 
 ## 下載
 
-[⬇️ 下載 Codex Meter v1.0.0（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.0.0/CodexMeter-1.0.0-macOS.zip)
+[⬇️ 下載 Codex Meter v1.0.1（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
 
-此版本同時支援 Apple Silicon 與 Intel Mac。下載 ZIP 後解壓縮，將 `CodexMeter.app` 拖入「應用程式」資料夾即可。[查看 v1.0.0 發佈說明](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.0)。
+此版本同時支援 Apple Silicon 與 Intel Mac。下載 ZIP 後解壓縮，將 `CodexMeter.app` 拖入「應用程式」資料夾即可。[查看 v1.0.1 發佈說明](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1)。
 
 > 目前安裝包使用 ad-hoc 簽章，尚未經過 Apple 公證。若首次啟動時被 macOS 阻擋，請在 Finder 中右鍵點擊應用程式，選擇「開啟」並再次確認。
 

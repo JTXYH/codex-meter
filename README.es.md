@@ -39,9 +39,9 @@ El idioma predeterminado es chino simplificado. La aplicación admite actualment
 
 ## Descarga
 
-[⬇️ Descargar Codex Meter v1.0.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.0.0/CodexMeter-1.0.0-macOS.zip)
+[⬇️ Descargar Codex Meter v1.0.1 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
 
-Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.0.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.0).
+Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.0.1](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1).
 
 > La compilación actual usa una firma ad-hoc y no está notarizada por Apple. Si macOS bloquea el primer inicio, haz Control-clic sobre la aplicación en Finder, selecciona **Abrir** y vuelve a confirmar.
 

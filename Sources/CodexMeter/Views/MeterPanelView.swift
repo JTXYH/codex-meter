@@ -74,10 +74,10 @@ struct MeterPanelView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 7) {
                     Text("Codex Meter")
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                     if let plan = store.snapshot?.account?.displayPlan {
                         Text(plan.uppercased())
-                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
                             .foregroundStyle(Color.meterAccent)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -127,7 +127,7 @@ struct MeterPanelView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+            .font(.system(size: 10.5, weight: .regular, design: .rounded))
             .foregroundStyle(Color.meterSecondary)
             .frame(maxWidth: 238, alignment: .leading)
             .help(
@@ -143,7 +143,7 @@ struct MeterPanelView: View {
             )
         } else {
             Text(L10n.text(.currentMacServer, language: settings.language))
-                .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                .font(.system(size: 10.5, weight: .regular, design: .rounded))
                 .foregroundStyle(Color.meterSecondary)
                 .lineLimit(1)
         }
@@ -167,7 +167,7 @@ struct MeterPanelView: View {
                     L10n.text(.loadFailed, language: settings.language),
                     systemImage: "exclamationmark.triangle.fill"
                 )
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(.system(size: 10, weight: .medium, design: .rounded))
                 .foregroundStyle(.orange)
                 .lineLimit(1)
                 .help(message)
@@ -203,7 +203,7 @@ private struct EmptyStateCard: View {
                     ProgressView()
                         .controlSize(.large)
                     Text(L10n.text(.loadingQuota, language: settings.language))
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
                     Text(L10n.text(.loadingDetail, language: settings.language))
                         .font(.system(size: 11, design: .rounded))
                         .foregroundStyle(Color.meterSecondary)
@@ -212,7 +212,7 @@ private struct EmptyStateCard: View {
                         .font(.system(size: 28))
                         .foregroundStyle(.orange)
                     Text(L10n.text(.loadFailed, language: settings.language))
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
                     Text(message)
                         .font(.system(size: 11, design: .rounded))
                         .foregroundStyle(Color.meterSecondary)

@@ -14,7 +14,7 @@ struct AppSettingsTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(defaults: defaults, launchAtLoginManager: LaunchAtLoginManagerSpy())
 
         settings.appearance = .dark
         #expect(
@@ -46,7 +46,7 @@ struct AppSettingsTests {
         }
         defaults.set(17, forKey: "automaticRefreshIntervalMinutes")
 
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(defaults: defaults, launchAtLoginManager: LaunchAtLoginManagerSpy())
 
         #expect(settings.automaticRefreshInterval == .custom)
         #expect(settings.customRefreshIntervalMinutes == 17)
@@ -63,7 +63,7 @@ struct AppSettingsTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(defaults: defaults, launchAtLoginManager: LaunchAtLoginManagerSpy())
         settings.automaticRefreshInterval = .custom
         settings.customRefreshIntervalMinutes = 45
 
@@ -84,5 +84,72 @@ struct AppSettingsTests {
             AppLanguage.allCases.map(\.rawValue)
                 == ["zh-Hans", "zh-Hant", "en", "ja", "ko", "es"]
         )
+    }
+
+    @Test
+    func selectsTheFirstSupportedSystemLanguageAndFallsBackToEnglish() {
+        #expect(AppLanguage.systemDefault(from: ["zh-Hans-CN"]) == .simplifiedChinese)
+        #expect(AppLanguage.systemDefault(from: ["zh-Hant-TW"]) == .traditionalChinese)
+        #expect(AppLanguage.systemDefault(from: ["zh-HK"]) == .traditionalChinese)
+        #expect(AppLanguage.systemDefault(from: ["ja-JP"]) == .japanese)
+        #expect(AppLanguage.systemDefault(from: ["ko-KR"]) == .korean)
+        #expect(AppLanguage.systemDefault(from: ["es-ES"]) == .spanish)
+        #expect(AppLanguage.systemDefault(from: ["fr-FR", "zh-Hans-CN"]) == .english)
+        #expect(AppLanguage.systemDefault(from: []) == .english)
+    }
+
+    @Test @MainActor
+    func usesSystemPreferencesAndEnablesLaunchAtLoginOnFirstRun() {
+        let suiteName = "CodexMeterTests.AppSettings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let launchAtLoginManager = LaunchAtLoginManagerSpy()
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let settings = AppSettings(
+            defaults: defaults,
+            preferredLanguages: ["ja-JP"],
+            launchAtLoginManager: launchAtLoginManager
+        )
+
+        #expect(settings.appearance == .system)
+        #expect(settings.language == .japanese)
+        #expect(defaults.string(forKey: "appLanguage") == "ja")
+        #expect(settings.launchAtLogin)
+        #expect(defaults.bool(forKey: "launchAtLogin"))
+        #expect(launchAtLoginManager.values == [true])
+    }
+
+    @Test @MainActor
+    func persistsAndAppliesLaunchAtLoginChanges() {
+        let suiteName = "CodexMeterTests.AppSettings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.set(false, forKey: "launchAtLogin")
+        let launchAtLoginManager = LaunchAtLoginManagerSpy()
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let settings = AppSettings(
+            defaults: defaults,
+            launchAtLoginManager: launchAtLoginManager
+        )
+        settings.launchAtLogin = true
+
+        #expect(defaults.bool(forKey: "launchAtLogin"))
+        #expect(launchAtLoginManager.values == [false, true])
+    }
+}
+
+private final class LaunchAtLoginManagerSpy: LaunchAtLoginManaging {
+    private(set) var values: [Bool] = []
+
+    func setEnabled(_ isEnabled: Bool) throws {
+        values.append(isEnabled)
     }
 }

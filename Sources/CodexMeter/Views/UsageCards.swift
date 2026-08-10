@@ -20,10 +20,10 @@ struct HeroUsageCard: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(L10n.text(.currentPeriod, language: settings.language))
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 10, weight: .medium, design: .rounded))
                                     .foregroundStyle(Color.meterSecondary)
                                 Text(MeterFormatters.quotaTitle(for: window, language: settings.language))
-                                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                                    .font(.system(size: 17, weight: .medium, design: .rounded))
                             }
                             Spacer()
                             StatusDot(color: window.remainingPercent <= 10 ? .orange : .meterSuccess)
@@ -31,10 +31,10 @@ struct HeroUsageCard: View {
 
                         HStack(alignment: .firstTextBaseline) {
                             Text(L10n.text(.remainingQuota, language: settings.language))
-                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .font(.system(size: 10, weight: .regular, design: .rounded))
                                 .foregroundStyle(Color.meterSecondary)
                             Text("\(Int(window.remainingPercent.rounded()))%")
-                                .font(.system(size: 20, weight: .black, design: .rounded))
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                         }
 
@@ -51,7 +51,7 @@ struct HeroUsageCard: View {
                                         language: settings.language
                                     )
                                 )
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
                                 Text(MeterFormatters.resetDate(resetsAt, language: settings.language))
                                     .font(.system(size: 9.5, design: .rounded))
                                     .foregroundStyle(Color.meterSecondary)
@@ -66,7 +66,7 @@ struct HeroUsageCard: View {
                         .foregroundStyle(Color.meterSecondary)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L10n.text(.noQuotaWindow, language: settings.language))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
                         Text(L10n.text(.noQuotaExplanation, language: settings.language))
                             .font(.system(size: 10.5, design: .rounded))
                             .foregroundStyle(Color.meterSecondary)
@@ -130,17 +130,17 @@ private struct TokenMetricRow: View {
         VStack(spacing: 7) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular, design: .rounded))
                     .foregroundStyle(Color.meterSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
                     .frame(width: 72, alignment: .leading)
                 Text(value)
-                    .font(.system(size: 17, weight: .black, design: .rounded))
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                 Spacer()
                 Text("\(Int(min(max(progress, 0), 1) * 100))%")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
                     .foregroundStyle(Color.meterSecondary)
                     .monospacedDigit()
             }
@@ -173,7 +173,7 @@ struct UsageHeatmapCard: View {
                         .contentTransition(.numericText())
                     Spacer()
                 }
-                .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                .font(.system(size: 9.5, weight: .regular, design: .rounded))
                 .foregroundStyle(Color.meterSecondary)
                 .frame(height: 14)
 
@@ -181,7 +181,7 @@ struct UsageHeatmapCard: View {
                     VStack(spacing: 5) {
                         ForEach(Array(L10n.weekdaySymbols(language: settings.language).enumerated()), id: \.offset) { _, day in
                             Text(day)
-                                .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                                .font(.system(size: 8.5, weight: .regular, design: .rounded))
                                 .foregroundStyle(Color.meterSecondary)
                                 .frame(width: 12, height: 14)
                         }
@@ -210,7 +210,7 @@ struct UsageHeatmapCard: View {
                             language: settings.language
                         )
                     )
-                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
                     Spacer()
                     Text(L10n.text(.less, language: settings.language))
                     ForEach(0..<4) { level in
@@ -220,7 +220,7 @@ struct UsageHeatmapCard: View {
                     }
                     Text(L10n.text(.more, language: settings.language))
                 }
-                .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                .font(.system(size: 8.5, weight: .regular, design: .rounded))
                 .foregroundStyle(Color.meterSecondary)
             }
         }
@@ -322,12 +322,12 @@ private struct SummaryMetric: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .font(.system(size: 9, weight: .regular, design: .rounded))
                 .foregroundStyle(Color.meterSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
             Text(value)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
         }

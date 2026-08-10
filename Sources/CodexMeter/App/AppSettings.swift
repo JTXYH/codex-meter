@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ServiceManagement
 import SwiftUI
 
 enum AppAppearance: String, CaseIterable, Identifiable, Sendable {
@@ -51,6 +52,54 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
             [nativeName, "Spanish", "es", "西班牙语", "スペイン語", "스페인어", "español"]
         }
     }
+
+    static func systemDefault(from preferredLanguages: [String]) -> AppLanguage {
+        guard let identifier = preferredLanguages.first else { return .english }
+        let components = identifier
+            .replacingOccurrences(of: "_", with: "-")
+            .split(separator: "-")
+            .map { $0.lowercased() }
+
+        guard let languageCode = components.first else { return .english }
+        switch languageCode {
+        case "zh":
+            if components.contains("hant")
+                || components.contains("tw")
+                || components.contains("hk")
+                || components.contains("mo") {
+                return .traditionalChinese
+            }
+            return .simplifiedChinese
+        case "en":
+            return .english
+        case "ja":
+            return .japanese
+        case "ko":
+            return .korean
+        case "es":
+            return .spanish
+        default:
+            return .english
+        }
+    }
+}
+
+protocol LaunchAtLoginManaging {
+    func setEnabled(_ isEnabled: Bool) throws
+}
+
+struct SystemLaunchAtLoginManager: LaunchAtLoginManaging {
+    func setEnabled(_ isEnabled: Bool) throws {
+        let service = SMAppService.mainApp
+
+        if isEnabled {
+            guard service.status != .enabled, service.status != .requiresApproval else { return }
+            try service.register()
+        } else {
+            guard service.status == .enabled || service.status == .requiresApproval else { return }
+            try service.unregister()
+        }
+    }
 }
 
 enum AutomaticRefreshInterval: String, CaseIterable, Identifiable, Sendable {
@@ -98,6 +147,25 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var launchAtLogin: Bool {
+        didSet {
+            guard !isRestoringLaunchAtLogin else { return }
+
+            do {
+                try launchAtLoginManager.setEnabled(launchAtLogin)
+                defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+                launchAtLoginErrorDescription = nil
+            } catch {
+                launchAtLoginErrorDescription = error.localizedDescription
+                isRestoringLaunchAtLogin = true
+                launchAtLogin = oldValue
+                isRestoringLaunchAtLogin = false
+            }
+        }
+    }
+
+    @Published private(set) var launchAtLoginErrorDescription: String?
+
     @Published var automaticRefreshInterval: AutomaticRefreshInterval {
         didSet {
             defaults.set(automaticRefreshInterval.rawValue, forKey: Keys.automaticRefreshIntervalOption)
@@ -120,13 +188,22 @@ final class AppSettings: ObservableObject {
     }
 
     private let defaults: UserDefaults
+    private let launchAtLoginManager: any LaunchAtLoginManaging
+    private var isRestoringLaunchAtLogin = false
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        preferredLanguages: [String] = Locale.preferredLanguages,
+        launchAtLoginManager: any LaunchAtLoginManaging = SystemLaunchAtLoginManager()
+    ) {
         self.defaults = defaults
+        self.launchAtLoginManager = launchAtLoginManager
         appearance = defaults.string(forKey: Keys.appearance)
             .flatMap(AppAppearance.init(rawValue:)) ?? .system
         language = defaults.string(forKey: Keys.language)
-            .flatMap(AppLanguage.init(rawValue:)) ?? .simplifiedChinese
+            .flatMap(AppLanguage.init(rawValue:))
+            ?? AppLanguage.systemDefault(from: preferredLanguages)
+        launchAtLogin = (defaults.object(forKey: Keys.launchAtLogin) as? NSNumber)?.boolValue ?? true
         let legacyMinutes = defaults.integer(forKey: Keys.automaticRefreshIntervalMinutes)
         let legacyPreset = AutomaticRefreshInterval.preset(for: legacyMinutes)
         let storedCustomMinutes = (defaults.object(forKey: Keys.customRefreshIntervalMinutes) as? NSNumber)?.intValue
@@ -142,6 +219,14 @@ final class AppSettings: ObservableObject {
             automaticRefreshInterval = .custom
         } else {
             automaticRefreshInterval = .twoMinutes
+        }
+
+        defaults.set(language.rawValue, forKey: Keys.language)
+        defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+        do {
+            try launchAtLoginManager.setEnabled(launchAtLogin)
+        } catch {
+            launchAtLoginErrorDescription = error.localizedDescription
         }
         applyAppearance()
     }
@@ -182,6 +267,7 @@ final class AppSettings: ObservableObject {
     private enum Keys {
         static let appearance = "appAppearance"
         static let language = "appLanguage"
+        static let launchAtLogin = "launchAtLogin"
         static let automaticRefreshIntervalOption = "automaticRefreshIntervalOption"
         static let automaticRefreshIntervalMinutes = "automaticRefreshIntervalMinutes"
         static let customRefreshIntervalMinutes = "customRefreshIntervalMinutes"

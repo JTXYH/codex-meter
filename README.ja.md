@@ -39,9 +39,9 @@ Codex Meter は、ChatGPT/Codex アカウントの割り当てウィンドウと
 
 ## ダウンロード
 
-[⬇️ Codex Meter v1.0.0 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.0.0/CodexMeter-1.0.0-macOS.zip)
+[⬇️ Codex Meter v1.0.1 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
 
-Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.0.0 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.0)。
+Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.0.1 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1)。
 
 > 現在のビルドは ad-hoc 署名で、Apple の notarization は未実施です。初回起動が macOS にブロックされた場合は、Finder でアプリを Control クリックし、「開く」を選んで再度確認してください。
 

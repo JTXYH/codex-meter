@@ -196,11 +196,11 @@ struct SectionTitle: View {
                 .foregroundStyle(Color.meterAccent)
                 .frame(width: 20)
             Text(title)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.system(size: 16, weight: .medium, design: .rounded))
             Spacer()
             if let trailing {
                 Text(trailing)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular, design: .rounded))
                     .foregroundStyle(Color.meterSecondary)
             }
         }
@@ -258,10 +258,10 @@ struct ProgressRing: View {
 
             VStack(spacing: 1) {
                 Text("\(Int(remainingPercent.rounded()))%")
-                    .font(.system(size: 26, weight: .black, design: .rounded))
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                     .monospacedDigit()
                 Text(subtitle)
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
                     .foregroundStyle(Color.meterSecondary)
                     .lineLimit(1)
             }

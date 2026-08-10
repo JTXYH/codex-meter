@@ -12,6 +12,8 @@ enum L10n {
         case settingsHint
         case general
         case generalHint
+        case launchAtLogin
+        case launchAtLoginHint
         case refresh
         case refreshHint
         case appearance
@@ -278,7 +280,9 @@ enum L10n {
         case .quit: "退出 Codex Meter"
         case .settingsHint: "更改会立即生效并自动保存"
         case .general: "通用"
-        case .generalHint: "调整应用的外观和显示语言"
+        case .generalHint: "调整应用行为、外观和显示语言"
+        case .launchAtLogin: "登录时启动"
+        case .launchAtLoginHint: "登录这台 Mac 后自动启动 Codex Meter"
         case .refresh: "刷新"
         case .refreshHint: "设置 Codex 数据的自动刷新频率"
         case .appearance: "外观"
@@ -333,7 +337,9 @@ enum L10n {
         case .quit: "結束 Codex Meter"
         case .settingsHint: "變更會立即生效並自動儲存"
         case .general: "一般"
-        case .generalHint: "調整應用程式的外觀和顯示語言"
+        case .generalHint: "調整應用程式行為、外觀和顯示語言"
+        case .launchAtLogin: "登入時啟動"
+        case .launchAtLoginHint: "登入這台 Mac 後自動啟動 Codex Meter"
         case .refresh: "重新整理"
         case .refreshHint: "設定 Codex 資料的自動重新整理頻率"
         case .appearance: "外觀"
@@ -388,7 +394,9 @@ enum L10n {
         case .quit: "Quit Codex Meter"
         case .settingsHint: "Changes apply immediately and save automatically"
         case .general: "General"
-        case .generalHint: "Adjust the app appearance and display language"
+        case .generalHint: "Adjust app behavior, appearance, and display language"
+        case .launchAtLogin: "Launch at login"
+        case .launchAtLoginHint: "Open Codex Meter automatically when you log in to this Mac"
         case .refresh: "Refresh"
         case .refreshHint: "Choose how often Codex data refreshes automatically"
         case .appearance: "Appearance"
@@ -443,7 +451,9 @@ enum L10n {
         case .quit: "Codex Meter を終了"
         case .settingsHint: "変更はすぐに反映され、自動保存されます"
         case .general: "一般"
-        case .generalHint: "アプリの外観と表示言語を調整します"
+        case .generalHint: "アプリの動作、外観、表示言語を調整します"
+        case .launchAtLogin: "ログイン時に起動"
+        case .launchAtLoginHint: "この Mac へのログイン時に Codex Meter を自動起動します"
         case .refresh: "更新"
         case .refreshHint: "Codex データの自動更新間隔を設定します"
         case .appearance: "外観"
@@ -498,7 +508,9 @@ enum L10n {
         case .quit: "Codex Meter 종료"
         case .settingsHint: "변경 사항은 즉시 적용되고 자동으로 저장됩니다"
         case .general: "일반"
-        case .generalHint: "앱 모양과 표시 언어를 조정합니다"
+        case .generalHint: "앱 동작, 모양 및 표시 언어를 조정합니다"
+        case .launchAtLogin: "로그인 시 실행"
+        case .launchAtLoginHint: "이 Mac에 로그인하면 Codex Meter를 자동으로 실행합니다"
         case .refresh: "새로 고침"
         case .refreshHint: "Codex 데이터 자동 새로 고침 간격을 설정합니다"
         case .appearance: "모양"
@@ -553,7 +565,9 @@ enum L10n {
         case .quit: "Salir de Codex Meter"
         case .settingsHint: "Los cambios se aplican al instante y se guardan automáticamente"
         case .general: "General"
-        case .generalHint: "Ajusta la apariencia y el idioma de la aplicación"
+        case .generalHint: "Ajusta el comportamiento, la apariencia y el idioma de la aplicación"
+        case .launchAtLogin: "Abrir al iniciar sesión"
+        case .launchAtLoginHint: "Abre Codex Meter automáticamente al iniciar sesión en este Mac"
         case .refresh: "Actualización"
         case .refreshHint: "Elige con qué frecuencia se actualizan los datos de Codex"
         case .appearance: "Apariencia"

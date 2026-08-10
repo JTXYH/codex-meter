@@ -122,6 +122,22 @@ struct SettingsPanelView: View {
     private var generalSettings: some View {
         SettingsCard {
             SettingsRow(
+                icon: "power",
+                title: L10n.text(.launchAtLogin, language: settings.language),
+                detail: launchAtLoginDetail
+            ) {
+                Toggle(
+                    L10n.text(.launchAtLogin, language: settings.language),
+                    isOn: $settings.launchAtLogin
+                )
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+
+            SettingsDivider()
+
+            SettingsRow(
                 icon: "circle.lefthalf.filled",
                 title: L10n.text(.appearance, language: settings.language),
                 detail: L10n.text(.appearanceHint, language: settings.language)
@@ -148,6 +164,12 @@ struct SettingsPanelView: View {
                     .frame(width: 244)
             }
         }
+    }
+
+    private var launchAtLoginDetail: String {
+        let hint = L10n.text(.launchAtLoginHint, language: settings.language)
+        guard let error = settings.launchAtLoginErrorDescription else { return hint }
+        return "\(hint) · \(error)"
     }
 
     private var refreshSettings: some View {

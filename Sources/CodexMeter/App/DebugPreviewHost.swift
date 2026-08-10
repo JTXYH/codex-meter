@@ -114,10 +114,10 @@ private struct DebugMeterPanelSnapshotView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 7) {
                     Text("Codex Meter")
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                     if let plan = store.snapshot?.account?.displayPlan {
                         Text(plan.uppercased())
-                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
                             .foregroundStyle(Color.meterAccent)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -130,7 +130,7 @@ private struct DebugMeterPanelSnapshotView: View {
                         Image(systemName: "eye.fill")
                             .font(.system(size: 8.5, weight: .semibold))
                     }
-                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .font(.system(size: 10.5, weight: .regular, design: .rounded))
                     .foregroundStyle(Color.meterSecondary)
                 }
             }
