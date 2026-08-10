@@ -43,7 +43,24 @@ Codex Meter 預設使用簡體中文，目前支援：
 
 此版本同時支援 Apple Silicon 與 Intel Mac。下載 ZIP 後解壓縮，將 `CodexMeter.app` 拖入「應用程式」資料夾即可。[查看 v1.0.1 發佈說明](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1)。
 
-> 目前安裝包使用 ad-hoc 簽章，尚未經過 Apple 公證。若首次啟動時被 macOS 阻擋，請在 Finder 中右鍵點擊應用程式，選擇「開啟」並再次確認。
+### 首次開啟時遭 macOS 阻擋
+
+目前安裝包使用 ad-hoc 簽章，尚未經過 Apple 公證。若首次啟動時出現「Apple 無法檢查 App 是否為惡意軟體」或「無法驗證開發者」，請先確認 App 下載自本倉庫的 [GitHub Releases](https://github.com/JTXYH/codex-meter/releases)，然後使用以下任一方法：
+
+**方法一：從 Finder 開啟**
+
+1. 在 Finder 中進入「應用程式」，找到 `CodexMeter.app`。
+2. 按住 Control 鍵點按 App，或直接按右鍵，然後選擇「打開」。
+3. 在確認視窗中再次點按「打開」。首次允許後，以後可正常按兩下啟動。
+
+**方法二：從系統設定允許**
+
+1. 先按兩下 `CodexMeter.app` 嘗試啟動一次，並關閉 macOS 的阻擋提示。
+2. 開啟「蘋果」選單 ** → 系統設定 → 隱私權與安全性**。
+3. 向下捲動到「安全性」，找到 Codex Meter 的阻擋記錄，點按「強制打開」。
+4. 按系統提示完成身分驗證，再點按「打開」。「強制打開」通常只在嘗試啟動 App 後約一小時內顯示。
+
+可參考 [Apple 官方：在 Mac 上安全地打開 App](https://support.apple.com/zh-tw/102445)。若 macOS 明確提示該 App「將損害你的電腦」或偵測到惡意軟體，請不要繞過警告；刪除目前檔案並從官方 Release 重新下載。
 
 ## 系統需求
 

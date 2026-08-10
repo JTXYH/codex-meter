@@ -43,7 +43,24 @@ Simplified Chinese is the default. The app currently supports:
 
 This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.0.1 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1).
 
-> The current build is ad-hoc signed and is not Apple-notarized. If macOS blocks the first launch, Control-click the app in Finder, choose **Open**, and confirm once more.
+### If macOS blocks the app on first launch
+
+The current build is ad-hoc signed and is not Apple-notarized. If the first launch shows “Apple cannot check it for malicious software” or “the developer cannot be verified,” first make sure the app came from this repository’s [GitHub Releases](https://github.com/JTXYH/codex-meter/releases), then use either method below.
+
+**Method 1: Open it from Finder**
+
+1. Open Applications in Finder and locate `CodexMeter.app`.
+2. Control-click or right-click the app, then choose **Open**.
+3. Click **Open** again in the confirmation dialog. After you allow it once, you can launch it normally by double-clicking.
+
+**Method 2: Allow it in System Settings**
+
+1. Double-click `CodexMeter.app` once, then dismiss the macOS warning.
+2. Open the Apple menu ** → System Settings → Privacy & Security**.
+3. Scroll down to Security, find the message about Codex Meter, and click **Open Anyway**.
+4. Authenticate when prompted, then click **Open**. The **Open Anyway** button is usually available for about one hour after you try to launch the app.
+
+See [Apple Support: Safely open apps on your Mac](https://support.apple.com/en-us/102445) for more information. If macOS explicitly says the app “will damage your computer” or reports malware, do not bypass the warning; delete the current file and download it again from the official Release.
 
 ## Requirements
 

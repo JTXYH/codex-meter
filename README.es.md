@@ -43,7 +43,24 @@ El idioma predeterminado es chino simplificado. La aplicación admite actualment
 
 Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.0.1](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1).
 
-> La compilación actual usa una firma ad-hoc y no está notarizada por Apple. Si macOS bloquea el primer inicio, haz Control-clic sobre la aplicación en Finder, selecciona **Abrir** y vuelve a confirmar.
+### Si macOS bloquea la aplicación al abrirla por primera vez
+
+La compilación actual usa una firma ad hoc y no está notarizada por Apple. Si al abrirla por primera vez aparece «Apple no puede comprobar si la app contiene software malicioso» o «no se puede verificar el desarrollador», comprueba primero que la aplicación procede de los [GitHub Releases](https://github.com/JTXYH/codex-meter/releases) de este repositorio y utiliza uno de los siguientes métodos.
+
+**Método 1: Abrirla desde Finder**
+
+1. Abre la carpeta Aplicaciones en Finder y localiza `CodexMeter.app`.
+2. Haz Control-clic o clic con el botón derecho en la aplicación y selecciona **Abrir**.
+3. Vuelve a hacer clic en **Abrir** en el cuadro de confirmación. Después de autorizarla una vez, podrás iniciarla normalmente con un doble clic.
+
+**Método 2: Permitirla desde Ajustes del Sistema**
+
+1. Haz doble clic una vez en `CodexMeter.app` y cierra el aviso de macOS.
+2. Abre el menú Apple ** → Ajustes del Sistema → Privacidad y seguridad**.
+3. Desplázate hasta Seguridad, busca el mensaje sobre Codex Meter y haz clic en **Abrir igualmente**.
+4. Autentícate cuando se te solicite y haz clic en **Abrir**. El botón **Abrir igualmente** suele estar disponible durante aproximadamente una hora después de intentar iniciar la aplicación.
+
+Consulta [Soporte técnico de Apple: Abrir apps de forma segura en el Mac](https://support.apple.com/es-es/102445) para obtener más información. Si macOS indica expresamente que la aplicación «dañará el ordenador» o detecta software malicioso, no ignores el aviso; elimina el archivo actual y vuelve a descargarlo desde el Release oficial.
 
 ## Requisitos
 
