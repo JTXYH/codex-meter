@@ -27,14 +27,16 @@ cache layer for the URL below.
 
 ## Security
 
-The Worker does not require a GitHub or Cloudflare API token at runtime. The
-repository configures a per-client rate limit, bounded upstream responses,
-manual redirect rejection, exact release-tag and macOS asset matching, reduced
-observability sampling, and a GitHub repository allowlist. Free-plan
-deployments use Cloudflare's built-in CPU and subrequest limits; do not add a
-`limits` block unless the Worker uses the Standard (paid) usage model. Keep the
-rate-limit `namespace_id` unique if the same Cloudflare account deploys other
-Workers with rate-limit bindings.
+The Worker requires a fine-grained GitHub token with read-only `Contents`
+permission for this repository. Store it only as the `GITHUB_TOKEN` Cloudflare
+secret; never add its value to Wrangler configuration or Git. The repository
+configures a per-client rate limit, bounded upstream responses, manual redirect
+rejection, exact release-tag and macOS asset matching, reduced observability
+sampling, and a GitHub repository allowlist. Free-plan deployments use
+Cloudflare's built-in CPU and subrequest limits; do not add a `limits` block
+unless the Worker uses the Standard (paid) usage model. Keep the rate-limit
+`namespace_id` unique if the same Cloudflare account deploys other Workers with
+rate-limit bindings.
 
 For a paid Cloudflare account, also configure a budget alert in the dashboard.
 Application-level rate limiting reduces abusive work but cannot prevent every
@@ -51,6 +53,7 @@ npm run check
 ## Deployment
 
 ```bash
+npx wrangler secret put GITHUB_TOKEN
 npx wrangler deploy
 ```
 

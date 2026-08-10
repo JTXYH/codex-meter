@@ -12,6 +12,9 @@
     "GITHUB_REPO": "codex-meter",
     "ASSET_PREFIX": "CodexMeter-"
   },
+  "secrets": {
+    "required": ["GITHUB_TOKEN"]
+  },
   "ratelimits": [
     {
       "name": "UPDATE_RATE_LIMITER",

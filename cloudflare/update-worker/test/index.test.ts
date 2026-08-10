@@ -135,6 +135,8 @@ describe("update worker", () => {
         "https://api.github.com/repos/JTXYH/codex-meter/releases/latest",
         expect.objectContaining({ redirect: "manual" }),
       );
+      const requestHeaders = new Headers(githubFetch.mock.calls[0]?.[1]?.headers);
+      expect(requestHeaders.get("Authorization")).toBe("Bearer test-github-token");
     } finally {
       vi.unstubAllGlobals();
       await caches.default.delete(releaseCacheKey);

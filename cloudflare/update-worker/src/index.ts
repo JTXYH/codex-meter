@@ -172,7 +172,7 @@ async function loadLatestRelease(env: Env, ctx: ExecutionContext): Promise<Cache
   const githubResponse = await fetch(
     `https://api.github.com/repos/${encodeURIComponent(env.GITHUB_OWNER)}/${encodeURIComponent(env.GITHUB_REPO)}/releases/latest`,
     {
-      headers: githubHeaders(),
+      headers: githubHeaders(env.GITHUB_TOKEN),
       redirect: "manual",
     },
   );
@@ -263,9 +263,10 @@ function publicReleaseResponse(release: CachedRelease): Response {
   });
 }
 
-function githubHeaders(): Headers {
+function githubHeaders(token: string): Headers {
   return new Headers({
     Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
     "User-Agent": "CodexMeter-Update-Service",
     "X-GitHub-Api-Version": GITHUB_API_VERSION,
   });
