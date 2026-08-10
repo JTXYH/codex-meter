@@ -10,7 +10,15 @@ struct MenuBarLabelView: View {
             Text(store.menuBarText)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .monospacedDigit()
+            if store.refreshErrorMessage != nil {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.orange)
+            }
         }
-        .help(L10n.text(.menuBarHelp, language: settings.language))
+        .help(
+            store.refreshErrorMessage
+                ?? L10n.text(.menuBarHelp, language: settings.language)
+        )
     }
 }

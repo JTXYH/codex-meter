@@ -7,13 +7,30 @@ This Worker reads the latest public GitHub Release for `JTXYH/codex-meter`, sele
 - `GET /health`
 - `GET /v1/releases/latest`
 
-The latest-release endpoint returns `502` until the repository has its first published, non-prerelease GitHub Release with a completed `CodexMeter-*.zip` asset.
+The latest-release endpoint returns `502` until the repository has its first
+published, non-prerelease GitHub Release with exactly one completed
+`CodexMeter-<version>-macOS.zip` asset.
+It does not accept query parameters; requests such as `?nonce=...` return `400`
+so callers cannot create unbounded edge-cache keys.
+
+## Caching
+
+Workers Caching is enabled for the deployed Worker, including its `workers.dev`
+route. Successful update manifests are cached for 15 minutes at Cloudflare's
+edge while browsers receive a 5-minute TTL. The health response and all error
+responses are marked `no-store`.
+
+The Worker also keeps a configuration-scoped Cache API entry as a fallback for
+custom-domain or routed deployments where the Cache API is functional. Cache
+API operations have no effect on `*.workers.dev`, so they are not the production
+cache layer for the URL below.
 
 ## Security
 
 The Worker does not require a GitHub or Cloudflare API token at runtime. The
 repository configures a per-client rate limit, bounded upstream responses,
-reduced observability sampling, and a GitHub repository allowlist. Free-plan
+manual redirect rejection, exact release-tag and macOS asset matching, reduced
+observability sampling, and a GitHub repository allowlist. Free-plan
 deployments use Cloudflare's built-in CPU and subrequest limits; do not add a
 `limits` block unless the Worker uses the Standard (paid) usage model. Keep the
 rate-limit `namespace_id` unique if the same Cloudflare account deploys other

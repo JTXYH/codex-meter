@@ -32,7 +32,7 @@ struct CodexResponseParserTests {
     @Test
     func fallsBackToSingleRateLimitView() throws {
         let account = Data(#"{"id":1,"result":{"account":null,"requiresOpenaiAuth":false}}"#.utf8)
-        let limits = Data(#"{"id":2,"result":{"rateLimits":{"limitId":"codex","limitName":null,"primary":{"usedPercent":120,"windowDurationMins":60,"resetsAt":1786604934},"secondary":null,"credits":null,"planType":null}}}"#.utf8)
+        let limits = Data(#"{"id":2,"result":{"rateLimits":{"limitId":null,"limitName":null,"primary":{"usedPercent":120,"windowDurationMins":60,"resetsAt":1786604934},"secondary":null,"credits":null,"planType":null}}}"#.utf8)
         let usage = Data(#"{"id":3,"result":{"summary":null,"dailyUsageBuckets":null}}"#.utf8)
 
         let snapshot = try CodexResponseParser.parse(
@@ -41,9 +41,37 @@ struct CodexResponseParserTests {
             usageData: usage
         )
 
+        #expect(snapshot.rateLimitBuckets.first?.id == "codex")
         #expect(snapshot.primaryWindow?.clampedUsedPercent == 100)
         #expect(snapshot.primaryWindow?.remainingPercent == 0)
         #expect(snapshot.dailyUsage.isEmpty)
+    }
+
+    @Test
+    func keepsWindowsWithMissingOptionalMetadata() throws {
+        let account = Data(#"{"id":1,"result":{"account":null}}"#.utf8)
+        let limits = Data(#"{"id":2,"result":{"rateLimits":null,"rateLimitsByLimitId":{"codex":{"limitName":null,"primary":{"usedPercent":25,"windowDurationMins":null},"secondary":{"usedPercent":40,"resetsAt":null}}}}}"#.utf8)
+        let usage = Data(#"{"id":3,"result":{"summary":null}}"#.utf8)
+
+        let snapshot = try CodexResponseParser.parse(
+            accountData: account,
+            rateLimitsData: limits,
+            usageData: usage
+        )
+        let primary = try #require(snapshot.primaryWindow)
+        let secondary = try #require(
+            snapshot.allLimitWindows.first(where: { $0.kind == .secondary })
+        )
+
+        #expect(snapshot.rateLimitBuckets.first?.id == "codex")
+        #expect(snapshot.allLimitWindows.count == 2)
+        #expect(primary.remainingPercent == 75)
+        #expect(primary.windowDurationMinutes == nil)
+        #expect(primary.resetsAt == nil)
+        #expect(secondary.remainingPercent == 60)
+        #expect(secondary.windowDurationMinutes == nil)
+        #expect(secondary.resetsAt == nil)
+        #expect(MeterFormatters.quotaTitle(for: primary, language: .english) == "Codex quota")
     }
 
     @Test
@@ -61,6 +89,24 @@ struct CodexResponseParserTests {
         #expect(visibleDays.count == 90)
         #expect(visibleDays.last?.tokens == 1_500)
         #expect(visibleDays.contains(where: { $0.tokens == 10_000 && $0.intensity == 1 }))
+    }
+
+    @Test
+    func ignoresUsageOutsideTheHeatmapRangeWhenNormalizing() {
+        let end = DateOnlyParser.date(from: "2026-08-07")!
+        let usage = [
+            DailyTokenUsage(date: end, tokens: 100),
+            DailyTokenUsage(date: DateOnlyParser.date(from: "2026-07-31")!, tokens: 1_000_000_000),
+            DailyTokenUsage(date: DateOnlyParser.date(from: "2026-08-08")!, tokens: 2_000_000_000),
+        ]
+
+        let columns = HeatmapBuilder.columns(from: usage, endingAt: end, dayCount: 7)
+        let visibleDays = columns.flatMap { $0 }.compactMap { $0 }
+
+        #expect(visibleDays.count == 7)
+        #expect(visibleDays.map(\.tokens).max() == 100)
+        #expect(visibleDays.last?.tokens == 100)
+        #expect(visibleDays.last?.intensity == 1)
     }
 
     @Test

@@ -17,8 +17,8 @@ struct RateLimitWindow: Identifiable, Equatable, Sendable {
     let bucketName: String
     let kind: Kind
     let usedPercent: Double
-    let windowDurationMinutes: Int
-    let resetsAt: Date
+    let windowDurationMinutes: Int?
+    let resetsAt: Date?
 
     enum Kind: String, Equatable, Sendable {
         case primary
@@ -142,6 +142,7 @@ enum HeatmapBuilder {
         var tokenByDay: [Date: Int64] = [:]
         for item in usage {
             let date = calendar.startOfDay(for: item.date)
+            guard date >= start, date <= end else { continue }
             let tokens = max(0, item.tokens)
             let (sum, overflow) = tokenByDay[date, default: 0].addingReportingOverflow(tokens)
             tokenByDay[date] = overflow ? .max : sum

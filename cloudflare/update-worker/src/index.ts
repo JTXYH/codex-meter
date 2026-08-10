@@ -1,11 +1,14 @@
 const GITHUB_API_VERSION = "2026-03-10";
-const RELEASE_CACHE_KEY = "https://codex-meter.internal/v1/releases/latest";
+const RELEASE_CACHE_NAMESPACE = "https://codex-meter.internal/v2/releases/latest";
 const RELEASE_CACHE_SECONDS = 900;
+const RELEASE_BROWSER_CACHE_SECONDS = 300;
 const MAXIMUM_GITHUB_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAXIMUM_CACHED_RELEASE_BYTES = 256 * 1024;
 const MAXIMUM_RELEASE_NOTES_LENGTH = 64 * 1024;
 const MAXIMUM_RELEASE_TITLE_LENGTH = 256;
+const MAXIMUM_VERSION_LENGTH = 128;
 const MAXIMUM_ASSET_BYTES = 512 * 1024 * 1024;
+const VERSION_PATTERN = /^\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 type JsonObject = Record<string, unknown>;
 
@@ -33,6 +36,7 @@ interface CachedRelease {
   notes: string;
   publishedAt: string;
   releasePageURL: string;
+  tagName: string;
   title: string;
   version: string;
 }
@@ -53,6 +57,14 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.pathname === "/v1/releases/latest" && url.search !== "") {
+      return responseForRequest(request, jsonResponse(
+        { error: "Query parameters are not supported" },
+        400,
+        { "Cache-Control": "no-store" },
+      ));
+    }
+
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -68,12 +80,17 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return jsonResponse({ error: "Method not allowed" }, 405, {
         Allow: "GET, HEAD, OPTIONS",
+        "Cache-Control": "no-store",
       });
     }
 
     try {
       if (url.pathname === "/health") {
-        return responseForRequest(request, jsonResponse({ status: "ok" }));
+        return responseForRequest(request, jsonResponse(
+          { status: "ok" },
+          200,
+          { "Cache-Control": "no-store" },
+        ));
       }
 
       if (url.pathname === "/v1/releases/latest") {
@@ -95,7 +112,11 @@ export default {
         return responseForRequest(request, publicReleaseResponse(release));
       }
 
-      return responseForRequest(request, jsonResponse({ error: "Not found" }, 404));
+      return responseForRequest(request, jsonResponse(
+        { error: "Not found" },
+        404,
+        { "Cache-Control": "no-store" },
+      ));
     } catch (error) {
       console.error(JSON.stringify({
         message: "update request failed",
@@ -116,30 +137,52 @@ export default {
 
 async function loadLatestRelease(env: Env, ctx: ExecutionContext): Promise<CachedRelease> {
   const cache = caches.default;
-  const cacheKey = new Request(RELEASE_CACHE_KEY);
-  const cachedResponse = await cache.match(cacheKey);
+  const cacheKey = new Request(buildReleaseCacheKey(
+    env.GITHUB_OWNER,
+    env.GITHUB_REPO,
+    env.ASSET_PREFIX,
+  ));
+  let cachedResponse: Response | undefined;
+  try {
+    cachedResponse = await cache.match(cacheKey);
+  } catch (error) {
+    logCacheError("release cache read failed", error);
+  }
 
   if (cachedResponse) {
-    return parseCachedRelease(
-      await readLimitedJSONResponse(
-        cachedResponse,
-        MAXIMUM_CACHED_RELEASE_BYTES,
-        "cached release",
-      ),
-      env.GITHUB_OWNER,
-      env.GITHUB_REPO,
-    );
+    try {
+      return parseCachedRelease(
+        await readLimitedJSONResponse(
+          cachedResponse,
+          MAXIMUM_CACHED_RELEASE_BYTES,
+          "cached release",
+        ),
+        env.GITHUB_OWNER,
+        env.GITHUB_REPO,
+        env.ASSET_PREFIX,
+      );
+    } catch (error) {
+      logCacheError("cached release was invalid", error);
+      await cache.delete(cacheKey).catch((deleteError: unknown) => {
+        logCacheError("invalid release cache deletion failed", deleteError);
+      });
+    }
   }
 
   const githubResponse = await fetch(
     `https://api.github.com/repos/${encodeURIComponent(env.GITHUB_OWNER)}/${encodeURIComponent(env.GITHUB_REPO)}/releases/latest`,
     {
       headers: githubHeaders(),
-      redirect: "error",
+      redirect: "manual",
     },
   );
 
+  if (githubResponse.status >= 300 && githubResponse.status < 400) {
+    await cancelResponseBody(githubResponse);
+    throw new Error(`GitHub latest release request redirected with ${githubResponse.status}`);
+  }
   if (!githubResponse.ok) {
+    await cancelResponseBody(githubResponse);
     throw new Error(`GitHub latest release request returned ${githubResponse.status}`);
   }
 
@@ -152,18 +195,41 @@ async function loadLatestRelease(env: Env, ctx: ExecutionContext): Promise<Cache
     env.GITHUB_OWNER,
     env.GITHUB_REPO,
   );
-  const asset = selectReleaseAsset(githubRelease.assets, env.ASSET_PREFIX);
+  const version = normalizeVersionTag(githubRelease.tagName);
+  const asset = selectReleaseAsset(
+    githubRelease.assets,
+    env.ASSET_PREFIX,
+    version,
+  );
   if (!asset) {
     throw new Error("Latest release does not contain a matching macOS ZIP asset");
   }
+  requireExactGitHubReleasePath(
+    githubRelease.htmlURL,
+    "GitHub release page URL",
+    env.GITHUB_OWNER,
+    env.GITHUB_REPO,
+    "tag",
+    githubRelease.tagName,
+  );
+  requireExactGitHubReleasePath(
+    asset.browserDownloadURL,
+    "GitHub download URL",
+    env.GITHUB_OWNER,
+    env.GITHUB_REPO,
+    "download",
+    githubRelease.tagName,
+    asset.name,
+  );
 
   const release: CachedRelease = {
     asset,
     notes: githubRelease.body,
     publishedAt: githubRelease.publishedAt,
     releasePageURL: githubRelease.htmlURL,
+    tagName: githubRelease.tagName,
     title: githubRelease.name || githubRelease.tagName,
-    version: normalizeVersionTag(githubRelease.tagName),
+    version,
   };
   const cacheResponse = Response.json(release, {
     headers: {
@@ -192,7 +258,8 @@ function publicReleaseResponse(release: CachedRelease): Response {
     version: release.version,
   };
   return jsonResponse(payload, 200, {
-    "Cache-Control": "public, max-age=300",
+    "Cache-Control": `public, max-age=${RELEASE_BROWSER_CACHE_SECONDS}`,
+    "Cloudflare-CDN-Cache-Control": `public, max-age=${RELEASE_CACHE_SECONDS}`,
   });
 }
 
@@ -205,8 +272,11 @@ function githubHeaders(): Headers {
 }
 
 export function normalizeVersionTag(tagName: string): string {
-  const normalized = tagName.trim().replace(/^[vV](?=\d)/, "");
-  if (!/^\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(normalized)) {
+  if (tagName !== tagName.trim()) {
+    throw new Error("Latest release tag is not a supported version");
+  }
+  const normalized = tagName.replace(/^[vV](?=\d)/, "");
+  if (normalized.length > MAXIMUM_VERSION_LENGTH || !VERSION_PATTERN.test(normalized)) {
     throw new Error("Latest release tag is not a supported version");
   }
   return normalized;
@@ -215,18 +285,17 @@ export function normalizeVersionTag(tagName: string): string {
 export function selectReleaseAsset(
   assets: readonly GitHubReleaseAsset[],
   prefix: string,
+  version: string,
 ): GitHubReleaseAsset | undefined {
+  const expectedName = `${prefix}${version}-macOS.zip`;
   const candidates = assets.filter((asset) => {
-    const lowercasedName = asset.name.toLowerCase();
     return asset.state === "uploaded"
-      && asset.name.startsWith(prefix)
-      && lowercasedName.endsWith(".zip")
+      && asset.name === expectedName
       && asset.size > 0
       && asset.size <= MAXIMUM_ASSET_BYTES;
   });
 
-  return candidates.find((asset) => asset.name.toLowerCase().includes("macos"))
-    ?? candidates[0];
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 function parseGitHubRelease(value: unknown, owner: string, repo: string): GitHubRelease {
@@ -298,22 +367,57 @@ function parseCachedReleaseAsset(
   };
 }
 
-function parseCachedRelease(value: unknown, owner: string, repo: string): CachedRelease {
+function parseCachedRelease(
+  value: unknown,
+  owner: string,
+  repo: string,
+  assetPrefix: string,
+): CachedRelease {
   const object = requireObject(value, "cached release");
+  const asset = parseCachedReleaseAsset(object.asset, owner, repo);
+  const tagName = requireString(object.tagName, "cached release tag");
+  const rawVersion = requireString(object.version, "cached release version");
+  const version = normalizeVersionTag(rawVersion);
+  if (rawVersion !== version || normalizeVersionTag(tagName) !== version) {
+    throw new Error("cached release version does not match its tag");
+  }
+  if (selectReleaseAsset([asset], assetPrefix, version) !== asset) {
+    throw new Error("cached release asset is not the expected macOS ZIP");
+  }
+  const releasePageURL = requireGitHubReleaseURL(
+    object.releasePageURL,
+    "cached release page URL",
+    owner,
+    repo,
+    "tag",
+  );
+  requireExactGitHubReleasePath(
+    releasePageURL,
+    "cached release page URL",
+    owner,
+    repo,
+    "tag",
+    tagName,
+  );
+  requireExactGitHubReleasePath(
+    asset.browserDownloadURL,
+    "cached download URL",
+    owner,
+    repo,
+    "download",
+    tagName,
+    asset.name,
+  );
+
   return {
-    asset: parseCachedReleaseAsset(object.asset, owner, repo),
+    asset,
     notes: optionalString(object.notes).slice(0, MAXIMUM_RELEASE_NOTES_LENGTH),
     publishedAt: requireString(object.publishedAt, "cached published date"),
-    releasePageURL: requireGitHubReleaseURL(
-      object.releasePageURL,
-      "cached release page URL",
-      owner,
-      repo,
-      "tag",
-    ),
+    releasePageURL,
+    tagName,
     title: requireString(object.title, "cached release title")
       .slice(0, MAXIMUM_RELEASE_TITLE_LENGTH),
-    version: normalizeVersionTag(requireString(object.version, "cached release version")),
+    version,
   };
 }
 
@@ -402,6 +506,54 @@ function requireGitHubReleaseURL(
   return url.toString();
 }
 
+function requireExactGitHubReleasePath(
+  value: string,
+  label: string,
+  owner: string,
+  repo: string,
+  route: "download" | "tag",
+  tagName: string,
+  assetName?: string,
+): void {
+  const url = new URL(value);
+  let segments: string[];
+  try {
+    segments = url.pathname.split("/").slice(1).map((segment) => decodeURIComponent(segment));
+  } catch {
+    throw new Error(`${label} is not trusted`);
+  }
+
+  const expectedSegments = [owner, repo, "releases", route, tagName];
+  if (route === "download") {
+    if (!assetName) {
+      throw new Error(`${label} is not trusted`);
+    }
+    expectedSegments.push(assetName);
+  }
+
+  const matches = segments.length === expectedSegments.length
+    && segments.every((segment, index) => {
+      const expected = expectedSegments[index];
+      if (expected === undefined) {
+        return false;
+      }
+      return index < 2
+        ? segment.toLowerCase() === expected.toLowerCase()
+        : segment === expected;
+    });
+  if (!matches) {
+    throw new Error(`${label} does not match the release tag and asset`);
+  }
+}
+
+export function buildReleaseCacheKey(owner: string, repo: string, assetPrefix: string): string {
+  const url = new URL(RELEASE_CACHE_NAMESPACE);
+  url.searchParams.set("owner", owner);
+  url.searchParams.set("repo", repo);
+  url.searchParams.set("assetPrefix", assetPrefix);
+  return url.toString();
+}
+
 async function readLimitedJSONResponse(
   response: Response,
   maximumBytes: number,
@@ -411,6 +563,7 @@ async function readLimitedJSONResponse(
   if (contentLength !== null) {
     const declaredBytes = Number(contentLength);
     if (Number.isFinite(declaredBytes) && declaredBytes > maximumBytes) {
+      await cancelResponseBody(response);
       throw new Error(`${label} exceeds the response size limit`);
     }
   }
@@ -454,6 +607,17 @@ async function readLimitedJSONResponse(
   } catch {
     throw new Error(`${label} is not valid UTF-8 JSON`);
   }
+}
+
+async function cancelResponseBody(response: Response): Promise<void> {
+  await response.body?.cancel().catch(() => undefined);
+}
+
+function logCacheError(message: string, error: unknown): void {
+  console.warn(JSON.stringify({
+    message,
+    error: error instanceof Error ? error.message : "Unknown error",
+  }));
 }
 
 function clientIdentifier(request: Request): string {

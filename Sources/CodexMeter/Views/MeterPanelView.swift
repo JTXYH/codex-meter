@@ -162,6 +162,18 @@ struct MeterPanelView: View {
             .background(Color.meterControl, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .help(L10n.text(.settings, language: settings.language))
 
+            if let message = store.refreshErrorMessage {
+                Label(
+                    L10n.text(.loadFailed, language: settings.language),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(.orange)
+                .lineLimit(1)
+                .help(message)
+                .accessibilityValue(message)
+            }
+
             Spacer()
 
             Button {

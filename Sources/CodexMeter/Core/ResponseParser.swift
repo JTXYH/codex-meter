@@ -19,18 +19,18 @@ enum CodexResponseParser {
         let wireBuckets: [(String, WireRateLimitBucket)]
         if let byID = rateLimitsResult.rateLimitsByLimitId, !byID.isEmpty {
             wireBuckets = byID.sorted { lhs, rhs in
-                if lhs.key == "codex" { return true }
+                if lhs.key == "codex" { return rhs.key != "codex" }
                 if rhs.key == "codex" { return false }
                 return lhs.key < rhs.key
             }
         } else if let fallback = rateLimitsResult.rateLimits {
-            wireBuckets = [(fallback.limitId, fallback)]
+            wireBuckets = [(fallback.limitId.nonEmpty ?? "codex", fallback)]
         } else {
             wireBuckets = []
         }
 
         let buckets = wireBuckets.map { fallbackID, bucket -> RateLimitBucket in
-            let bucketID = bucket.limitId.isEmpty ? fallbackID : bucket.limitId
+            let bucketID = bucket.limitId.nonEmpty ?? (fallbackID.isEmpty ? "codex" : fallbackID)
             let bucketName = bucket.limitName.nonEmpty ?? (bucketID == "codex" ? "Codex" : bucketID)
             var windows: [RateLimitWindow] = []
             if let primary = bucket.primary {
@@ -94,7 +94,7 @@ enum CodexResponseParser {
             kind: kind,
             usedPercent: wire.usedPercent,
             windowDurationMinutes: wire.windowDurationMins,
-            resetsAt: Date(timeIntervalSince1970: TimeInterval(wire.resetsAt))
+            resetsAt: wire.resetsAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }
         )
     }
 
@@ -144,7 +144,7 @@ private struct RateLimitsResult: Decodable {
 }
 
 private struct WireRateLimitBucket: Decodable {
-    let limitId: String
+    let limitId: String?
     let limitName: String?
     let primary: WireRateLimitWindow?
     let secondary: WireRateLimitWindow?
@@ -154,8 +154,8 @@ private struct WireRateLimitBucket: Decodable {
 
 private struct WireRateLimitWindow: Decodable {
     let usedPercent: Double
-    let windowDurationMins: Int
-    let resetsAt: Int64
+    let windowDurationMins: Int?
+    let resetsAt: Int64?
 }
 
 private struct WireCredits: Decodable {

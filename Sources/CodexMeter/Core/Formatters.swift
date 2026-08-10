@@ -77,7 +77,17 @@ enum MeterFormatters {
         for window: RateLimitWindow,
         language: AppLanguage = .simplifiedChinese
     ) -> String {
-        let minutes = window.windowDurationMinutes
+        guard let minutes = window.windowDurationMinutes, minutes > 0 else {
+            let name = window.bucketName.trimmingCharacters(in: .whitespacesAndNewlines)
+            return switch language {
+            case .simplifiedChinese: name.isEmpty ? "额度" : "\(name) 额度"
+            case .traditionalChinese: name.isEmpty ? "額度" : "\(name) 額度"
+            case .english: name.isEmpty ? "Quota" : "\(name) quota"
+            case .japanese: name.isEmpty ? "割り当て" : "\(name) の割り当て"
+            case .korean: name.isEmpty ? "할당량" : "\(name) 할당량"
+            case .spanish: name.isEmpty ? "Cuota" : "Cuota de \(name)"
+            }
+        }
         switch language {
         case .simplifiedChinese:
             if minutes == 10_080 { return "每周额度" }

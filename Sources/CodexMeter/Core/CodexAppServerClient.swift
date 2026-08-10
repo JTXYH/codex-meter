@@ -123,10 +123,6 @@ private struct AppServerRunner {
             if !data.isEmpty { collector.appendError(data) }
         }
 
-        process.terminationHandler = { _ in
-            collector.markConnectionClosed()
-        }
-
         do {
             try process.run()
         } catch {

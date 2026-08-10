@@ -43,17 +43,19 @@ struct HeroUsageCard: View {
                             color: window.remainingPercent <= 10 ? .orange : .meterAccent
                         )
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(
-                                MeterFormatters.resetCountdown(
-                                    to: window.resetsAt,
-                                    language: settings.language
+                        if let resetsAt = window.resetsAt {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(
+                                    MeterFormatters.resetCountdown(
+                                        to: resetsAt,
+                                        language: settings.language
+                                    )
                                 )
-                            )
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            Text(MeterFormatters.resetDate(window.resetsAt, language: settings.language))
-                                .font(.system(size: 9.5, design: .rounded))
-                                .foregroundStyle(Color.meterSecondary)
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                Text(MeterFormatters.resetDate(resetsAt, language: settings.language))
+                                    .font(.system(size: 9.5, design: .rounded))
+                                    .foregroundStyle(Color.meterSecondary)
+                            }
                         }
                     }
                 }

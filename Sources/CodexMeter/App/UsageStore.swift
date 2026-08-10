@@ -80,6 +80,11 @@ final class UsageStore: ObservableObject {
         guard let window = snapshot?.featuredWindow else { return "--" }
         return "\(Int(window.remainingPercent.rounded()))%"
     }
+
+    var refreshErrorMessage: String? {
+        guard snapshot != nil, case let .failed(message) = state else { return nil }
+        return message
+    }
 }
 
 enum AppActions {
