@@ -127,4 +127,4 @@ swift build -c release
 
 ## ライセンス
 
-Codex Meter は [Apache License 2.0](LICENSE) で提供されます。
+Codex Meter は [MIT License](LICENSE) で提供されます。

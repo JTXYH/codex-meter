@@ -127,4 +127,4 @@ swift build -c release
 
 ## 開源授權
 
-Codex Meter 使用 [Apache License 2.0](LICENSE) 授權。
+Codex Meter 使用 [MIT License](LICENSE) 授權。

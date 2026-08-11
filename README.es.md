@@ -127,4 +127,4 @@ No publiques tokens de acceso, `auth.json`, direcciones de correo completas ni r
 
 ## Licencia
 
-Codex Meter se distribuye bajo la [Apache License 2.0](LICENSE).
+Codex Meter se distribuye bajo la [Licencia MIT](LICENSE).

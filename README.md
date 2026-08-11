@@ -127,4 +127,4 @@ swift build -c release
 
 ## 开源协议
 
-项目使用 [Apache License 2.0](LICENSE) 开源。
+项目使用 [MIT License](LICENSE) 开源。

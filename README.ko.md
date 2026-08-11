@@ -127,4 +127,4 @@ swift build -c release
 
 ## 라이선스
 
-Codex Meter는 [Apache License 2.0](LICENSE)으로 배포됩니다.
+Codex Meter는 [MIT License](LICENSE)로 배포됩니다.

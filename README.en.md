@@ -127,4 +127,4 @@ Never paste access tokens, `auth.json`, full email addresses, or raw App Server 
 
 ## License
 
-Codex Meter is licensed under the [Apache License 2.0](LICENSE).
+Codex Meter is licensed under the [MIT License](LICENSE).

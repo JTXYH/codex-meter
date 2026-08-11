@@ -59,6 +59,10 @@ npx wrangler deploy
 
 The production Worker is deployed at `https://codex-meter-updates.tianxiang1314520.workers.dev`.
 
+## License
+
+This Worker is part of Codex Meter and is licensed under the [MIT License](../../LICENSE).
+
 ## FAQ
 
 ### Why isn't Claude Code supported?
