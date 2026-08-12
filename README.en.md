@@ -22,7 +22,7 @@ Codex Meter is a native macOS menu bar utility for checking the quota windows an
 - Updates today's local token count incrementally from Codex session logs every 5 seconds, with input, output, cached-input, and USD API-equivalent cost details
 - Supports manual refresh, preset intervals, and custom intervals from 1 to 1,440 minutes
 - Supports system, light, and dark appearances
-- Checks GitHub Releases through Cloudflare at launch and every 6 hours, then offers the new download
+- Checks for updates every 6 hours with Sparkle, then verifies, installs, and relaunches in-app without repeated manual downloads
 - Masks the account email until you explicitly reveal it
 - Keeps the last successful snapshot visible when a refresh fails
 
@@ -61,6 +61,8 @@ The current build is ad-hoc signed and is not Apple-notarized. If the first laun
 4. Authenticate when prompted, then click **Open**. The **Open Anyway** button is usually available for about one hour after you try to launch the app.
 
 See [Apple Support: Safely open apps on your Mac](https://support.apple.com/en-us/102445) for more information. If macOS explicitly says the app “will damage your computer” or reports malware, do not bypass the warning; delete the current file and download it again from the official Release.
+
+Starting with the first Sparkle-enabled release, update archives are signed with Ed25519 and installed in-app. Users on an older browser-download release must manually install that transition release once; later updates no longer trigger the same Gatekeeper prompt.
 
 ## Requirements
 
@@ -115,7 +117,7 @@ swift test
 swift build -c release
 ```
 
-The project uses Swift Package Manager and currently has no third-party package dependencies. Please make sure the tests and release build pass before submitting changes.
+The project uses Swift Package Manager and Sparkle 2 for in-app updates. Please make sure the tests and release build pass before submitting changes. See the [release guide](docs/releasing.md) for packaging and signing.
 
 ## Security
 

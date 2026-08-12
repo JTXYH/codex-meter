@@ -22,7 +22,7 @@ Codex Meter 是一款原生 macOS 選單列工具，用於快速查看 ChatGPT/C
 - 今日 Token 從本機 Codex 會話日誌增量統計，每 5 秒更新，並細分輸入、輸出、快取輸入與美元 API 等效費用
 - 支援手動更新、預設間隔與 1–1440 分鐘自訂間隔
 - 支援跟隨系統、淺色與深色外觀
-- 啟動時及每 6 小時透過 Cloudflare 檢查 GitHub Release，發現新版本後提示下載
+- 每 6 小時透過 Sparkle 檢查更新，並在 App 內驗證、安裝與重新啟動
 - 帳戶電子郵件預設隱碼，僅在主動點擊後顯示完整地址
 - 更新失敗時保留上次成功的資料
 
@@ -115,7 +115,7 @@ swift test
 swift build -c release
 ```
 
-專案使用 Swift Package Manager，目前沒有第三方套件依賴。提交變更前，請確認測試與 release 建置均已通過。
+專案使用 Swift Package Manager，並透過 Sparkle 2 提供 App 內更新。提交變更前，請確認測試與 release 建置均已通過。
 
 ## 安全
 

@@ -2,6 +2,8 @@
 import AppKit
 import SwiftUI
 
+private let debugPanelSnapshotSize = CGSize(width: 420, height: 950)
+
 struct DebugDemoUsageLoader: CodexUsageLoading {
     func fetchSnapshot() async throws -> CodexUsageSnapshot {
         let now = Date()
@@ -118,7 +120,10 @@ private struct DebugMeterPanelSnapshotView: View {
                     }
             }
         }
-        .frame(width: 420, height: 820)
+        .frame(
+            width: debugPanelSnapshotSize.width,
+            height: debugPanelSnapshotSize.height
+        )
         .foregroundStyle(Color.meterPrimary)
     }
 
@@ -263,7 +268,10 @@ struct DebugPreviewHost: View {
                 .environmentObject(settings)
                 .environment(\.colorScheme, colorScheme)
         )
-        renderer.proposedSize = ProposedViewSize(width: 420, height: 820)
+        renderer.proposedSize = ProposedViewSize(
+            width: debugPanelSnapshotSize.width,
+            height: debugPanelSnapshotSize.height
+        )
         renderer.scale = 2
 
         guard let image = renderer.nsImage,

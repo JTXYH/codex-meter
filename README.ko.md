@@ -22,7 +22,7 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 - 로컬 Codex 세션 로그에서 오늘의 Token을 5초마다 증분 업데이트하고 입력, 출력, 캐시 입력, 미화 API 환산 비용을 표시
 - 수동 새로고침, 기본 간격, 1~1,440분 사용자 지정 간격
 - 시스템, 라이트, 다크 모드
-- 실행 시와 이후 6시간마다 Cloudflare를 통해 GitHub Release를 확인하고 새 버전 다운로드 안내
+- Sparkle로 6시간마다 업데이트를 확인하고 앱 내에서 검증·설치·재시작
 - 계정 이메일을 기본으로 마스크 처리하고 명시적으로 누를 때만 표시
 - 새로고침이 실패해도 마지막 성공 데이터 유지
 
@@ -115,7 +115,7 @@ swift test
 swift build -c release
 ```
 
-프로젝트는 Swift Package Manager를 사용하며 현재 제3자 패키지 의존성이 없습니다. 변경 사항을 제출하기 전에 테스트와 release 빌드가 통과하는지 확인하세요.
+프로젝트는 Swift Package Manager와 Sparkle 2 기반 앱 내 업데이트를 사용합니다. 변경 사항을 제출하기 전에 테스트와 release 빌드가 통과하는지 확인하세요.
 
 ## 보안
 

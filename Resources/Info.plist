@@ -31,8 +31,20 @@
     <string>1.1.0</string>
     <key>CFBundleVersion</key>
     <string>4</string>
-    <key>CodexMeterUpdateFeedURL</key>
-    <string>https://codex-meter-updates.tianxiang1314520.workers.dev/v1/releases/latest</string>
+    <key>SUFeedURL</key>
+    <string>https://github.com/JTXYH/codex-meter/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>nmFbFQlI9SOamWstPNBBEXkDukP3wzOT3k4yAN3nFp8=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>21600</integer>
+    <key>SUAutomaticallyUpdate</key>
+    <false/>
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true/>
+    <key>SURequireSignedFeed</key>
+    <true/>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>

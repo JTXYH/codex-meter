@@ -22,7 +22,7 @@ Codex Meter es una utilidad nativa para la barra de menús de macOS que permite 
 - Actualiza el recuento local de hoy cada 5 segundos desde los registros de sesión de Codex y muestra entrada, salida, entrada en caché y coste equivalente de API en USD
 - Admite actualización manual, intervalos predefinidos y un intervalo personalizado de 1 a 1.440 minutos
 - Admite apariencia del sistema, clara y oscura
-- Comprueba GitHub Releases mediante Cloudflare al iniciar y cada 6 horas, y ofrece la nueva descarga
+- Comprueba actualizaciones cada 6 horas con Sparkle y las verifica, instala y reinicia dentro de la app
 - Oculta el correo de la cuenta hasta que se revela de forma explícita
 - Conserva la última instantánea correcta si falla una actualización
 
@@ -115,7 +115,7 @@ swift test
 swift build -c release
 ```
 
-El proyecto usa Swift Package Manager y actualmente no tiene dependencias de paquetes de terceros. Verifica que las pruebas y la compilación release terminen correctamente antes de enviar cambios.
+El proyecto usa Swift Package Manager y Sparkle 2 para las actualizaciones dentro de la app. Verifica que las pruebas y la compilación release terminen correctamente antes de enviar cambios.
 
 ## Seguridad
 

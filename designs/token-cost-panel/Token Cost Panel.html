@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="design_doc_mode" content="mockup">
+  <title>Codex Meter · Token 费用明细方案</title>
+  <!--
+    Assumptions
+    - Preserve Codex Meter's existing light theme, spacing, rounded cards, and blue-violet palette.
+    - Add one compact detail surface inside Token activity instead of creating another top-level card.
+    - Cost remains clearly labeled as an API-equivalent estimate.
+
+    Design reasoning
+    - Input, output, and equivalent cost are the primary scan path.
+    - Cache hit rate explains why raw token count and cost do not move together.
+    - Model weighting stays secondary to avoid turning a menu-bar utility into a finance dashboard.
+  -->
+  <style>
+    :root {
+      color-scheme: light;
+      --accent: #5763f5;
+      --accent-soft: #9f95ff;
+      --cyan: #4394fa;
+      --panel-top: #fbfbf8;
+      --panel: #f6f6f2;
+      --card: #ffffff;
+      --primary: rgba(0, 0, 0, 0.88);
+      --secondary: rgba(0, 0, 0, 0.53);
+      --tertiary: rgba(0, 0, 0, 0.34);
+      --border: rgba(0, 0, 0, 0.075);
+      --track: rgba(0, 0, 0, 0.07);
+      --control: rgba(0, 0, 0, 0.045);
+      --shadow: rgba(15, 20, 55, 0.055);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 32px;
+      display: grid;
+      place-items: start center;
+      background: #e9eaee;
+      color: var(--primary);
+      font-family: -apple-system, "SF Pro Text", "PingFang SC", "Noto Sans SC", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font: inherit; }
+
+    .app-shell {
+      width: 420px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.11);
+      border-radius: 22px;
+      background: linear-gradient(150deg, var(--panel-top) 0%, var(--panel) 57%, #f9f8f5 100%);
+      box-shadow: 0 24px 64px rgba(23, 29, 70, 0.14), 0 2px 7px rgba(0, 0, 0, 0.06);
+    }
+
+    .app-header {
+      height: 74px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: rgba(255, 255, 255, 0.64);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .app-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      box-shadow: 0 3px 12px rgba(67, 77, 173, 0.14);
+    }
+
+    .identity { min-width: 0; }
+
+    .identity-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .identity h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.15;
+      letter-spacing: -0.35px;
+      font-weight: 650;
+    }
+
+    .plan-pill {
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(87, 99, 245, 0.1);
+      color: var(--accent);
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: 0.4px;
+    }
+
+    .email {
+      margin-top: 4px;
+      color: var(--secondary);
+      font-size: 10.5px;
+      letter-spacing: 0.1px;
+    }
+
+    .refresh-button {
+      width: 32px;
+      height: 32px;
+      margin-left: auto;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: var(--control);
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 17px;
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .refresh-button:hover { background: rgba(87, 99, 245, 0.09); transform: rotate(20deg); }
+
+    .content {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--card);
+      box-shadow: 0 3px 12px var(--shadow);
+    }
+
+    .quota-card {
+      display: grid;
+      grid-template-columns: 118px 1fr;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .quota-ring {
+      width: 118px;
+      height: 118px;
+      padding: 13px;
+      border-radius: 50%;
+      background: conic-gradient(from -90deg, var(--accent) 0deg, var(--accent-soft) 138deg, var(--cyan) 227deg, #ededed 227deg 360deg);
+      box-shadow: 0 5px 14px rgba(87, 99, 245, 0.1);
+    }
+
+    .quota-ring-inner {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-content: center;
+      text-align: center;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .quota-ring strong {
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .quota-ring span { margin-top: 5px; color: var(--secondary); font-size: 10px; }
+
+    .quota-copy { display: grid; gap: 10px; }
+    .eyebrow { color: var(--secondary); font-size: 10px; font-weight: 600; }
+    .quota-title { margin: 1px 0 0; font-size: 17px; font-weight: 650; }
+    .quota-value { display: flex; align-items: baseline; gap: 10px; }
+    .quota-value span { color: var(--secondary); font-size: 10px; }
+    .quota-value strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+    .reset-copy { display: grid; gap: 2px; font-size: 11px; font-weight: 600; }
+    .reset-copy small { color: var(--secondary); font-size: 9.5px; font-weight: 400; }
+
+    .progress-track {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--track);
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(67, 148, 250, 0.75), var(--cyan));
+    }
+
+    .progress-fill.accent { background: linear-gradient(90deg, #7e86ff, var(--accent)); }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .section-icon {
+      width: 20px;
+      color: var(--accent);
+      font-size: 17px;
+      line-height: 1;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: -0.15px;
+    }
+
+    .section-title .trailing {
+      margin-left: auto;
+      color: var(--secondary);
+      font-size: 11px;
+    }
+
+    .activity-card { display: grid; gap: 14px; }
+
+    .metric-row { display: grid; gap: 7px; }
+    .metric-line { display: grid; grid-template-columns: 72px auto 1fr auto; align-items: baseline; gap: 0; }
+    .metric-label { color: var(--secondary); font-size: 11px; }
+    .metric-value { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .metric-percent { color: var(--secondary); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+    .detail-panel {
+      padding: 12px 0 0;
+      display: grid;
+      gap: 12px;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .detail-heading { display: flex; align-items: center; gap: 8px; }
+    .detail-heading strong { font-size: 11.5px; font-weight: 650; }
+    .estimate-pill {
+      margin-left: auto;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      color: var(--accent);
+      background: transparent;
+      font-size: 8.5px;
+      font-weight: 650;
+    }
+
+    .token-breakdown {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.12fr;
+      align-items: stretch;
+    }
+
+    .breakdown-item {
+      min-width: 0;
+      padding: 1px 10px;
+      display: grid;
+      gap: 4px;
+      border-right: 1px solid var(--border);
+    }
+
+    .breakdown-item:first-child { padding-left: 0; }
+    .breakdown-item:last-child { padding-right: 0; border-right: 0; }
+
+    .breakdown-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--primary);
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .direction {
+      width: 15px;
+      height: 15px;
+      display: grid;
+      place-items: center;
+      border-radius: 5px;
+      background: rgba(67, 148, 250, 0.1);
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 750;
+    }
+
+    .direction.output { background: rgba(87, 99, 245, 0.1); color: var(--accent); }
+    .direction.cost { background: rgba(87, 99, 245, 0.1); color: var(--accent); }
+
+    .breakdown-value {
+      white-space: nowrap;
+      font-size: 15px;
+      line-height: 1.1;
+      font-weight: 680;
+      letter-spacing: -0.25px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cost-value { color: var(--primary); }
+
+    .cache-insight {
+      min-height: 0;
+      padding: 9px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      background: transparent;
+      color: var(--primary);
+      font-size: 9px;
+    }
+
+    .cache-dot {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(87, 99, 245, 0.08);
+    }
+
+    .cache-insight strong { color: var(--primary); font-weight: 650; }
+    .heatmap-card { display: grid; gap: 13px; }
+
+    .heatmap-hint {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--secondary);
+      font-size: 9.5px;
+    }
+
+    .heatmap-body { display: grid; grid-template-columns: 15px 1fr; gap: 8px; align-items: start; }
+    .weekdays { display: grid; grid-template-rows: repeat(7, 13px); gap: 4px; color: var(--secondary); font-size: 8.5px; }
+    .weekdays span { height: 13px; display: grid; place-items: center; }
+    .heatmap-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 13px); grid-auto-columns: 13px; gap: 4px; justify-content: end; }
+    .heat-cell { width: 13px; height: 13px; border: 0.5px solid var(--border); border-radius: 3px; background: var(--track); }
+    .heat-cell[data-level="1"] { background: rgba(87, 99, 245, 0.18); }
+    .heat-cell[data-level="2"] { background: rgba(87, 99, 245, 0.38); }
+    .heat-cell[data-level="3"] { background: rgba(87, 99, 245, 0.68); }
+    .heat-cell[data-level="4"] { background: rgba(87, 99, 245, 0.96); box-shadow: 0 0 0 2px rgba(87, 99, 245, 0.08); }
+    .heat-cell.today { border-color: rgba(87, 99, 245, 0.6); }
+
+    .heatmap-footer { display: flex; align-items: center; color: var(--secondary); font-size: 8.5px; }
+    .heatmap-footer strong { font-size: 10.5px; color: var(--secondary); }
+    .legend { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2.5px; }
+
+    .summary-card { display: grid; gap: 13px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .summary-item { min-height: 54px; padding: 10px; display: grid; align-content: center; gap: 5px; border-radius: 14px; background: var(--control); }
+    .summary-item span { color: var(--secondary); font-size: 8px; }
+    .summary-item strong { font-size: 11px; font-weight: 650; }
+
+    .app-footer {
+      height: 56px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    .footer-control {
+      width: 38px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 10px;
+      background: var(--control);
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 17px;
+    }
+
+    .footer-control:last-child { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <main class="app-shell" data-screen-label="Codex Meter · Token 费用明细方案">
+    <header class="app-header">
+      <img class="app-icon" src="CodexIcon.png" alt="Codex Meter">
+      <div class="identity">
+        <div class="identity-top">
+          <h1>Codex Meter</h1>
+          <span class="plan-pill">PLUS</span>
+        </div>
+        <div class="email">de••••@example.com&nbsp; ◉</div>
+      </div>
+      <button class="refresh-button" type="button" aria-label="刷新">↻</button>
+    </header>
+
+    <section class="content">
+      <article class="card quota-card">
+        <div class="quota-ring">
+          <div class="quota-ring-inner">
+            <strong>63%</strong>
+            <span>剩余额度</span>
+          </div>
+        </div>
+        <div class="quota-copy">
+          <div>
+            <div class="eyebrow">当前周期</div>
+            <div class="quota-title">每周额度</div>
+          </div>
+          <div class="quota-value"><span>剩余额度</span><strong>63%</strong></div>
+          <div class="progress-track"><div class="progress-fill accent" style="width: 63%;"></div></div>
+          <div class="reset-copy">4 天 2 小时后重置<small>8 月 16 日 01:49</small></div>
+        </div>
+      </article>
+
+      <article class="card activity-card">
+        <div class="section-title">
+          <span class="section-icon">∿</span>
+          <h2>Token 活跃度</h2>
+          <span class="trailing">峰值基准</span>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric-line">
+            <span class="metric-label">今日</span>
+            <strong class="metric-value">3.3百万</strong>
+            <span></span>
+            <span class="metric-percent">79%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width: 79%;"></div></div>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric-line">
+            <span class="metric-label">近 7 天</span>
+            <strong class="metric-value">7.1百万</strong>
+            <span></span>
+            <span class="metric-percent">24%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width: 24%;"></div></div>
+        </div>
+
+        <section class="detail-panel" aria-label="今日 Token 明细">
+          <div class="detail-heading">
+            <strong>今日明细</strong>
+            <span class="estimate-pill">按会话模型加权</span>
+          </div>
+
+          <div class="token-breakdown">
+            <div class="breakdown-item">
+              <div class="breakdown-label"><span class="direction">↓</span>输入</div>
+              <div class="breakdown-value">3.1百万</div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-label"><span class="direction output">↑</span>输出</div>
+              <div class="breakdown-value">18.4万</div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-label"><span class="direction cost">$</span>API 等效费用</div>
+              <div class="breakdown-value cost-value">$2.47</div>
+            </div>
+          </div>
+
+          <div class="cache-insight">
+            <span class="cache-dot"></span>
+            <span>缓存输入 <strong>2.6百万</strong> · 命中 <strong>84%</strong></span>
+          </div>
+        </section>
+      </article>
+
+      <article class="card heatmap-card">
+        <div class="section-title">
+          <span class="section-icon">▦</span>
+          <h2>近 90 天用量</h2>
+          <span class="trailing">连续使用 18 天</span>
+        </div>
+        <div class="heatmap-hint"><span>⌖</span><span>鼠标移到方格上查看当天用量</span></div>
+        <div class="heatmap-body">
+          <div class="weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+          <div class="heatmap-grid" id="heatmap" aria-label="近 90 天 Token 热力图"></div>
+        </div>
+        <div class="heatmap-footer">
+          <strong>合计 1.7 亿 Token</strong>
+          <div class="legend">
+            <span>少</span>
+            <span class="legend-swatch heat-cell" data-level="1"></span>
+            <span class="legend-swatch heat-cell" data-level="2"></span>
+            <span class="legend-swatch heat-cell" data-level="3"></span>
+            <span class="legend-swatch heat-cell" data-level="4"></span>
+            <span>多</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card summary-card">
+        <div class="section-title">
+          <span class="section-icon">▥</span>
+          <h2>使用概览</h2>
+          <span class="trailing">更新于 22:49</span>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-item"><span>累计 Token</span><strong>1.3 亿</strong></div>
+          <div class="summary-item"><span>最长连续</span><strong>31 天</strong></div>
+          <div class="summary-item"><span>最长任务</span><strong>2 小时 10 分</strong></div>
+        </div>
+      </article>
+    </section>
+
+    <footer class="app-footer">
+      <button class="footer-control" type="button" aria-label="设置">⚙</button>
+      <button class="footer-control" type="button" aria-label="退出">⏻</button>
+    </footer>
+  </main>
+
+  <script>
+    const levels = [
+      0,2,3,4,3,4,3, 4,4,3,2,4,3,4, 2,4,4,3,4,4,3, 4,3,0,4,4,3,4,
+      4,4,4,3,4,4,2, 3,4,4,0,3,4,4, 4,3,4,3,4,4,4, 0,4,3,4,4,4,3,
+      4,4,4,3,0,4,4, 3,4,4,4,4,3,4, 4,3,4,4,4,4,0, 3,4,4,2,4,4,3,
+      0,4,3,4,4,3,4, 4,4,4,4,3,4,4
+    ];
+    const heatmap = document.getElementById("heatmap");
+    levels.slice(0, 91).forEach((level, index) => {
+      const cell = document.createElement("span");
+      cell.className = "heat-cell" + (index === 90 ? " today" : "");
+      cell.dataset.level = index === 90 ? "4" : String(level);
+      cell.title = index === 90 ? "今日 · 3.3百万 Token" : "Token 活跃度";
+      heatmap.appendChild(cell);
+    });
+  </script>
+</body>
+</html>
