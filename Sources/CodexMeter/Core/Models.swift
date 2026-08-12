@@ -108,6 +108,27 @@ struct CodexUsageSnapshot: Equatable, Sendable {
                 return overflow ? .max : sum
             }
     }
+
+    func replacingTokenUsage(
+        on date: Date,
+        with tokens: Int64,
+        calendar: Calendar = .current
+    ) -> CodexUsageSnapshot {
+        let replacementDate = calendar.startOfDay(for: date)
+        var updatedUsage = dailyUsage.filter {
+            !calendar.isDate($0.date, inSameDayAs: replacementDate)
+        }
+        updatedUsage.append(DailyTokenUsage(date: replacementDate, tokens: max(tokens, 0)))
+        updatedUsage.sort { $0.date < $1.date }
+
+        return CodexUsageSnapshot(
+            fetchedAt: fetchedAt,
+            account: account,
+            rateLimitBuckets: rateLimitBuckets,
+            usageSummary: usageSummary,
+            dailyUsage: updatedUsage
+        )
+    }
 }
 
 struct HeatmapDay: Identifiable, Equatable {

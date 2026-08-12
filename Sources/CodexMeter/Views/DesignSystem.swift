@@ -196,7 +196,7 @@ struct SectionTitle: View {
                 .foregroundStyle(Color.meterAccent)
                 .frame(width: 20)
             Text(title)
-                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
             Spacer()
             if let trailing {
                 Text(trailing)

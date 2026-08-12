@@ -141,6 +141,29 @@ struct CodexResponseParserTests {
     }
 
     @Test
+    func replacesDelayedTodayUsageWithLocalTokens() {
+        let today = DateOnlyParser.date(from: "2026-08-11")!
+        let yesterday = DateOnlyParser.date(from: "2026-08-10")!
+        let snapshot = CodexUsageSnapshot(
+            fetchedAt: today,
+            account: nil,
+            rateLimitBuckets: [],
+            usageSummary: nil,
+            dailyUsage: [
+                DailyTokenUsage(date: yesterday, tokens: 50),
+                DailyTokenUsage(date: today, tokens: 10),
+                DailyTokenUsage(date: today, tokens: 15),
+            ]
+        )
+
+        let updated = snapshot.replacingTokenUsage(on: today, with: 120)
+
+        #expect(updated.dailyUsage.count == 2)
+        #expect(updated.tokens(on: today) == 120)
+        #expect(updated.tokensInLastDays(2, endingAt: today) == 170)
+    }
+
+    @Test
     func formatsQuotaDurations() {
         let weekly = RateLimitWindow(
             id: "weekly",
@@ -173,5 +196,7 @@ struct CodexResponseParserTests {
             MeterFormatters.tokens(1_253_637_101, language: .english)
                 == "1.3B"
         )
+        #expect(MeterFormatters.usd(2.47) == "$2.47")
+        #expect(MeterFormatters.usd(0.0042) == "$0.0042")
     }
 }

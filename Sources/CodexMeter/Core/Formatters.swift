@@ -73,6 +73,19 @@ enum MeterFormatters {
         ) + suffix
     }
 
+    static func usd(_ value: Double) -> String {
+        let safeValue = value.isFinite ? max(value, 0) : 0
+        let fractionDigits = safeValue > 0 && safeValue < 0.01 ? 4 : 2
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.minimumFractionDigits = fractionDigits
+        formatter.maximumFractionDigits = fractionDigits
+        let number = formatter.string(from: NSNumber(value: safeValue)) ?? "0.00"
+        return "$\(number)"
+    }
+
     static func quotaTitle(
         for window: RateLimitWindow,
         language: AppLanguage = .simplifiedChinese

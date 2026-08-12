@@ -65,6 +65,20 @@ struct DebugDemoUsageLoader: CodexUsageLoading {
     }
 }
 
+struct DebugDemoLocalTokenUsageLoader: LocalTokenUsageLoading {
+    func todayUsage(at now: Date) async -> LocalTokenUsage {
+        LocalTokenUsage(
+            totalTokens: 3_280_000,
+            inputTokens: 3_096_000,
+            cachedInputTokens: 2_600_000,
+            cacheWriteInputTokens: 0,
+            outputTokens: 184_000,
+            reasoningOutputTokens: 96_000,
+            apiEquivalentCostUSD: 8.25
+        )
+    }
+}
+
 private struct DebugMeterPanelSnapshotView: View {
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings

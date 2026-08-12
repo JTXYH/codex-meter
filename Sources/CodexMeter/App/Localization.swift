@@ -41,6 +41,13 @@ enum L10n {
         case tokenActivity
         case peakBaseline
         case today
+        case todayDetails
+        case statisticsCurrent
+        case activityOverview
+        case inputTokens
+        case outputTokens
+        case apiEquivalentCost
+        case cachedInput
         case yesterday
         case lastSevenDays
         case lastNinetyDays
@@ -134,6 +141,32 @@ enum L10n {
         case .japanese: "合計 \(value) Token"
         case .korean: "합계 \(value) Token"
         case .spanish: "Total: \(value) tokens"
+        }
+    }
+
+    static func cachedInputSummary(
+        _ value: String,
+        hitPercent: Int,
+        language: AppLanguage
+    ) -> String {
+        switch language {
+        case .simplifiedChinese: "缓存输入 \(value) · 命中 \(hitPercent)%"
+        case .traditionalChinese: "快取輸入 \(value) · 命中 \(hitPercent)%"
+        case .english: "Cached input \(value) · \(hitPercent)% hit"
+        case .japanese: "キャッシュ入力 \(value) · ヒット率 \(hitPercent)%"
+        case .korean: "캐시 입력 \(value) · 적중률 \(hitPercent)%"
+        case .spanish: "Entrada en caché \(value) · \(hitPercent)% de aciertos"
+        }
+    }
+
+    static func hitRate(_ percent: Int, language: AppLanguage) -> String {
+        switch language {
+        case .simplifiedChinese: "命中率 \(percent)%"
+        case .traditionalChinese: "命中率 \(percent)%"
+        case .english: "\(percent)% hit rate"
+        case .japanese: "ヒット率 \(percent)%"
+        case .korean: "적중률 \(percent)%"
+        case .spanish: "\(percent)% de aciertos"
         }
     }
 
@@ -310,6 +343,13 @@ enum L10n {
         case .tokenActivity: "Token 活跃度"
         case .peakBaseline: "峰值基准"
         case .today: "今日"
+        case .todayDetails: "今日明细"
+        case .statisticsCurrent: "统计截至当前时刻"
+        case .activityOverview: "活跃度概览"
+        case .inputTokens: "输入"
+        case .outputTokens: "输出"
+        case .apiEquivalentCost: "API 等效费用"
+        case .cachedInput: "缓存输入"
         case .yesterday: "昨日"
         case .lastSevenDays: "近 7 天"
         case .lastNinetyDays: "近 90 天用量"
@@ -367,6 +407,13 @@ enum L10n {
         case .tokenActivity: "Token 活躍度"
         case .peakBaseline: "峰值基準"
         case .today: "今日"
+        case .todayDetails: "今日明細"
+        case .statisticsCurrent: "統計截至目前時刻"
+        case .activityOverview: "活躍度概覽"
+        case .inputTokens: "輸入"
+        case .outputTokens: "輸出"
+        case .apiEquivalentCost: "API 等效費用"
+        case .cachedInput: "快取輸入"
         case .yesterday: "昨日"
         case .lastSevenDays: "近 7 天"
         case .lastNinetyDays: "近 90 天用量"
@@ -424,6 +471,13 @@ enum L10n {
         case .tokenActivity: "Token activity"
         case .peakBaseline: "Peak baseline"
         case .today: "Today"
+        case .todayDetails: "Today details"
+        case .statisticsCurrent: "Stats through now"
+        case .activityOverview: "Activity overview"
+        case .inputTokens: "Input"
+        case .outputTokens: "Output"
+        case .apiEquivalentCost: "API-equivalent cost"
+        case .cachedInput: "Cached input"
         case .yesterday: "Yesterday"
         case .lastSevenDays: "Last 7 days"
         case .lastNinetyDays: "Last 90 days"
@@ -481,6 +535,13 @@ enum L10n {
         case .tokenActivity: "Token アクティビティ"
         case .peakBaseline: "ピーク基準"
         case .today: "今日"
+        case .todayDetails: "今日の内訳"
+        case .statisticsCurrent: "現在時点まで"
+        case .activityOverview: "アクティビティ概要"
+        case .inputTokens: "入力"
+        case .outputTokens: "出力"
+        case .apiEquivalentCost: "API 換算料金"
+        case .cachedInput: "キャッシュ入力"
         case .yesterday: "昨日"
         case .lastSevenDays: "過去 7 日間"
         case .lastNinetyDays: "過去 90 日間"
@@ -538,6 +599,13 @@ enum L10n {
         case .tokenActivity: "Token 활동"
         case .peakBaseline: "최고치 기준"
         case .today: "오늘"
+        case .todayDetails: "오늘 상세"
+        case .statisticsCurrent: "현재 시각 기준"
+        case .activityOverview: "활동 개요"
+        case .inputTokens: "입력"
+        case .outputTokens: "출력"
+        case .apiEquivalentCost: "API 환산 비용"
+        case .cachedInput: "캐시 입력"
         case .yesterday: "어제"
         case .lastSevenDays: "최근 7일"
         case .lastNinetyDays: "최근 90일"
@@ -595,6 +663,13 @@ enum L10n {
         case .tokenActivity: "Actividad de tokens"
         case .peakBaseline: "Referencia máxima"
         case .today: "Hoy"
+        case .todayDetails: "Detalle de hoy"
+        case .statisticsCurrent: "Datos hasta ahora"
+        case .activityOverview: "Resumen de actividad"
+        case .inputTokens: "Entrada"
+        case .outputTokens: "Salida"
+        case .apiEquivalentCost: "Coste API equivalente"
+        case .cachedInput: "Entrada en caché"
         case .yesterday: "Ayer"
         case .lastSevenDays: "Últimos 7 días"
         case .lastNinetyDays: "Últimos 90 días"

@@ -19,7 +19,7 @@ Codex Meter 是一款原生 macOS 菜单栏工具，用来快速查看 ChatGPT/C
 - 菜单栏常驻显示 Codex 每周剩余额度
 - 展示所有额度窗口、剩余百分比和重置倒计时
 - 展示今日、近 7 天、累计 token 用量和近 90 天活跃热力图
-- 今日数据缺失时自动回退到昨日
+- 今日 Token 从本机 Codex 会话日志增量统计，每 5 秒刷新，并细分输入、输出、缓存输入和美元 API 等效费用
 - 支持手动刷新、预设刷新间隔和 1–1440 分钟自定义间隔
 - 支持跟随系统、浅色和深色外观
 - 启动时和每 6 小时通过 Cloudflare 检查 GitHub Release，发现新版本后提示下载
@@ -39,9 +39,9 @@ Codex Meter 默认使用简体中文，目前支持：
 
 ## 下载
 
-[⬇️ 下载 Codex Meter v1.0.1（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
+[⬇️ 下载 Codex Meter v1.1.0（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
 
-该版本同时支持 Apple Silicon 和 Intel Mac。下载 ZIP 后解压，将 `CodexMeter.app` 拖入“应用程序”目录即可。[查看 v1.0.1 发布说明](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1)。
+该版本同时支持 Apple Silicon 和 Intel Mac。下载 ZIP 后解压，将 `CodexMeter.app` 拖入“应用程序”目录即可。[查看 v1.1.0 发布说明](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0)。
 
 ### 首次打开时被 macOS 拦截
 
@@ -103,6 +103,8 @@ swift run CodexMeter
 - 账户摘要来自 `account/read`。
 - 额度窗口来自 `account/rateLimits/read`；百分比表示当前窗口的已使用比例。
 - Token 活跃度和热力图来自 `account/usage/read`，不等同于额度上限。
+- 今日 Token 统计只读取本机 Codex 会话日志中的 token 计数事件，不保存或展示会话内容。
+- API 等效费用按 [OpenAI 公开的 GPT-5.6 标准 API 费率](https://openai.com/api/pricing/) 估算，会区分普通输入、缓存读取、缓存写入、输出和长上下文；无法识别的 Codex 内部路由按 GPT-5.6 Sol 费率回退。这只是 API 等效估算，不代表 ChatGPT 订阅的实际扣费。
 - 应用不访问 `auth.json`，不保存访问令牌，不记录完整服务端响应，也不上传额外数据。
 - API Key 或 Amazon Bedrock 登录方式可能不返回 ChatGPT 额度或活跃统计；如需这些数据，请使用 ChatGPT 登录态。
 

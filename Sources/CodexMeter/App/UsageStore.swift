@@ -15,22 +15,31 @@ final class UsageStore: ObservableObject {
     @Published private(set) var snapshot: CodexUsageSnapshot?
     @Published private(set) var state: State = .idle
     @Published private(set) var isRefreshing = false
+    @Published private(set) var localTodayUsage = LocalTokenUsage.zero
 
     private let loader: CodexUsageLoading
+    private let localUsageLoader: LocalTokenUsageLoading
     private let settings: AppSettings
     private var refreshLoop: Task<Void, Never>?
+    private var localUsageRefreshLoop: Task<Void, Never>?
 
     init(
         loader: CodexUsageLoading = CodexAppServerClient(),
+        localUsageLoader: LocalTokenUsageLoading = LocalTokenUsageScanner(),
         settings: AppSettings? = nil
     ) {
         self.loader = loader
+        self.localUsageLoader = localUsageLoader
         self.settings = settings ?? .shared
     }
 
     func startIfNeeded() {
-        guard refreshLoop == nil else { return }
-        refreshLoop = automaticRefreshTask(refreshImmediately: snapshot == nil)
+        if refreshLoop == nil {
+            refreshLoop = automaticRefreshTask(refreshImmediately: snapshot == nil)
+        }
+        if localUsageRefreshLoop == nil {
+            localUsageRefreshLoop = localUsageTask()
+        }
     }
 
     func rescheduleAutomaticRefresh() {
@@ -58,11 +67,34 @@ final class UsageStore: ObservableObject {
         }
     }
 
+    private func localUsageTask() -> Task<Void, Never> {
+        Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refreshLocalUsage()
+                do {
+                    try await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
+    func refreshLocalUsage(at now: Date = Date()) async {
+        localTodayUsage = await localUsageLoader.todayUsage(at: now)
+    }
+
+    var localTodayTokens: Int64 {
+        localTodayUsage.totalTokens
+    }
+
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
         if snapshot == nil { state = .loading }
         defer { isRefreshing = false }
+
+        await refreshLocalUsage()
 
         do {
             snapshot = try await loader.fetchSnapshot()

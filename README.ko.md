@@ -19,7 +19,7 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 - 메뉴 막에 Codex 주간 남은 할당량을 항상 표시
 - 모든 할당량 창, 남은 비율, 재설정 카운트다운 표시
 - 오늘, 최근 7일, 누적 token 활동과 90일 히트맵
-- 오늘 데이터가 없으면 어제 데이터로 자동 대체
+- 로컬 Codex 세션 로그에서 오늘의 Token을 5초마다 증분 업데이트하고 입력, 출력, 캐시 입력, 미화 API 환산 비용을 표시
 - 수동 새로고침, 기본 간격, 1~1,440분 사용자 지정 간격
 - 시스템, 라이트, 다크 모드
 - 실행 시와 이후 6시간마다 Cloudflare를 통해 GitHub Release를 확인하고 새 버전 다운로드 안내
@@ -39,9 +39,9 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 
 ## 다운로드
 
-[⬇️ Codex Meter v1.0.1 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
+[⬇️ Codex Meter v1.1.0 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
 
-Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.0.1 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1).
+Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.1.0 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0).
 
 ### 첫 실행 시 macOS가 앱을 차단하는 경우
 
@@ -103,6 +103,8 @@ swift run CodexMeter
 - 계정 요약은 `account/read`에서 가져옵니다.
 - 할당량 창은 `account/rateLimits/read`에서 가져오며 비율은 각 창의 사용된 부분을 나타냅니다.
 - Token 활동과 히트맵은 `account/usage/read`에서 가져오며 할당량 상한과는 다른 활동 통계입니다.
+- 오늘 Token 통계는 로컬 Codex 세션 로그의 token 카운트 이벤트만 읽으며 대화 내용은 저장하거나 표시하지 않습니다.
+- API 환산 비용은 [OpenAI가 공개한 GPT-5.6 표준 API 요금](https://openai.com/api/pricing/)을 기준으로 일반 입력, 캐시 읽기, 캐시 쓰기, 출력, 긴 컨텍스트 요금을 반영해 추정합니다. 식별할 수 없는 Codex 내부 라우트는 GPT-5.6 Sol 요금을 사용합니다. 이 금액은 API 환산 추정치이며 ChatGPT 구독의 실제 청구액이 아닙니다.
 - 앱은 `auth.json`에 접근하지 않고, 액세스 토큰을 저장하지 않으며, 전체 서버 응답을 기록하거나 추가 데이터를 업로드하지 않습니다.
 - API Key 또는 Amazon Bedrock 로그인은 ChatGPT 할당량이나 활동 데이터를 반환하지 않을 수 있습니다. 이 지표가 필요하면 ChatGPT 로그인을 사용하세요.
 

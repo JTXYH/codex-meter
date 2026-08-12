@@ -18,8 +18,8 @@ Codex Meter es una utilidad nativa para la barra de menús de macOS que permite 
 
 - Muestra la cuota semanal restante de Codex en la barra de menús
 - Presenta todas las ventanas de cuota, porcentajes restantes y cuentas atrás de restablecimiento
-- Resume la actividad de tokens de hoy, los últimos 7 días, el total histórico y un mapa de calor de 90 días
-- Usa los datos de ayer cuando todavía no hay actividad de hoy
+- Resume la actividad de hoy, los últimos 7 días, el total histórico y un mapa de calor de 90 días
+- Actualiza el recuento local de hoy cada 5 segundos desde los registros de sesión de Codex y muestra entrada, salida, entrada en caché y coste equivalente de API en USD
 - Admite actualización manual, intervalos predefinidos y un intervalo personalizado de 1 a 1.440 minutos
 - Admite apariencia del sistema, clara y oscura
 - Comprueba GitHub Releases mediante Cloudflare al iniciar y cada 6 horas, y ofrece la nueva descarga
@@ -39,9 +39,9 @@ El idioma predeterminado es chino simplificado. La aplicación admite actualment
 
 ## Descarga
 
-[⬇️ Descargar Codex Meter v1.0.1 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
+[⬇️ Descargar Codex Meter v1.1.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
 
-Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.0.1](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1).
+Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.1.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0).
 
 ### Si macOS bloquea la aplicación al abrirla por primera vez
 
@@ -103,6 +103,8 @@ swift run CodexMeter
 - El resumen de la cuenta procede de `account/read`.
 - Las ventanas de cuota proceden de `account/rateLimits/read`; el porcentaje representa la parte utilizada de cada ventana.
 - La actividad de tokens y el mapa de calor proceden de `account/usage/read`; son estadísticas de actividad, no límites de cuota.
+- El recuento de tokens de hoy solo lee eventos de los registros locales de sesión de Codex; no guarda ni muestra el contenido de las conversaciones.
+- El coste equivalente de API se estima con las [tarifas estándar públicas de la API GPT-5.6 de OpenAI](https://openai.com/api/pricing/) y tiene en cuenta la entrada normal, las lecturas y escrituras de caché, la salida y el contexto largo. Las rutas internas de Codex no reconocidas usan como alternativa la tarifa de GPT-5.6 Sol. Es una estimación equivalente de API, no un cargo real de la suscripción de ChatGPT.
 - La aplicación no accede a `auth.json`, no guarda tokens de acceso, no registra respuestas completas del servidor y no sube datos adicionales.
 - Los inicios de sesión mediante API Key o Amazon Bedrock pueden no devolver cuotas o actividad de ChatGPT. Usa un inicio de sesión de ChatGPT para ver estas métricas.
 

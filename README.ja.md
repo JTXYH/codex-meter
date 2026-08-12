@@ -19,7 +19,7 @@ Codex Meter は、ChatGPT/Codex アカウントの割り当てウィンドウと
 - メニューバーに Codex の週間残量を常時表示
 - すべての割り当てウィンドウ、残りの割合、リセットまでの時間を表示
 - 今日、過去 7 日間、累計の token アクティビティと90日間ヒートマップ
-- 今日のデータがない場合は昨日に自動切り替え
+- 今日の Token をローカル Codex セッションログから5秒ごとに差分更新し、入力、出力、キャッシュ入力、米ドルの API 換算料金を表示
 - 手動更新、プリセット、1〜1,440分のカスタム更新間隔
 - システム、ライト、ダークの外観
 - 起動時と 6 時間ごとに Cloudflare 経由で GitHub Release を確認し、新版のダウンロードを案内
@@ -39,9 +39,9 @@ Codex Meter は、ChatGPT/Codex アカウントの割り当てウィンドウと
 
 ## ダウンロード
 
-[⬇️ Codex Meter v1.0.1 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
+[⬇️ Codex Meter v1.1.0 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
 
-Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.0.1 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1)。
+Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.1.0 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0)。
 
 ### 初回起動時に macOS にブロックされる場合
 
@@ -103,6 +103,8 @@ swift run CodexMeter
 - アカウント概要は `account/read` から取得します。
 - 割り当てウィンドウは `account/rateLimits/read` から取得し、パーセントは各ウィンドウの使用済み割合です。
 - Token アクティビティとヒートマップは `account/usage/read` から取得します。これらは割り当て上限とは異なります。
+- 今日の Token 統計はローカル Codex セッションログの token カウントイベントのみを読み取り、会話内容は保存または表示しません。
+- API 換算料金は [OpenAI が公開する GPT-5.6 の標準 API 料金](https://openai.com/api/pricing/) を使い、通常入力、キャッシュ読み取り、キャッシュ書き込み、出力、長文コンテキストを考慮して推定します。識別できない Codex 内部ルートは GPT-5.6 Sol 料金を使います。これは API 換算の推定値であり、ChatGPT サブスクリプションの実際の請求額ではありません。
 - `auth.json` へのアクセス、アクセストークンの保存、サーバー応答全体の記録、追加データの送信は行いません。
 - API Key または Amazon Bedrock ログインでは ChatGPT の割り当てやアクティビティが返らない場合があります。これらの指標には ChatGPT ログインを使用してください。
 

@@ -19,7 +19,7 @@ Codex Meter is a native macOS menu bar utility for checking the quota windows an
 - Shows the remaining weekly Codex quota directly in the menu bar
 - Displays all quota windows, remaining percentages, and reset countdowns
 - Tracks today, the last 7 days, lifetime token activity, and a 90-day heatmap
-- Falls back to yesterday when today's activity is unavailable
+- Updates today's local token count incrementally from Codex session logs every 5 seconds, with input, output, cached-input, and USD API-equivalent cost details
 - Supports manual refresh, preset intervals, and custom intervals from 1 to 1,440 minutes
 - Supports system, light, and dark appearances
 - Checks GitHub Releases through Cloudflare at launch and every 6 hours, then offers the new download
@@ -39,9 +39,9 @@ Simplified Chinese is the default. The app currently supports:
 
 ## Download
 
-[⬇️ Download Codex Meter v1.0.1 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.0.1/CodexMeter-1.0.1-macOS.zip)
+[⬇️ Download Codex Meter v1.1.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
 
-This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.0.1 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.0.1).
+This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.1.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0).
 
 ### If macOS blocks the app on first launch
 
@@ -103,6 +103,8 @@ swift run CodexMeter
 - Account metadata comes from `account/read`.
 - Quota windows come from `account/rateLimits/read`; percentages represent the used portion of each window.
 - Token activity and the heatmap come from `account/usage/read`; they are activity statistics, not quota limits.
+- Today's token count reads only token-count events from local Codex session logs; it neither stores nor displays conversation content.
+- API-equivalent cost uses [OpenAI's published standard GPT-5.6 API rates](https://openai.com/api/pricing/) and accounts for regular input, cache reads, cache writes, output, and long-context pricing. Unrecognized Codex internal routes fall back to GPT-5.6 Sol pricing. This is an API-equivalent estimate, not an actual ChatGPT subscription charge.
 - The app does not access `auth.json`, store access tokens, log full server responses, or upload additional data.
 - API key or Amazon Bedrock sign-ins may not return ChatGPT quota or activity data. Use a ChatGPT sign-in for these metrics.
 

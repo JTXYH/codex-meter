@@ -14,7 +14,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 #if DEBUG
         let store = ProcessInfo.processInfo.environment["CODEX_METER_DEMO"] == "1"
-            ? UsageStore(loader: DebugDemoUsageLoader(), settings: AppSettings.shared)
+            ? UsageStore(
+                loader: DebugDemoUsageLoader(),
+                localUsageLoader: DebugDemoLocalTokenUsageLoader(),
+                settings: AppSettings.shared
+            )
             : UsageStore.shared
         let rootView = DebugPreviewHost(
             store: store,
