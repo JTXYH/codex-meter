@@ -99,7 +99,6 @@ struct TokenActivityCard: View {
             endingAt: today,
             calendar: calendar
         )
-        let peak = max(snapshot.usageSummary?.peakDailyTokens ?? 0, 1)
 
         PanelCard {
             VStack(alignment: .leading, spacing: 13) {
@@ -120,30 +119,16 @@ struct TokenActivityCard: View {
                         title: L10n.text(.activityOverview, language: settings.language)
                     )
                     Spacer()
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(Color.meterAccent)
-                            .frame(width: 6, height: 6)
-                            .padding(4)
-                            .background(Color.meterAccent.opacity(0.10), in: Circle())
-                        Text(L10n.text(.peakBaseline, language: settings.language))
-                            .font(.system(size: 9.5, weight: .medium, design: .rounded))
-                            .foregroundStyle(Color.meterSecondary)
-                    }
                 }
 
                 HStack(spacing: 9) {
                     ActivityOverviewTile(
                         label: L10n.text(.yesterday, language: settings.language),
-                        value: MeterFormatters.tokens(yesterday, language: settings.language),
-                        progress: Double(yesterday) / Double(peak),
-                        isHighlighted: true
+                        value: MeterFormatters.tokens(yesterday, language: settings.language)
                     )
                     ActivityOverviewTile(
                         label: L10n.text(.lastSevenDays, language: settings.language),
-                        value: MeterFormatters.tokens(week, language: settings.language),
-                        progress: Double(week) / (Double(peak) * 7),
-                        isHighlighted: false
+                        value: MeterFormatters.tokens(week, language: settings.language)
                     )
                 }
             }
@@ -181,8 +166,7 @@ private struct TodayTokenDetails: View {
                     value: MeterFormatters.tokens(
                         usage.inputTokens,
                         language: settings.language
-                    ),
-                    isHighlighted: true
+                    )
                 )
 
                 TodayTokenDetailMetric(
@@ -191,15 +175,13 @@ private struct TodayTokenDetails: View {
                     value: MeterFormatters.tokens(
                         usage.outputTokens,
                         language: settings.language
-                    ),
-                    isHighlighted: false
+                    )
                 )
 
                 TodayTokenDetailMetric(
                     icon: "dollarsign",
                     label: L10n.text(.apiEquivalentCost, language: settings.language),
-                    value: MeterFormatters.usd(usage.apiEquivalentCostUSD),
-                    isHighlighted: false
+                    value: MeterFormatters.usd(usage.apiEquivalentCostUSD)
                 )
             }
 
@@ -228,10 +210,14 @@ private struct TodayTokenDetails: View {
             }
             .padding(.horizontal, 10)
             .frame(height: 31)
-            .background(Color.meterCard, in: RoundedRectangle(
-                cornerRadius: 10,
-                style: .continuous
-            ))
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.meterCard)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.meterAccent.opacity(0.18), lineWidth: 1)
+                    }
+            )
         }
     }
 }
@@ -240,7 +226,6 @@ private struct TodayTokenDetailMetric: View {
     let icon: String
     let label: String
     let value: String
-    let isHighlighted: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -273,12 +258,7 @@ private struct TodayTokenDetailMetric: View {
                 .fill(Color.meterCard)
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(
-                            isHighlighted
-                                ? Color.meterAccent.opacity(0.20)
-                                : Color.meterBorder,
-                            lineWidth: 1
-                        )
+                        .stroke(Color.meterAccent.opacity(0.18), lineWidth: 1)
                 }
         )
     }
@@ -287,41 +267,19 @@ private struct TodayTokenDetailMetric: View {
 private struct ActivityOverviewTile: View {
     let label: String
     let value: String
-    let progress: Double
-    let isHighlighted: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center) {
-                Text(label)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.meterSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.70)
-                Spacer()
-                Text("\(Int((min(max(progress, 0), 1) * 100).rounded()))%")
-                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isHighlighted ? Color.meterAccent : Color.meterSecondary)
-                    .monospacedDigit()
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(
-                        (isHighlighted ? Color.meterAccent.opacity(0.075) : Color.meterCard),
-                        in: Capsule()
-                    )
-                    .overlay {
-                        if !isHighlighted {
-                            Capsule().stroke(Color.meterBorder, lineWidth: 1)
-                        }
-                    }
-            }
+            Text(label)
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.meterSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.70)
 
             Text(value)
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
-
-            MeterProgressBar(progress: progress, color: .meterCyan, height: 5)
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,12 +288,7 @@ private struct ActivityOverviewTile: View {
                 .fill(Color.meterCard)
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(
-                            isHighlighted
-                                ? Color.meterAccent.opacity(0.17)
-                                : Color.meterBorder,
-                            lineWidth: 1
-                        )
+                        .stroke(Color.meterAccent.opacity(0.18), lineWidth: 1)
                 }
         )
     }
@@ -530,6 +483,13 @@ private struct SummaryMetric: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(Color.meterCard, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(Color.meterCard)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .stroke(Color.meterAccent.opacity(0.18), lineWidth: 1)
+                }
+        )
     }
 }
