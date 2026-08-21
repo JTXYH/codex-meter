@@ -4,12 +4,16 @@ struct SettingsPanelView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var updateController: UpdateController
-    @State private var selectedSection: SettingsSection = .general
+    @State private var selectedSection: SettingsSection
+
+    init(showBackgroundsInitially: Bool = false) {
+        _selectedSection = State(initialValue: showBackgroundsInitially ? .backgrounds : .general)
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-                .frame(width: 172)
+                .frame(width: 180)
 
             Divider()
                 .overlay(Color.meterBorder)
@@ -17,7 +21,7 @@ struct SettingsPanelView: View {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(width: 720, height: 460)
+        .frame(width: 760, height: 552)
         .foregroundStyle(Color.meterPrimary)
         .background(Color.meterPanel)
         .onChange(of: settings.automaticRefreshInterval) { _, _ in
@@ -107,6 +111,8 @@ struct SettingsPanelView: View {
             switch selectedSection {
             case .general:
                 generalSettings
+            case .backgrounds:
+                QuotaBackgroundSettingsView()
             case .refresh:
                 refreshSettings
             case .updates:
@@ -255,13 +261,20 @@ struct SettingsPanelView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.meterAccent)
-                .disabled(updateController.state == .checking)
+                .disabled(
+                    updateController.state == .checking
+                        || !updateController.isUpdateCheckingEnabled
+                )
             }
         }
     }
 
     private var updateStatusText: String {
-        switch updateController.state {
+        guard updateController.isUpdateCheckingEnabled else {
+            return L10n.updateText(.debugBuildUpdateHint, language: settings.language)
+        }
+
+        return switch updateController.state {
         case .idle:
             L10n.updateText(.automaticUpdateHint, language: settings.language)
         case .checking:
@@ -278,6 +291,7 @@ struct SettingsPanelView: View {
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
     case general
+    case backgrounds
     case refresh
     case updates
 
@@ -286,6 +300,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: "switch.2"
+        case .backgrounds: "photo"
         case .refresh: "arrow.clockwise"
         case .updates: "arrow.down.circle"
         }
@@ -294,6 +309,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     func title(language: AppLanguage) -> String {
         switch self {
         case .general: L10n.text(.general, language: language)
+        case .backgrounds: QuotaBackgroundL10n.text(.backgrounds, language: language)
         case .refresh: L10n.text(.refresh, language: language)
         case .updates: L10n.updateText(.updates, language: language)
         }
@@ -302,6 +318,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     func hint(language: AppLanguage) -> String {
         switch self {
         case .general: L10n.text(.generalHint, language: language)
+        case .backgrounds: QuotaBackgroundL10n.text(.backgroundsHint, language: language)
         case .refresh: L10n.text(.refreshHint, language: language)
         case .updates: L10n.updateText(.updatesHint, language: language)
         }

@@ -152,11 +152,15 @@ struct CodexIconView: View {
 }
 
 struct MenuBarCodexIconView: View {
+    var size: CGFloat = 18
+
     var body: some View {
         Image(nsImage: CodexIconResource.menuBarTemplateImage)
+            .resizable()
             .renderingMode(.template)
+            .scaledToFit()
             .foregroundStyle(.primary)
-            .frame(width: 18, height: 18)
+            .frame(width: size, height: size)
             .fixedSize()
             .accessibilityLabel("Codex Meter")
     }

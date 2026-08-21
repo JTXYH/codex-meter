@@ -22,6 +22,7 @@ Codex Meter is a native macOS menu bar utility for checking the quota windows an
 - Updates today's local token count incrementally from Codex session logs every 5 seconds, with input, output, cached-input, and USD API-equivalent cost details
 - Supports manual refresh, preset intervals, and custom intervals from 1 to 1,440 minutes
 - Supports system, light, and dark appearances
+- Creates multiple custom quota-background sets, with separately cropped card art and panel icons for plenty, attention, and low-quota states that switch automatically
 - Checks for updates every 6 hours with Sparkle, then verifies, installs, and relaunches in-app without repeated manual downloads
 - Masks the account email until you explicitly reveal it
 - Keeps the last successful snapshot visible when a refresh fails
@@ -39,9 +40,9 @@ Simplified Chinese is the default. The app currently supports:
 
 ## Download
 
-[⬇️ Download Codex Meter v1.1.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
+[⬇️ Download Codex Meter v1.2.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
 
-This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.1.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0).
+This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.2.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0).
 
 ### If macOS blocks the app on first launch
 
@@ -97,7 +98,7 @@ swift run CodexMeter
 3. Click the menu bar item to view quota windows, token activity, the heatmap, and the usage overview.
 4. Use the refresh button in the top-right corner to update data immediately.
 5. Click the masked email to reveal it temporarily. Closing the panel masks it again.
-6. Open Settings with the gear button to change appearance, language, and automatic refresh interval.
+6. Open Settings with the gear button to change appearance, language, quota backgrounds, and the automatic refresh interval.
 7. Quit the app with the power button in the bottom-right corner.
 
 ## Data and privacy

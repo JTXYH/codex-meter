@@ -22,6 +22,7 @@ Codex Meter は、ChatGPT/Codex アカウントの割り当てウィンドウと
 - 今日の Token をローカル Codex セッションログから5秒ごとに差分更新し、入力、出力、キャッシュ入力、米ドルの API 換算料金を表示
 - 手動更新、プリセット、1〜1,440分のカスタム更新間隔
 - システム、ライト、ダークの外観
+- 複数のカスタム割り当て背景セットを作成し、残量の「十分・注意・わずか」ごとにカード画像とパネルアイコンを切り抜いて自動切り替え
 - Sparkle で 6 時間ごとに更新を確認し、App 内で検証、インストール、再起動
 - アカウントのメールアドレスを初期状態でマスク表示
 - 更新失敗時に前回の成功データを保持
@@ -39,9 +40,9 @@ Codex Meter は、ChatGPT/Codex アカウントの割り当てウィンドウと
 
 ## ダウンロード
 
-[⬇️ Codex Meter v1.1.0 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
+[⬇️ Codex Meter v1.2.0 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
 
-Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.1.0 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0)。
+Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.2.0 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0)。
 
 ### 初回起動時に macOS にブロックされる場合
 
@@ -95,7 +96,7 @@ swift run CodexMeter
 3. メニューバー項目をクリックし、割り当て、token アクティビティ、ヒートマップ、使用概要を確認します。
 4. 右上の更新ボタンですぐにデータを更新できます。
 5. マスクされたメールアドレスをクリックすると一時的に全体を表示します。パネルを閉じると再度マスクされます。
-6. 左下の歯車から設定を開き、外観、言語、自動更新間隔を変更できます。
+6. 左下の歯車から設定を開き、外観、言語、割り当て背景、自動更新間隔を変更できます。
 7. 右下の電源ボタンで終了します。
 
 ## データとプライバシー

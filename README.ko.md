@@ -22,6 +22,7 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 - 로컬 Codex 세션 로그에서 오늘의 Token을 5초마다 증분 업데이트하고 입력, 출력, 캐시 입력, 미화 API 환산 비용을 표시
 - 수동 새로고침, 기본 간격, 1~1,440분 사용자 지정 간격
 - 시스템, 라이트, 다크 모드
+- 여러 사용자 지정 할당량 배경 세트를 만들고 여유·주의·부족 상태별 카드 이미지와 패널 아이콘을 잘라 남은 할당량에 따라 자동 전환
 - Sparkle로 6시간마다 업데이트를 확인하고 앱 내에서 검증·설치·재시작
 - 계정 이메일을 기본으로 마스크 처리하고 명시적으로 누를 때만 표시
 - 새로고침이 실패해도 마지막 성공 데이터 유지
@@ -39,9 +40,9 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 
 ## 다운로드
 
-[⬇️ Codex Meter v1.1.0 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
+[⬇️ Codex Meter v1.2.0 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
 
-Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.1.0 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0).
+Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.2.0 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0).
 
 ### 첫 실행 시 macOS가 앱을 차단하는 경우
 
@@ -95,7 +96,7 @@ swift run CodexMeter
 3. 메뉴 막 항목을 클릭해 할당량, token 활동, 히트맵, 사용량 개요를 확인합니다.
 4. 오른쪽 위 새로고침 버튼으로 데이터를 즉시 업데이트합니다.
 5. 마스크된 이메일을 클릭하면 전체 주소가 잠시 표시됩니다. 패널을 닫으면 다시 마스크 처리됩니다.
-6. 왼쪽 아래 톱니바퀴 버튼에서 모드, 언어, 자동 새로고침 간격을 변경합니다.
+6. 왼쪽 아래 톱니바퀴 버튼에서 모드, 언어, 할당량 배경, 자동 새로고침 간격을 변경합니다.
 7. 오른쪽 아래 전원 버튼으로 앱을 종료합니다.
 
 ## 데이터와 개인정보

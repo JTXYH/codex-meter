@@ -26,9 +26,10 @@ final class SettingsWindowController {
             .environmentObject(AppSettings.shared)
             .environmentObject(UsageStore.shared)
             .environmentObject(UpdateController.shared)
+            .environmentObject(QuotaBackgroundStore.shared)
 
         let settingsWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 460),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 552),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -38,6 +39,7 @@ final class SettingsWindowController {
         settingsWindow.isReleasedWhenClosed = false
         settingsWindow.collectionBehavior = [.moveToActiveSpace]
         settingsWindow.setFrameAutosaveName("CodexMeter.SettingsWindow")
+        settingsWindow.setContentSize(NSSize(width: 760, height: 552))
         settingsWindow.center()
         window = settingsWindow
         return settingsWindow

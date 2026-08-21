@@ -90,6 +90,11 @@ protocol LaunchAtLoginManaging {
 
 struct SystemLaunchAtLoginManager: LaunchAtLoginManaging {
     func setEnabled(_ isEnabled: Bool) throws {
+#if DEBUG
+        // Debug executables are launched from changing SwiftPM build paths. Registering
+        // each path makes macOS keep a separate Login Item for every debug run.
+        return
+#else
         let service = SMAppService.mainApp
 
         if isEnabled {
@@ -99,6 +104,7 @@ struct SystemLaunchAtLoginManager: LaunchAtLoginManaging {
             guard service.status == .enabled || service.status == .requiresApproval else { return }
             try service.unregister()
         }
+#endif
     }
 }
 

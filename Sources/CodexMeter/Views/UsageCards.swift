@@ -1,15 +1,23 @@
+import AppKit
 import SwiftUI
 
 struct HeroUsageCard: View {
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var quotaBackgrounds: QuotaBackgroundStore
 
     let snapshot: CodexUsageSnapshot
 
     private var window: RateLimitWindow? { snapshot.featuredWindow }
 
     var body: some View {
-        PanelCard {
-            if let window {
+        if let window,
+           let backgroundImage = quotaBackgrounds.selectedImage(
+               for: window.remainingPercent
+           ) {
+            BackgroundQuotaUsageCard(window: window, backgroundImage: backgroundImage)
+        } else {
+            PanelCard {
+                if let window {
                 HStack(spacing: 18) {
                     ProgressRing(
                         remainingPercent: window.remainingPercent,
@@ -59,22 +67,156 @@ struct HeroUsageCard: View {
                         }
                     }
                 }
-            } else {
-                HStack(spacing: 12) {
-                    Image(systemName: "gauge.with.dots.needle.0percent")
-                        .font(.system(size: 28))
-                        .foregroundStyle(Color.meterSecondary)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(L10n.text(.noQuotaWindow, language: settings.language))
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        Text(L10n.text(.noQuotaExplanation, language: settings.language))
-                            .font(.system(size: 10.5, design: .rounded))
+                } else {
+                    HStack(spacing: 12) {
+                        Image(systemName: "gauge.with.dots.needle.0percent")
+                            .font(.system(size: 28))
                             .foregroundStyle(Color.meterSecondary)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(L10n.text(.noQuotaWindow, language: settings.language))
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            Text(L10n.text(.noQuotaExplanation, language: settings.language))
+                                .font(.system(size: 10.5, design: .rounded))
+                                .foregroundStyle(Color.meterSecondary)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+}
+
+struct BackgroundQuotaUsageCard: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    let window: RateLimitWindow
+    let backgroundImage: NSImage
+
+    private let designSize = CGSize(width: 392.5, height: 157)
+
+    static func previewWindow(
+        remainingPercent: Double = 99,
+        now: Date = Date()
+    ) -> RateLimitWindow {
+        let clampedRemainingPercent = min(max(remainingPercent, 0), 100)
+        return RateLimitWindow(
+            id: "preview",
+            bucketID: "preview",
+            bucketName: "Codex",
+            kind: .secondary,
+            usedPercent: 100 - clampedRemainingPercent,
+            windowDurationMinutes: 10_080,
+            resetsAt: Calendar.current.date(
+                byAdding: .hour,
+                value: 73,
+                to: now
+            )
+        )
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let scale = min(
+                geometry.size.width / designSize.width,
+                geometry.size.height / designSize.height
+            )
+
+            cardCanvas
+                .frame(width: designSize.width, height: designSize.height)
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(
+                    width: geometry.size.width,
+                    height: geometry.size.height,
+                    alignment: .topLeading
+                )
+        }
+        .aspectRatio(
+            QuotaBackgroundImageProcessor.cardAspectRatio,
+            contentMode: .fit
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            L10n.remaining(
+                Int(window.remainingPercent.rounded()),
+                language: settings.language
+            )
+        )
+    }
+
+    private var cardCanvas: some View {
+        ZStack(alignment: .leading) {
+            Image(nsImage: backgroundImage)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            LinearGradient(
+                stops: [
+                    .init(color: Color.meterCard, location: 0),
+                    .init(color: Color.meterCard.opacity(0.97), location: 0.25),
+                    .init(color: Color.meterCard.opacity(0.70), location: 0.48),
+                    .init(color: Color.meterCard.opacity(0.10), location: 0.72),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(L10n.text(.currentPeriod, language: settings.language))
+                    .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.meterSecondary)
+
+                Text(MeterFormatters.quotaTitle(for: window, language: settings.language))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .padding(.top, 2)
+
+                Text("\(Int(window.remainingPercent.rounded()))%")
+                    .font(.system(size: 43, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.meterAccent)
+                    .monospacedDigit()
+                    .padding(.top, 1)
+
+                Text(L10n.text(.remainingQuota, language: settings.language))
+                    .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.meterSecondary)
+
+                MeterProgressBar(
+                    progress: window.remainingPercent / 100,
+                    color: window.remainingPercent <= 10 ? .orange : .meterAccent,
+                    height: 6
+                )
+                .frame(width: 145)
+                .padding(.top, 7)
+
+                if let resetsAt = window.resetsAt {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(MeterFormatters.resetCountdown(
+                            to: resetsAt,
+                            language: settings.language
+                        ))
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        Text(MeterFormatters.resetDate(
+                            resetsAt,
+                            language: settings.language
+                        ))
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.meterSecondary)
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .padding(.horizontal, 17)
+            .padding(.vertical, 14)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.meterBorder, lineWidth: 1)
+        }
+        .shadow(color: Color.meterShadow, radius: 12, y: 3)
     }
 }
 

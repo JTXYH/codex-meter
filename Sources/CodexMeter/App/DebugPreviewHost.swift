@@ -190,6 +190,7 @@ struct DebugPreviewHost: View {
             .onAppear {
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 guard shouldExportSnapshots else { return }
+                Task { await store.refresh() }
                 exportMenuBarIconPreview()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     exportStandaloneSettingsSnapshots()
@@ -252,6 +253,19 @@ struct DebugPreviewHost: View {
             language: .japanese,
             filename: "/tmp/CodexMeter-settings-ja-dark.png"
         )
+        exportSettingsSnapshot(
+            appearance: .light,
+            language: .simplifiedChinese,
+            filename: "/tmp/CodexMeter-settings-backgrounds-empty-zh-Hans-light.png",
+            showBackgroundsInitially: true
+        )
+        exportSettingsSnapshot(
+            appearance: .light,
+            language: .simplifiedChinese,
+            filename: "/tmp/CodexMeter-settings-backgrounds-filled-zh-Hans-light.png",
+            showBackgroundsInitially: true,
+            includeBackgroundImages: true
+        )
     }
 
     private func exportPanelSnapshot(
@@ -262,10 +276,12 @@ struct DebugPreviewHost: View {
         settings.appearance = appearance
         settings.language = language
         let colorScheme: ColorScheme = appearance == .dark ? .dark : .light
+        let previewBackgrounds = makeDebugBackgroundStore(includeImages: true)
         let renderer = ImageRenderer(
             content: DebugMeterPanelSnapshotView()
                 .environmentObject(store)
                 .environmentObject(settings)
+                .environmentObject(previewBackgrounds)
                 .environment(\.colorScheme, colorScheme)
         )
         renderer.proposedSize = ProposedViewSize(
@@ -286,20 +302,27 @@ struct DebugPreviewHost: View {
     private func exportSettingsSnapshot(
         appearance: AppAppearance,
         language: AppLanguage,
-        filename: String
+        filename: String,
+        showBackgroundsInitially: Bool = false,
+        includeBackgroundImages: Bool = false
     ) {
         settings.appearance = appearance
         settings.language = language
         let colorScheme: ColorScheme = appearance == .dark ? .dark : .light
+        let previewBackgrounds = makeDebugBackgroundStore(
+            includeProfile: showBackgroundsInitially,
+            includeImages: includeBackgroundImages
+        )
         let renderer = ImageRenderer(
-            content: SettingsPanelView()
+            content: SettingsPanelView(showBackgroundsInitially: showBackgroundsInitially)
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(UpdateController.shared)
+                .environmentObject(previewBackgrounds)
                 .environment(\.colorScheme, colorScheme)
-                .frame(width: 720, height: 460, alignment: .top)
+                .frame(width: 760, height: 516, alignment: .top)
         )
-        renderer.proposedSize = ProposedViewSize(width: 720, height: 460)
+        renderer.proposedSize = ProposedViewSize(width: 760, height: 516)
         renderer.scale = 2
 
         guard let image = renderer.nsImage,
@@ -309,6 +332,52 @@ struct DebugPreviewHost: View {
         else { return }
 
         try? png.write(to: URL(fileURLWithPath: filename), options: .atomic)
+    }
+
+    private func makeDebugBackgroundStore(
+        includeProfile: Bool = true,
+        includeImages: Bool
+    ) -> QuotaBackgroundStore {
+        let identifier = "CodexMeter.DebugBackgrounds.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: identifier) ?? .standard
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(identifier, isDirectory: true)
+        let backgrounds = QuotaBackgroundStore(
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        guard includeProfile else { return backgrounds }
+
+        let profileID = backgrounds.addProfile(named: "演示背景")
+        guard includeImages else { return backgrounds }
+
+        let image = makeDebugBackgroundImage()
+        for slot in QuotaBackgroundSlot.allCases {
+            try? backgrounds.saveImage(
+                original: image,
+                cropped: image,
+                for: slot,
+                profileID: profileID
+            )
+        }
+        return backgrounds
+    }
+
+    private func makeDebugBackgroundImage() -> NSImage {
+        let size = QuotaBackgroundImageProcessor.outputSize
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSGradient(colors: [
+            NSColor.systemPink.withAlphaComponent(0.72),
+            NSColor.systemPurple.withAlphaComponent(0.88),
+            NSColor.systemBlue.withAlphaComponent(0.82),
+        ])?.draw(in: CGRect(origin: .zero, size: size), angle: 0)
+        NSColor.white.withAlphaComponent(0.28).setFill()
+        NSBezierPath(ovalIn: CGRect(x: 850, y: -130, width: 680, height: 680)).fill()
+        NSColor.white.withAlphaComponent(0.46).setFill()
+        NSBezierPath(ovalIn: CGRect(x: 1_070, y: 100, width: 300, height: 300)).fill()
+        image.unlockFocus()
+        return image
     }
 
     private func exportMenuBarIconPreview() {

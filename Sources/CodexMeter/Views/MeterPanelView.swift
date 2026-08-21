@@ -4,6 +4,7 @@ import SwiftUI
 struct MeterPanelView: View {
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var quotaBackgrounds: QuotaBackgroundStore
     @State private var isEmailRevealed = false
 
     var body: some View {
@@ -69,7 +70,7 @@ struct MeterPanelView: View {
 
     private var panelHeader: some View {
         HStack(spacing: 11) {
-            CodexIconView(size: 36)
+            panelIcon
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 7) {
@@ -106,6 +107,23 @@ struct MeterPanelView: View {
                 .background(Color.meterControl, in: Circle())
                 .help(L10n.text(.refreshQuota, language: settings.language))
             }
+        }
+    }
+
+    @ViewBuilder
+    private var panelIcon: some View {
+        if let remainingPercent = store.snapshot?.featuredWindow?.remainingPercent,
+           let image = quotaBackgrounds.selectedPanelIcon(for: remainingPercent) {
+            Image(nsImage: image)
+                .resizable()
+                .renderingMode(.original)
+                .interpolation(.high)
+                .scaledToFill()
+                .frame(width: 36, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .accessibilityLabel("Codex")
+        } else {
+            CodexIconView(size: 36)
         }
     }
 

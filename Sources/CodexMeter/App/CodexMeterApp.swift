@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store: store,
             settings: AppSettings.shared
         )
+        .environmentObject(QuotaBackgroundStore.shared)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 700),
             styleMask: [.titled, .closable, .miniaturizable],
@@ -46,12 +47,14 @@ struct CodexMeterApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = UsageStore.shared
     @StateObject private var settings = AppSettings.shared
+    @StateObject private var quotaBackgrounds = QuotaBackgroundStore.shared
 
     var body: some Scene {
         MenuBarExtra {
             MeterPanelView()
                 .environmentObject(store)
                 .environmentObject(settings)
+                .environmentObject(quotaBackgrounds)
         } label: {
             MenuBarLabelView()
                 .environmentObject(store)

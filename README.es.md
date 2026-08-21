@@ -22,6 +22,7 @@ Codex Meter es una utilidad nativa para la barra de menús de macOS que permite 
 - Actualiza el recuento local de hoy cada 5 segundos desde los registros de sesión de Codex y muestra entrada, salida, entrada en caché y coste equivalente de API en USD
 - Admite actualización manual, intervalos predefinidos y un intervalo personalizado de 1 a 1.440 minutos
 - Admite apariencia del sistema, clara y oscura
+- Permite crear varios conjuntos de fondos de cuota, recortar imágenes de tarjeta e iconos del panel para los estados suficiente, atención y bajo, y cambiarlos automáticamente según la cuota restante
 - Comprueba actualizaciones cada 6 horas con Sparkle y las verifica, instala y reinicia dentro de la app
 - Oculta el correo de la cuenta hasta que se revela de forma explícita
 - Conserva la última instantánea correcta si falla una actualización
@@ -39,9 +40,9 @@ El idioma predeterminado es chino simplificado. La aplicación admite actualment
 
 ## Descarga
 
-[⬇️ Descargar Codex Meter v1.1.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.1.0/CodexMeter-1.1.0-macOS.zip)
+[⬇️ Descargar Codex Meter v1.2.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
 
-Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.1.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.1.0).
+Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.2.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0).
 
 ### Si macOS bloquea la aplicación al abrirla por primera vez
 
@@ -95,7 +96,7 @@ swift run CodexMeter
 3. Haz clic en el elemento de la barra para consultar cuotas, actividad de tokens, mapa de calor y resumen de uso.
 4. Usa el botón de actualización de la esquina superior derecha para volver a leer los datos inmediatamente.
 5. Haz clic en el correo oculto para mostrarlo temporalmente. Al cerrar el panel vuelve a ocultarse.
-6. Abre Ajustes con el engranaje para cambiar la apariencia, el idioma y el intervalo de actualización automática.
+6. Abre Ajustes con el engranaje para cambiar la apariencia, el idioma, los fondos de cuota y el intervalo de actualización automática.
 7. Cierra la aplicación con el botón de encendido de la esquina inferior derecha.
 
 ## Datos y privacidad

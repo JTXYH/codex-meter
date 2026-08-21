@@ -17,6 +17,14 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     let currentVersion: String
 
+    var isUpdateCheckingEnabled: Bool {
+#if DEBUG
+        false
+#else
+        true
+#endif
+    }
+
     private var hasStarted = false
     private lazy var updaterController = SPUStandardUpdaterController(
         startingUpdater: false,
@@ -32,16 +40,24 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     }
 
     func startIfNeeded() {
+#if DEBUG
+        return
+#else
         guard !hasStarted else { return }
         hasStarted = true
         updaterController.startUpdater()
+#endif
     }
 
     func checkManually() {
+#if DEBUG
+        return
+#else
         startIfNeeded()
         state = .checking
         NSApplication.shared.activate(ignoringOtherApps: true)
         updaterController.checkForUpdates(nil)
+#endif
     }
 
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
