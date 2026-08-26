@@ -16,8 +16,8 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 
 ## 주요 기능
 
-- 메뉴 막에 Codex 주간 남은 할당량을 항상 표시
-- 모든 할당량 창, 남은 비율, 재설정 카운트다운 표시
+- 메뉴 막에 Codex 5시간 남은 할당량을 우선 표시하고, API가 주간 할당량만 반환하면 자동으로 주간 값으로 전환
+- API가 반환한 창에 맞춰 할당량 카드를 자동 조정하고, 5시간 할당량은 재설정까지의 시간과 시각을, 주간 할당량은 남은 비율과 재설정 날짜를 한 줄로 표시
 - 오늘, 최근 7일, 누적 token 활동과 90일 히트맵
 - 로컬 Codex 세션 로그에서 오늘의 Token을 5초마다 증분 업데이트하고 입력, 출력, 캐시 입력, 미화 API 환산 비용을 표시
 - 수동 새로고침, 기본 간격, 1~1,440분 사용자 지정 간격
@@ -40,9 +40,9 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 
 ## 다운로드
 
-[⬇️ Codex Meter v1.2.0 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
+[⬇️ Codex Meter v1.3.0 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.3.0/CodexMeter-1.3.0-macOS.zip)
 
-Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.2.0 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0).
+Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.3.0 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.3.0).
 
 ### 첫 실행 시 macOS가 앱을 차단하는 경우
 
@@ -92,7 +92,7 @@ swift run CodexMeter
 ## 사용 가이드
 
 1. Codex CLI를 시작하고 ChatGPT 계정으로 로그인되어 있는지 확인합니다.
-2. Codex Meter를 실행하면 메뉴 막에 아이콘과 주간 남은 할당량이 표시됩니다.
+2. Codex Meter를 실행하면 메뉴 막에 아이콘과 5시간 남은 할당량이 표시되며, 주간 할당량만 있으면 자동으로 주간 값으로 전환됩니다.
 3. 메뉴 막 항목을 클릭해 할당량, token 활동, 히트맵, 사용량 개요를 확인합니다.
 4. 오른쪽 위 새로고침 버튼으로 데이터를 즉시 업데이트합니다.
 5. 마스크된 이메일을 클릭하면 전체 주소가 잠시 표시됩니다. 패널을 닫으면 다시 마스크 처리됩니다.

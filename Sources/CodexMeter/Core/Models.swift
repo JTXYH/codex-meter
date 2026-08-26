@@ -76,6 +76,13 @@ struct CodexUsageSnapshot: Equatable, Sendable {
             ?? allLimitWindows.first
     }
 
+    var fiveHourWindow: RateLimitWindow? {
+        let preferredBucket = rateLimitBuckets.first(where: { $0.id == "codex" })
+            ?? rateLimitBuckets.first
+        return preferredBucket?.windows.first(where: { $0.windowDurationMinutes == 300 })
+            ?? allLimitWindows.first(where: { $0.windowDurationMinutes == 300 })
+    }
+
     var weeklyWindow: RateLimitWindow? {
         let preferredBucket = rateLimitBuckets.first(where: { $0.id == "codex" })
             ?? rateLimitBuckets.first
@@ -85,6 +92,18 @@ struct CodexUsageSnapshot: Equatable, Sendable {
 
     var featuredWindow: RateLimitWindow? {
         weeklyWindow ?? primaryWindow
+    }
+
+    var quotaCardPrimaryWindow: RateLimitWindow? {
+        fiveHourWindow ?? weeklyWindow ?? primaryWindow
+    }
+
+    var quotaCardSecondaryWindow: RateLimitWindow? {
+        guard let fiveHourWindow,
+              let weeklyWindow,
+              fiveHourWindow.id != weeklyWindow.id
+        else { return nil }
+        return weeklyWindow
     }
 
     func tokenUsage(on date: Date, calendar: Calendar = .current) -> DailyTokenUsage? {

@@ -16,8 +16,8 @@ Codex Meter es una utilidad nativa para la barra de menús de macOS que permite 
 
 ## Funciones
 
-- Muestra la cuota semanal restante de Codex en la barra de menús
-- Presenta todas las ventanas de cuota, porcentajes restantes y cuentas atrás de restablecimiento
+- Da prioridad a la cuota restante de cinco horas de Codex en la barra de menús y usa la cuota semanal cuando es la única ventana disponible
+- Adapta la tarjeta a las ventanas devueltas por la API: la cuota de cinco horas muestra la cuenta atrás y la hora de restablecimiento, mientras que la semanal presenta en una sola línea el porcentaje restante y la fecha de restablecimiento
 - Resume la actividad de hoy, los últimos 7 días, el total histórico y un mapa de calor de 90 días
 - Actualiza el recuento local de hoy cada 5 segundos desde los registros de sesión de Codex y muestra entrada, salida, entrada en caché y coste equivalente de API en USD
 - Admite actualización manual, intervalos predefinidos y un intervalo personalizado de 1 a 1.440 minutos
@@ -40,9 +40,9 @@ El idioma predeterminado es chino simplificado. La aplicación admite actualment
 
 ## Descarga
 
-[⬇️ Descargar Codex Meter v1.2.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
+[⬇️ Descargar Codex Meter v1.3.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.3.0/CodexMeter-1.3.0-macOS.zip)
 
-Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.2.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0).
+Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.3.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.3.0).
 
 ### Si macOS bloquea la aplicación al abrirla por primera vez
 
@@ -92,7 +92,7 @@ swift run CodexMeter
 ## Guía de uso
 
 1. Inicia Codex CLI y comprueba que has iniciado sesión con tu cuenta de ChatGPT.
-2. Abre Codex Meter. Su icono y la cuota semanal restante aparecerán en la barra de menús.
+2. Abre Codex Meter. Su icono y la cuota restante de cinco horas aparecerán en la barra de menús; si solo existe la cuota semanal, la aplicación cambiará automáticamente a ella.
 3. Haz clic en el elemento de la barra para consultar cuotas, actividad de tokens, mapa de calor y resumen de uso.
 4. Usa el botón de actualización de la esquina superior derecha para volver a leer los datos inmediatamente.
 5. Haz clic en el correo oculto para mostrarlo temporalmente. Al cerrar el panel vuelve a ocultarse.

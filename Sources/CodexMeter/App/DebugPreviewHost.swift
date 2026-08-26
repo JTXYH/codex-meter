@@ -22,20 +22,39 @@ struct DebugDemoUsageLoader: CodexUsageLoading {
         }
         let peak = dailyUsage.map(\.tokens).max() ?? 0
 
-        let bucket = RateLimitBucket(
-            id: "codex",
-            name: "Codex",
-            planType: "plus",
-            hasCredits: false,
-            unlimitedCredits: false,
-            creditBalance: "0",
-            windows: [
+        let quotaPreview = ProcessInfo.processInfo.environment["CODEX_METER_QUOTA_PREVIEW"]
+        let primaryRemainingPercent: Double = switch quotaPreview {
+        case "low": 16
+        case "exhausted": 0
+        default: 72
+        }
+        let weeklyRemainingPercent: Double = switch quotaPreview {
+        case "low": 38
+        case "exhausted": 8
+        case "weekly": 38
+        default: 63
+        }
+        let windows: [RateLimitWindow]
+        if quotaPreview == "weekly" {
+            windows = [
                 RateLimitWindow(
                     id: "codex-primary",
                     bucketID: "codex",
                     bucketName: "Codex",
                     kind: .primary,
-                    usedPercent: 28,
+                    usedPercent: 100 - weeklyRemainingPercent,
+                    windowDurationMinutes: 10_080,
+                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60 + 3 * 60 * 60)
+                ),
+            ]
+        } else {
+            windows = [
+                RateLimitWindow(
+                    id: "codex-primary",
+                    bucketID: "codex",
+                    bucketName: "Codex",
+                    kind: .primary,
+                    usedPercent: 100 - primaryRemainingPercent,
                     windowDurationMinutes: 300,
                     resetsAt: now.addingTimeInterval(2 * 60 * 60 + 18 * 60)
                 ),
@@ -44,11 +63,21 @@ struct DebugDemoUsageLoader: CodexUsageLoading {
                     bucketID: "codex",
                     bucketName: "Codex",
                     kind: .secondary,
-                    usedPercent: 37,
+                    usedPercent: 100 - weeklyRemainingPercent,
                     windowDurationMinutes: 10_080,
                     resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60 + 3 * 60 * 60)
                 ),
             ]
+        }
+
+        let bucket = RateLimitBucket(
+            id: "codex",
+            name: "Codex",
+            planType: "plus",
+            hasCredits: false,
+            unlimitedCredits: false,
+            creditBalance: "0",
+            windows: windows
         )
 
         return CodexUsageSnapshot(
@@ -219,6 +248,12 @@ struct DebugPreviewHost: View {
             filename: "/tmp/CodexMeter-preview-zh-Hans-light.png"
         )
         exportPanelSnapshot(
+            appearance: .light,
+            language: .simplifiedChinese,
+            filename: "/tmp/CodexMeter-preview-zh-Hans-light-plain.png",
+            includeBackgroundImages: false
+        )
+        exportPanelSnapshot(
             appearance: .dark,
             language: .english,
             filename: "/tmp/CodexMeter-preview-en-dark.png"
@@ -271,12 +306,15 @@ struct DebugPreviewHost: View {
     private func exportPanelSnapshot(
         appearance: AppAppearance,
         language: AppLanguage,
-        filename: String
+        filename: String,
+        includeBackgroundImages: Bool = true
     ) {
         settings.appearance = appearance
         settings.language = language
         let colorScheme: ColorScheme = appearance == .dark ? .dark : .light
-        let previewBackgrounds = makeDebugBackgroundStore(includeImages: true)
+        let previewBackgrounds = makeDebugBackgroundStore(
+            includeImages: includeBackgroundImages
+        )
         let renderer = ImageRenderer(
             content: DebugMeterPanelSnapshotView()
                 .environmentObject(store)

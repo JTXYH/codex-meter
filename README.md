@@ -16,8 +16,8 @@ Codex Meter 是一款原生 macOS 菜单栏工具，用来快速查看 ChatGPT/C
 
 ## 功能
 
-- 菜单栏常驻显示 Codex 每周剩余额度
-- 展示所有额度窗口、剩余百分比和重置倒计时
+- 菜单栏优先显示 Codex 5 小时剩余额度；账户仅返回周额度时自动回退
+- 根据 API 返回的窗口自适应展示额度卡片：5 小时额度显示重置倒计时与时间，周额度以单行显示剩余比例与重置日期
 - 展示今日、近 7 天、累计 token 用量和近 90 天活跃热力图
 - 今日 Token 从本机 Codex 会话日志增量统计，每 5 秒刷新，并细分输入、输出、缓存输入和美元 API 等效费用
 - 支持手动刷新、预设刷新间隔和 1–1440 分钟自定义间隔
@@ -40,9 +40,9 @@ Codex Meter 默认使用简体中文，目前支持：
 
 ## 下载
 
-[⬇️ 下载 Codex Meter v1.2.0（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
+[⬇️ 下载 Codex Meter v1.3.0（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.3.0/CodexMeter-1.3.0-macOS.zip)
 
-该版本同时支持 Apple Silicon 和 Intel Mac。下载 ZIP 后解压，将 `CodexMeter.app` 拖入“应用程序”目录即可。[查看 v1.2.0 发布说明](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0)。
+该版本同时支持 Apple Silicon 和 Intel Mac。下载 ZIP 后解压，将 `CodexMeter.app` 拖入“应用程序”目录即可。[查看 v1.3.0 发布说明](https://github.com/JTXYH/codex-meter/releases/tag/v1.3.0)。
 
 ### 首次打开时被 macOS 拦截
 
@@ -94,7 +94,7 @@ swift run CodexMeter
 ## 使用指南
 
 1. 先启动 Codex CLI，确认已使用 ChatGPT 账户登录。
-2. 启动 Codex Meter；菜单栏会出现应用图标和每周剩余额度。
+2. 启动 Codex Meter；菜单栏会出现应用图标，并优先显示 5 小时剩余额度（仅有周额度时自动回退）。
 3. 点击菜单栏项打开面板，查看额度、token 活跃度、热力图和用量概览。
 4. 点击右上角刷新按钮立即更新数据。
 5. 点击脱敏邮箱可临时显示完整地址；关闭面板后会自动重新隐藏。

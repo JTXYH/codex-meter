@@ -103,13 +103,13 @@ enum MeterFormatters {
         }
         switch language {
         case .simplifiedChinese:
-            if minutes == 10_080 { return "每周额度" }
+            if minutes == 10_080 { return "周额度" }
             if minutes == 1_440 { return "每日额度" }
             if minutes >= 1_440, minutes % 1_440 == 0 { return "\(minutes / 1_440) 天额度" }
             if minutes >= 60, minutes % 60 == 0 { return "\(minutes / 60) 小时额度" }
             return "\(minutes) 分钟额度"
         case .traditionalChinese:
-            if minutes == 10_080 { return "每週額度" }
+            if minutes == 10_080 { return "週額度" }
             if minutes == 1_440 { return "每日額度" }
             if minutes >= 1_440, minutes % 1_440 == 0 { return "\(minutes / 1_440) 天額度" }
             if minutes >= 60, minutes % 60 == 0 { return "\(minutes / 60) 小時額度" }
@@ -139,6 +139,34 @@ enum MeterFormatters {
             if minutes >= 60, minutes % 60 == 0 { return "Cuota de \(minutes / 60) horas" }
             return "Cuota de \(minutes) minutos"
         }
+    }
+
+    static func quotaStatus(
+        remainingPercent: Double,
+        language: AppLanguage = .simplifiedChinese
+    ) -> String {
+        let remaining = min(max(remainingPercent, 0), 100)
+        if remaining <= 0 {
+            return switch language {
+            case .simplifiedChinese: "额度已用完"
+            case .traditionalChinese: "額度已用完"
+            case .english: "Quota used up"
+            case .japanese: "割り当てを使い切りました"
+            case .korean: "할당량 소진"
+            case .spanish: "Cuota agotada"
+            }
+        }
+        if remaining < 30 {
+            return switch language {
+            case .simplifiedChinese: "额度偏低"
+            case .traditionalChinese: "額度偏低"
+            case .english: "Quota running low"
+            case .japanese: "残りわずか"
+            case .korean: "할당량 부족"
+            case .spanish: "Cuota baja"
+            }
+        }
+        return L10n.text(.remainingQuota, language: language)
     }
 
     static func resetCountdown(
@@ -208,8 +236,54 @@ enum MeterFormatters {
         language: AppLanguage = .simplifiedChinese
     ) -> String {
         date.formatted(
-            .dateTime.month(.abbreviated).day().hour().minute().locale(language.locale)
+            .dateTime.month().day().hour().minute().locale(language.locale)
         )
+    }
+
+    static func resetTime(
+        _ date: Date,
+        language: AppLanguage = .simplifiedChinese
+    ) -> String {
+        date.formatted(
+            .dateTime.hour().minute().locale(language.locale)
+        )
+    }
+
+    static func quotaResetDescription(
+        for window: RateLimitWindow,
+        now: Date = Date(),
+        language: AppLanguage = .simplifiedChinese
+    ) -> String? {
+        guard let resetsAt = window.resetsAt else { return nil }
+        if window.windowDurationMinutes == 10_080 {
+            let date = resetDate(resetsAt, language: language)
+            switch language {
+            case .simplifiedChinese, .traditionalChinese:
+                return "\(date) 重置"
+            case .english:
+                return "Resets \(date)"
+            case .japanese:
+                return "\(date) にリセット"
+            case .korean:
+                return "\(date) 재설정"
+            case .spanish:
+                return "Se restablece \(date)"
+            }
+        }
+        return "\(resetCountdown(to: resetsAt, now: now, language: language)) · \(resetTime(resetsAt, language: language))"
+    }
+
+    static func weeklyRemainingLabel(
+        language: AppLanguage = .simplifiedChinese
+    ) -> String {
+        switch language {
+        case .simplifiedChinese: "周额度剩余"
+        case .traditionalChinese: "週額度剩餘"
+        case .english: "Weekly remaining"
+        case .japanese: "週間残り"
+        case .korean: "주간 잔여"
+        case .spanish: "Cuota semanal restante"
+        }
     }
 
     static func day(

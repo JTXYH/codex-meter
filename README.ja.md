@@ -16,8 +16,8 @@ Codex Meter は、ChatGPT/Codex アカウントの割り当てウィンドウと
 
 ## 主な機能
 
-- メニューバーに Codex の週間残量を常時表示
-- すべての割り当てウィンドウ、残りの割合、リセットまでの時間を表示
+- メニューバーに Codex の 5 時間残量を優先表示し、API が週間割り当てのみを返す場合は自動で週間残量に切り替え
+- API が返す割り当てに合わせてカードを自動調整し、5 時間割り当てはリセットまでの時間と時刻、週間割り当ては残量とリセット日時を1行で表示
 - 今日、過去 7 日間、累計の token アクティビティと90日間ヒートマップ
 - 今日の Token をローカル Codex セッションログから5秒ごとに差分更新し、入力、出力、キャッシュ入力、米ドルの API 換算料金を表示
 - 手動更新、プリセット、1〜1,440分のカスタム更新間隔
@@ -40,9 +40,9 @@ Codex Meter は、ChatGPT/Codex アカウントの割り当てウィンドウと
 
 ## ダウンロード
 
-[⬇️ Codex Meter v1.2.0 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
+[⬇️ Codex Meter v1.3.0 をダウンロード（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.3.0/CodexMeter-1.3.0-macOS.zip)
 
-Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.2.0 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0)。
+Apple Silicon と Intel Mac の両方に対応しています。ZIP を解凍し、`CodexMeter.app` を「アプリケーション」フォルダに移動してください。[v1.3.0 のリリースノート](https://github.com/JTXYH/codex-meter/releases/tag/v1.3.0)。
 
 ### 初回起動時に macOS にブロックされる場合
 
@@ -92,7 +92,7 @@ swift run CodexMeter
 ## 使い方
 
 1. Codex CLI を起動し、ChatGPT アカウントでログイン済みか確認します。
-2. Codex Meter を起動すると、メニューバーにアイコンと週間残量が表示されます。
+2. Codex Meter を起動すると、メニューバーにアイコンと 5 時間残量が表示され、週間割り当てのみがある場合は自動で週間残量に切り替わります。
 3. メニューバー項目をクリックし、割り当て、token アクティビティ、ヒートマップ、使用概要を確認します。
 4. 右上の更新ボタンですぐにデータを更新できます。
 5. マスクされたメールアドレスをクリックすると一時的に全体を表示します。パネルを閉じると再度マスクされます。

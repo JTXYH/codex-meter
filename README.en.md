@@ -16,8 +16,8 @@ Codex Meter is a native macOS menu bar utility for checking the quota windows an
 
 ## Features
 
-- Shows the remaining weekly Codex quota directly in the menu bar
-- Displays all quota windows, remaining percentages, and reset countdowns
+- Prioritizes the remaining Codex five-hour quota in the menu bar, falling back to weekly quota when that is the only window returned
+- Adapts the quota card to the API response: five-hour quota shows a reset countdown and time, while weekly quota uses a compact single-line percentage and reset date
 - Tracks today, the last 7 days, lifetime token activity, and a 90-day heatmap
 - Updates today's local token count incrementally from Codex session logs every 5 seconds, with input, output, cached-input, and USD API-equivalent cost details
 - Supports manual refresh, preset intervals, and custom intervals from 1 to 1,440 minutes
@@ -40,9 +40,9 @@ Simplified Chinese is the default. The app currently supports:
 
 ## Download
 
-[⬇️ Download Codex Meter v1.2.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.2.0/CodexMeter-1.2.0-macOS.zip)
+[⬇️ Download Codex Meter v1.3.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.3.0/CodexMeter-1.3.0-macOS.zip)
 
-This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.2.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.2.0).
+This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.3.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.3.0).
 
 ### If macOS blocks the app on first launch
 
@@ -94,7 +94,7 @@ swift run CodexMeter
 ## Usage guide
 
 1. Start Codex CLI and confirm that it is signed in with your ChatGPT account.
-2. Launch Codex Meter. Its icon and your remaining weekly quota appear in the menu bar.
+2. Launch Codex Meter. Its icon appears in the menu bar with the remaining five-hour quota, or the weekly quota when that is the only window available.
 3. Click the menu bar item to view quota windows, token activity, the heatmap, and the usage overview.
 4. Use the refresh button in the top-right corner to update data immediately.
 5. Click the masked email to reveal it temporarily. Closing the panel masks it again.

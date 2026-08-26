@@ -241,6 +241,12 @@ struct ProgressRing: View {
 
     let remainingPercent: Double
     let subtitle: String
+    var colors: [Color] = [
+        .meterCyan,
+        .meterAccent,
+        .meterAccentSoft,
+        .meterCyan,
+    ]
 
     var body: some View {
         ZStack {
@@ -250,7 +256,7 @@ struct ProgressRing: View {
                 .trim(from: 0, to: min(max(remainingPercent / 100, 0), 1))
                 .stroke(
                     AngularGradient(
-                        colors: [.meterCyan, .meterAccent, .meterAccentSoft, .meterCyan],
+                        colors: colors,
                         center: .center,
                         startAngle: .degrees(-90),
                         endAngle: .degrees(270)
@@ -258,7 +264,7 @@ struct ProgressRing: View {
                     style: StrokeStyle(lineWidth: 13, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
-                .shadow(color: Color.meterAccent.opacity(0.16), radius: 8)
+                .shadow(color: (colors.last ?? .meterAccent).opacity(0.16), radius: 8)
 
             VStack(spacing: 1) {
                 Text("\(Int(remainingPercent.rounded()))%")
@@ -270,7 +276,7 @@ struct ProgressRing: View {
                     .lineLimit(1)
             }
         }
-        .frame(width: 118, height: 118)
+        .frame(width: 128, height: 128)
         .accessibilityLabel(
             L10n.remaining(Int(remainingPercent.rounded()), language: settings.language)
         )

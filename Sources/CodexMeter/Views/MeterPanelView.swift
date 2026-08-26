@@ -112,7 +112,7 @@ struct MeterPanelView: View {
 
     @ViewBuilder
     private var panelIcon: some View {
-        if let remainingPercent = store.snapshot?.featuredWindow?.remainingPercent,
+        if let remainingPercent = store.snapshot?.quotaCardPrimaryWindow?.remainingPercent,
            let image = quotaBackgrounds.selectedPanelIcon(for: remainingPercent) {
             Image(nsImage: image)
                 .resizable()

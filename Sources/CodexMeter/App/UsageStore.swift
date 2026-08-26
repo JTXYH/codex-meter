@@ -109,7 +109,7 @@ final class UsageStore: ObservableObject {
     }
 
     var menuBarText: String {
-        guard let window = snapshot?.featuredWindow else { return "--" }
+        guard let window = snapshot?.quotaCardPrimaryWindow else { return "--" }
         return "\(Int(window.remainingPercent.rounded()))%"
     }
 

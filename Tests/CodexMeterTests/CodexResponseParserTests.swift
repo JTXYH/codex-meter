@@ -22,8 +22,11 @@ struct CodexResponseParserTests {
         #expect(snapshot.allLimitWindows.count == 2)
         #expect(snapshot.primaryWindow?.windowDurationMinutes == 300)
         #expect(snapshot.primaryWindow?.remainingPercent == 75)
+        #expect(snapshot.fiveHourWindow?.remainingPercent == 75)
         #expect(snapshot.weeklyWindow?.windowDurationMinutes == 10_080)
         #expect(snapshot.featuredWindow?.remainingPercent == 22)
+        #expect(snapshot.quotaCardPrimaryWindow?.remainingPercent == 75)
+        #expect(snapshot.quotaCardSecondaryWindow?.remainingPercent == 22)
         #expect(snapshot.usageSummary?.lifetimeTokens == 1_253_637_101)
         #expect(snapshot.dailyUsage.count == 2)
         #expect(snapshot.tokenUsage(on: DateOnlyParser.date(from: "2026-08-06")!)?.tokens == 105_004_229)
@@ -45,6 +48,24 @@ struct CodexResponseParserTests {
         #expect(snapshot.primaryWindow?.clampedUsedPercent == 100)
         #expect(snapshot.primaryWindow?.remainingPercent == 0)
         #expect(snapshot.dailyUsage.isEmpty)
+    }
+
+    @Test
+    func promotesWeeklyQuotaWhenFiveHourWindowIsMissing() throws {
+        let account = Data(#"{"id":1,"result":{"account":{"type":"chatgpt"}}}"#.utf8)
+        let limits = Data(#"{"id":2,"result":{"rateLimits":{"limitId":"codex","primary":{"usedPercent":38,"windowDurationMins":10080,"resetsAt":1786704934},"secondary":null}}}"#.utf8)
+        let usage = Data(#"{"id":3,"result":{"summary":null}}"#.utf8)
+
+        let snapshot = try CodexResponseParser.parse(
+            accountData: account,
+            rateLimitsData: limits,
+            usageData: usage
+        )
+
+        #expect(snapshot.fiveHourWindow == nil)
+        #expect(snapshot.quotaCardPrimaryWindow?.windowDurationMinutes == 10_080)
+        #expect(snapshot.quotaCardPrimaryWindow?.remainingPercent == 62)
+        #expect(snapshot.quotaCardSecondaryWindow == nil)
     }
 
     @Test
@@ -165,6 +186,7 @@ struct CodexResponseParserTests {
 
     @Test
     func formatsQuotaDurations() {
+        let now = Date(timeIntervalSince1970: 1_786_600_000)
         let weekly = RateLimitWindow(
             id: "weekly",
             bucketID: "codex",
@@ -172,9 +194,18 @@ struct CodexResponseParserTests {
             kind: .primary,
             usedPercent: 50,
             windowDurationMinutes: 10_080,
-            resetsAt: Date()
+            resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60)
         )
-        #expect(MeterFormatters.quotaTitle(for: weekly) == "每周额度")
+        let fiveHour = RateLimitWindow(
+            id: "five-hour",
+            bucketID: "codex",
+            bucketName: "Codex",
+            kind: .primary,
+            usedPercent: 50,
+            windowDurationMinutes: 300,
+            resetsAt: now.addingTimeInterval(2 * 60 * 60 + 17 * 60)
+        )
+        #expect(MeterFormatters.quotaTitle(for: weekly) == "周额度")
         #expect(MeterFormatters.tokens(1_253_637_101) == "12.5亿")
         #expect(MeterFormatters.tokens(22_000_000) == "2.2千万")
         #expect(MeterFormatters.tokens(5_400_000) == "5.4百万")
@@ -182,7 +213,7 @@ struct CodexResponseParserTests {
         #expect(MeterFormatters.tokens(8_200) == "8.2千")
         #expect(
             MeterFormatters.quotaTitle(for: weekly, language: .traditionalChinese)
-                == "每週額度"
+                == "週額度"
         )
         #expect(
             MeterFormatters.quotaTitle(for: weekly, language: .english)
@@ -198,5 +229,18 @@ struct CodexResponseParserTests {
         )
         #expect(MeterFormatters.usd(2.47) == "$2.47")
         #expect(MeterFormatters.usd(0.0042) == "$0.0042")
+        #expect(MeterFormatters.quotaStatus(remainingPercent: 88) == "剩余额度")
+        #expect(MeterFormatters.quotaStatus(remainingPercent: 16) == "额度偏低")
+        #expect(MeterFormatters.quotaStatus(remainingPercent: 0) == "额度已用完")
+        #expect(MeterFormatters.weeklyRemainingLabel() == "周额度剩余")
+        #expect(
+            MeterFormatters.quotaResetDescription(for: weekly, now: now)
+                == "\(MeterFormatters.resetDate(weekly.resetsAt!)) 重置"
+        )
+        #expect(MeterFormatters.quotaResetDescription(for: weekly, now: now)?.contains("2026") == false)
+        #expect(
+            MeterFormatters.quotaResetDescription(for: fiveHour, now: now)
+                == "2 小时 17 分后重置 · \(MeterFormatters.resetTime(fiveHour.resetsAt!))"
+        )
     }
 }

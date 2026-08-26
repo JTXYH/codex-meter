@@ -714,6 +714,7 @@ private struct QuotaBackgroundCropView: View {
                 ZStack {
                     BackgroundQuotaUsageCard(
                         window: BackgroundQuotaUsageCard.previewWindow(),
+                        weeklyWindow: BackgroundQuotaUsageCard.previewWeeklyWindow(),
                         backgroundImage: livePreviewImage
                     )
 
@@ -1021,6 +1022,7 @@ private struct QuotaBackgroundCardPreview: View {
             window: BackgroundQuotaUsageCard.previewWindow(
                 remainingPercent: previewRemainingPercent
             ),
+            weeklyWindow: BackgroundQuotaUsageCard.previewWeeklyWindow(),
             backgroundImage: image
         )
     }
