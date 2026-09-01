@@ -44,6 +44,29 @@ struct RateLimitBucket: Identifiable, Equatable, Sendable {
     let windows: [RateLimitWindow]
 }
 
+enum CreditBalance: Equatable, Sendable {
+    case amount(Decimal)
+    case unlimited
+    case unavailable
+
+    init(balance: String?, unlimited: Bool?) {
+        if unlimited == true {
+            self = .unlimited
+            return
+        }
+
+        guard let balance = balance?.trimmingCharacters(in: .whitespacesAndNewlines),
+              balance.range(of: #"^[+-]?[0-9]+(?:\.[0-9]+)?$"#, options: .regularExpression) != nil,
+              let amount = Decimal(string: balance, locale: Locale(identifier: "en_US_POSIX")),
+              !amount.isNaN
+        else {
+            self = .unavailable
+            return
+        }
+        self = .amount(amount)
+    }
+}
+
 struct TokenUsageSummary: Equatable, Sendable {
     let lifetimeTokens: Int64?
     let peakDailyTokens: Int64?
@@ -64,6 +87,12 @@ struct CodexUsageSnapshot: Equatable, Sendable {
     let rateLimitBuckets: [RateLimitBucket]
     let usageSummary: TokenUsageSummary?
     let dailyUsage: [DailyTokenUsage]
+
+    var creditsBalance: CreditBalance {
+        let bucket = rateLimitBuckets.first(where: { $0.id == "codex" })
+            ?? rateLimitBuckets.first
+        return CreditBalance(balance: bucket?.creditBalance, unlimited: bucket?.unlimitedCredits)
+    }
 
     var allLimitWindows: [RateLimitWindow] {
         rateLimitBuckets.flatMap(\.windows)

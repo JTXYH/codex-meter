@@ -6,8 +6,18 @@ struct SettingsPanelView: View {
     @EnvironmentObject private var updateController: UpdateController
     @State private var selectedSection: SettingsSection
 
-    init(showBackgroundsInitially: Bool = false) {
-        _selectedSection = State(initialValue: showBackgroundsInitially ? .backgrounds : .general)
+    init(
+        showBackgroundsInitially: Bool = false,
+        showDisplayInitially: Bool = false
+    ) {
+        let initialSection: SettingsSection = if showDisplayInitially {
+            .display
+        } else if showBackgroundsInitially {
+            .backgrounds
+        } else {
+            .general
+        }
+        _selectedSection = State(initialValue: initialSection)
     }
 
     var body: some View {
@@ -111,6 +121,8 @@ struct SettingsPanelView: View {
             switch selectedSection {
             case .general:
                 generalSettings
+            case .display:
+                displaySettings
             case .backgrounds:
                 QuotaBackgroundSettingsView()
             case .refresh:
@@ -168,6 +180,73 @@ struct SettingsPanelView: View {
             ) {
                 SearchableLanguagePicker(selection: $settings.language)
                     .frame(width: 244)
+            }
+        }
+    }
+
+    private var displaySettings: some View {
+        SettingsCard {
+            List {
+                ForEach(settings.dashboardSectionOrder) { section in
+                    visibilityRow(section)
+                        .overlay(alignment: .bottom) {
+                            if section != settings.dashboardSectionOrder.last {
+                                SettingsDivider()
+                            }
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                .onMove(perform: settings.moveDashboardSections)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .scrollDisabled(true)
+            .frame(height: CGFloat(settings.dashboardSectionOrder.count) * 72)
+        }
+        .animation(.smooth(duration: 0.18), value: settings.dashboardSectionOrder)
+    }
+
+    @ViewBuilder
+    private func visibilityRow(_ section: DashboardSection) -> some View {
+        switch section {
+        case .quota:
+            visibilityRowContent(section, isOn: $settings.showQuotaCard)
+        case .tokenActivity:
+            visibilityRowContent(section, isOn: $settings.showTokenActivityCard)
+        case .usageHeatmap:
+            visibilityRowContent(section, isOn: $settings.showUsageHeatmapCard)
+        case .usageSummary:
+            visibilityRowContent(section, isOn: $settings.showUsageSummaryCard)
+        case .creditsBalance:
+            visibilityRowContent(section, isOn: $settings.showCreditsBalanceCard)
+        }
+    }
+
+    private func visibilityRowContent(
+        _ section: DashboardSection,
+        isOn: Binding<Bool>
+    ) -> some View {
+        let title = L10n.text(section.titleKey, language: settings.language)
+        return SettingsRow(
+            icon: section.icon,
+            title: title,
+            detail: L10n.text(section.detailKey, language: settings.language)
+        ) {
+            HStack(spacing: 12) {
+                Toggle(title, isOn: isOn)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.meterTertiary)
+                    .frame(width: 18, height: 30)
+                    .contentShape(Rectangle())
+                    .help(L10n.text(.displayHint, language: settings.language))
+                    .accessibilityLabel(L10n.text(.displayHint, language: settings.language))
             }
         }
     }
@@ -291,6 +370,7 @@ struct SettingsPanelView: View {
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
     case general
+    case display
     case backgrounds
     case refresh
     case updates
@@ -300,6 +380,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: "switch.2"
+        case .display: "eye"
         case .backgrounds: "photo"
         case .refresh: "arrow.clockwise"
         case .updates: "arrow.down.circle"
@@ -309,6 +390,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     func title(language: AppLanguage) -> String {
         switch self {
         case .general: L10n.text(.general, language: language)
+        case .display: L10n.text(.display, language: language)
         case .backgrounds: QuotaBackgroundL10n.text(.backgrounds, language: language)
         case .refresh: L10n.text(.refresh, language: language)
         case .updates: L10n.updateText(.updates, language: language)
@@ -318,9 +400,42 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     func hint(language: AppLanguage) -> String {
         switch self {
         case .general: L10n.text(.generalHint, language: language)
+        case .display: L10n.text(.displayHint, language: language)
         case .backgrounds: QuotaBackgroundL10n.text(.backgroundsHint, language: language)
         case .refresh: L10n.text(.refreshHint, language: language)
         case .updates: L10n.updateText(.updatesHint, language: language)
+        }
+    }
+}
+
+private extension DashboardSection {
+    var icon: String {
+        switch self {
+        case .quota: "gauge.with.dots.needle.67percent"
+        case .tokenActivity: "waveform.path.ecg"
+        case .usageHeatmap: "calendar"
+        case .usageSummary: "chart.bar.xaxis"
+        case .creditsBalance: "creditcard"
+        }
+    }
+
+    var titleKey: L10n.Key {
+        switch self {
+        case .quota: .showQuotaCard
+        case .tokenActivity: .showTokenActivityCard
+        case .usageHeatmap: .showUsageHeatmapCard
+        case .usageSummary: .showUsageSummaryCard
+        case .creditsBalance: .showCreditsBalanceCard
+        }
+    }
+
+    var detailKey: L10n.Key {
+        switch self {
+        case .quota: .showQuotaCardHint
+        case .tokenActivity: .showTokenActivityCardHint
+        case .usageHeatmap: .showUsageHeatmapCardHint
+        case .usageSummary: .showUsageSummaryCardHint
+        case .creditsBalance: .showCreditsBalanceCardHint
         }
     }
 }

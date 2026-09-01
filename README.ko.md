@@ -40,9 +40,9 @@ Codex Meter는 ChatGPT/Codex 계정의 할당량 창과 token 활동을 빠르�
 
 ## 다운로드
 
-[⬇️ Codex Meter v1.3.0 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.3.0/CodexMeter-1.3.0-macOS.zip)
+[⬇️ Codex Meter v1.4.0 다운로드(macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.4.0/CodexMeter-1.4.0-macOS.zip)
 
-Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.3.0 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.3.0).
+Apple Silicon과 Intel Mac을 모두 지원합니다. ZIP을 풀고 `CodexMeter.app`을 응용 프로그램 폴더로 옮기세요. [v1.4.0 릴리스 노트](https://github.com/JTXYH/codex-meter/releases/tag/v1.4.0).
 
 ### 첫 실행 시 macOS가 앱을 차단하는 경우
 

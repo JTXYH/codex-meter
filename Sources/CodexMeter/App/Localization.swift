@@ -12,8 +12,20 @@ enum L10n {
         case settingsHint
         case general
         case generalHint
+        case display
+        case displayHint
         case launchAtLogin
         case launchAtLoginHint
+        case showQuotaCard
+        case showQuotaCardHint
+        case showTokenActivityCard
+        case showTokenActivityCardHint
+        case showUsageHeatmapCard
+        case showUsageHeatmapCardHint
+        case showUsageSummaryCard
+        case showUsageSummaryCardHint
+        case showCreditsBalanceCard
+        case showCreditsBalanceCardHint
         case refresh
         case refreshHint
         case appearance
@@ -57,6 +69,9 @@ enum L10n {
         case more
         case streakUnavailable
         case usageOverview
+        case creditsBalance
+        case creditsBalanceUnavailable
+        case unlimitedCredits
         case lifetimeTokens
         case longestStreak
         case longestTask
@@ -314,8 +329,20 @@ enum L10n {
         case .settingsHint: "更改会立即生效并自动保存"
         case .general: "通用"
         case .generalHint: "调整应用行为、外观和显示语言"
+        case .display: "显示"
+        case .displayHint: "拖动调整主面板顺序，并选择显示的数据区域"
         case .launchAtLogin: "登录时启动"
         case .launchAtLoginHint: "登录这台 Mac 后自动启动 Codex Meter"
+        case .showQuotaCard: "显示额度概览"
+        case .showQuotaCardHint: "显示 5 小时和周额度区域"
+        case .showTokenActivityCard: "显示 Token 活跃度"
+        case .showTokenActivityCardHint: "显示今日 Token 活跃度和明细"
+        case .showUsageHeatmapCard: "显示用量热力图"
+        case .showUsageHeatmapCardHint: "显示近 90 天 Token 使用热力图"
+        case .showUsageSummaryCard: "显示使用概览"
+        case .showUsageSummaryCardHint: "显示累计 Token、最长连续和最长任务"
+        case .showCreditsBalanceCard: "显示 Credits 余额"
+        case .showCreditsBalanceCardHint: "在主面板中显示 Credits 余额卡片"
         case .refresh: "刷新"
         case .refreshHint: "设置 Codex 数据的自动刷新频率"
         case .appearance: "外观"
@@ -359,6 +386,9 @@ enum L10n {
         case .more: "多"
         case .streakUnavailable: "连续使用暂无数据"
         case .usageOverview: "使用概览"
+        case .creditsBalance: "Credits 余额"
+        case .creditsBalanceUnavailable: "暂无数据"
+        case .unlimitedCredits: "无限"
         case .lifetimeTokens: "累计 Token"
         case .longestStreak: "最长连续"
         case .longestTask: "最长任务"
@@ -378,8 +408,20 @@ enum L10n {
         case .settingsHint: "變更會立即生效並自動儲存"
         case .general: "一般"
         case .generalHint: "調整應用程式行為、外觀和顯示語言"
+        case .display: "顯示"
+        case .displayHint: "拖曳調整主面板順序，並選擇顯示的資料區域"
         case .launchAtLogin: "登入時啟動"
         case .launchAtLoginHint: "登入這台 Mac 後自動啟動 Codex Meter"
+        case .showQuotaCard: "顯示額度概覽"
+        case .showQuotaCardHint: "顯示 5 小時和週額度區域"
+        case .showTokenActivityCard: "顯示 Token 活躍度"
+        case .showTokenActivityCardHint: "顯示今日 Token 活躍度和明細"
+        case .showUsageHeatmapCard: "顯示用量熱力圖"
+        case .showUsageHeatmapCardHint: "顯示近 90 天 Token 使用熱力圖"
+        case .showUsageSummaryCard: "顯示使用概覽"
+        case .showUsageSummaryCardHint: "顯示累計 Token、最長連續和最長任務"
+        case .showCreditsBalanceCard: "顯示 Credits 餘額"
+        case .showCreditsBalanceCardHint: "在主面板中顯示 Credits 餘額卡片"
         case .refresh: "重新整理"
         case .refreshHint: "設定 Codex 資料的自動重新整理頻率"
         case .appearance: "外觀"
@@ -423,6 +465,9 @@ enum L10n {
         case .more: "多"
         case .streakUnavailable: "連續使用暫無資料"
         case .usageOverview: "使用概覽"
+        case .creditsBalance: "Credits 餘額"
+        case .creditsBalanceUnavailable: "暫無資料"
+        case .unlimitedCredits: "無限"
         case .lifetimeTokens: "累計 Token"
         case .longestStreak: "最長連續"
         case .longestTask: "最長任務"
@@ -442,8 +487,20 @@ enum L10n {
         case .settingsHint: "Changes apply immediately and save automatically"
         case .general: "General"
         case .generalHint: "Adjust app behavior, appearance, and display language"
+        case .display: "Display"
+        case .displayHint: "Drag to reorder main-panel sections and choose which ones appear"
         case .launchAtLogin: "Launch at login"
         case .launchAtLoginHint: "Open Codex Meter automatically when you log in to this Mac"
+        case .showQuotaCard: "Show quota overview"
+        case .showQuotaCardHint: "Show the 5-hour and weekly quota section"
+        case .showTokenActivityCard: "Show token activity"
+        case .showTokenActivityCardHint: "Show today's token activity and details"
+        case .showUsageHeatmapCard: "Show usage heatmap"
+        case .showUsageHeatmapCardHint: "Show the 90-day token usage heatmap"
+        case .showUsageSummaryCard: "Show usage overview"
+        case .showUsageSummaryCardHint: "Show lifetime tokens, streak, and longest task"
+        case .showCreditsBalanceCard: "Show Credits balance"
+        case .showCreditsBalanceCardHint: "Show the Credits balance card in the main panel"
         case .refresh: "Refresh"
         case .refreshHint: "Choose how often Codex data refreshes automatically"
         case .appearance: "Appearance"
@@ -487,6 +544,9 @@ enum L10n {
         case .more: "More"
         case .streakUnavailable: "Streak data unavailable"
         case .usageOverview: "Usage overview"
+        case .creditsBalance: "Credits balance"
+        case .creditsBalanceUnavailable: "Not available"
+        case .unlimitedCredits: "Unlimited"
         case .lifetimeTokens: "Lifetime tokens"
         case .longestStreak: "Longest streak"
         case .longestTask: "Longest task"
@@ -506,8 +566,20 @@ enum L10n {
         case .settingsHint: "変更はすぐに反映され、自動保存されます"
         case .general: "一般"
         case .generalHint: "アプリの動作、外観、表示言語を調整します"
+        case .display: "表示"
+        case .displayHint: "ドラッグしてメインパネルの順序を変更し、表示する項目を選択します"
         case .launchAtLogin: "ログイン時に起動"
         case .launchAtLoginHint: "この Mac へのログイン時に Codex Meter を自動起動します"
+        case .showQuotaCard: "割り当て概要を表示"
+        case .showQuotaCardHint: "5 時間と週間の割り当て領域を表示します"
+        case .showTokenActivityCard: "Token アクティビティを表示"
+        case .showTokenActivityCardHint: "今日の Token アクティビティと内訳を表示します"
+        case .showUsageHeatmapCard: "使用量ヒートマップを表示"
+        case .showUsageHeatmapCardHint: "過去 90 日間の Token 使用量を表示します"
+        case .showUsageSummaryCard: "使用状況を表示"
+        case .showUsageSummaryCardHint: "累計 Token、連続使用、最長タスクを表示します"
+        case .showCreditsBalanceCard: "クレジット残高を表示"
+        case .showCreditsBalanceCardHint: "メインパネルにクレジット残高カードを表示します"
         case .refresh: "更新"
         case .refreshHint: "Codex データの自動更新間隔を設定します"
         case .appearance: "外観"
@@ -551,6 +623,9 @@ enum L10n {
         case .more: "多"
         case .streakUnavailable: "連続使用データなし"
         case .usageOverview: "使用状況"
+        case .creditsBalance: "クレジット残高"
+        case .creditsBalanceUnavailable: "データなし"
+        case .unlimitedCredits: "無制限"
         case .lifetimeTokens: "累計 Token"
         case .longestStreak: "最長連続"
         case .longestTask: "最長タスク"
@@ -570,8 +645,20 @@ enum L10n {
         case .settingsHint: "변경 사항은 즉시 적용되고 자동으로 저장됩니다"
         case .general: "일반"
         case .generalHint: "앱 동작, 모양 및 표시 언어를 조정합니다"
+        case .display: "표시"
+        case .displayHint: "드래그하여 메인 패널 순서를 바꾸고 표시할 영역을 선택합니다"
         case .launchAtLogin: "로그인 시 실행"
         case .launchAtLoginHint: "이 Mac에 로그인하면 Codex Meter를 자동으로 실행합니다"
+        case .showQuotaCard: "할당량 개요 표시"
+        case .showQuotaCardHint: "5시간 및 주간 할당량 영역을 표시합니다"
+        case .showTokenActivityCard: "Token 활동 표시"
+        case .showTokenActivityCardHint: "오늘의 Token 활동과 상세 정보를 표시합니다"
+        case .showUsageHeatmapCard: "사용량 히트맵 표시"
+        case .showUsageHeatmapCardHint: "최근 90일 Token 사용량 히트맵을 표시합니다"
+        case .showUsageSummaryCard: "사용 개요 표시"
+        case .showUsageSummaryCardHint: "누적 Token, 연속 사용, 최장 작업을 표시합니다"
+        case .showCreditsBalanceCard: "크레딧 잔액 표시"
+        case .showCreditsBalanceCardHint: "메인 패널에 크레딧 잔액 카드를 표시합니다"
         case .refresh: "새로 고침"
         case .refreshHint: "Codex 데이터 자동 새로 고침 간격을 설정합니다"
         case .appearance: "모양"
@@ -615,6 +702,9 @@ enum L10n {
         case .more: "많음"
         case .streakUnavailable: "연속 사용 데이터 없음"
         case .usageOverview: "사용 개요"
+        case .creditsBalance: "크레딧 잔액"
+        case .creditsBalanceUnavailable: "데이터 없음"
+        case .unlimitedCredits: "무제한"
         case .lifetimeTokens: "누적 Token"
         case .longestStreak: "최장 연속"
         case .longestTask: "가장 긴 작업"
@@ -634,8 +724,20 @@ enum L10n {
         case .settingsHint: "Los cambios se aplican al instante y se guardan automáticamente"
         case .general: "General"
         case .generalHint: "Ajusta el comportamiento, la apariencia y el idioma de la aplicación"
+        case .display: "Visualización"
+        case .displayHint: "Arrastra para ordenar el panel principal y elige qué secciones mostrar"
         case .launchAtLogin: "Abrir al iniciar sesión"
         case .launchAtLoginHint: "Abre Codex Meter automáticamente al iniciar sesión en este Mac"
+        case .showQuotaCard: "Mostrar resumen de cuota"
+        case .showQuotaCardHint: "Muestra las cuotas de 5 horas y semanal"
+        case .showTokenActivityCard: "Mostrar actividad de tokens"
+        case .showTokenActivityCardHint: "Muestra la actividad y el detalle de tokens de hoy"
+        case .showUsageHeatmapCard: "Mostrar mapa de uso"
+        case .showUsageHeatmapCardHint: "Muestra el mapa de uso de tokens de los últimos 90 días"
+        case .showUsageSummaryCard: "Mostrar resumen de uso"
+        case .showUsageSummaryCardHint: "Muestra tokens acumulados, racha y tarea más larga"
+        case .showCreditsBalanceCard: "Mostrar saldo de créditos"
+        case .showCreditsBalanceCardHint: "Muestra la tarjeta de saldo de créditos en el panel principal"
         case .refresh: "Actualización"
         case .refreshHint: "Elige con qué frecuencia se actualizan los datos de Codex"
         case .appearance: "Apariencia"
@@ -679,6 +781,9 @@ enum L10n {
         case .more: "Más"
         case .streakUnavailable: "Datos de racha no disponibles"
         case .usageOverview: "Resumen de uso"
+        case .creditsBalance: "Saldo de créditos"
+        case .creditsBalanceUnavailable: "No disponible"
+        case .unlimitedCredits: "Ilimitados"
         case .lifetimeTokens: "Tokens acumulados"
         case .longestStreak: "Racha más larga"
         case .longestTask: "Tarea más larga"

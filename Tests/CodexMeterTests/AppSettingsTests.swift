@@ -78,6 +78,92 @@ struct AppSettingsTests {
         #expect(settings.customRefreshIntervalMinutes == 1_440)
     }
 
+    @Test @MainActor
+    func persistsDashboardSectionVisibilityAndDefaultsAllSectionsToShown() {
+        let suiteName = "CodexMeterTests.AppSettings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let firstSettings = AppSettings(
+            defaults: defaults,
+            launchAtLoginManager: LaunchAtLoginManagerSpy()
+        )
+        #expect(firstSettings.showQuotaCard)
+        #expect(firstSettings.showTokenActivityCard)
+        #expect(firstSettings.showUsageHeatmapCard)
+        #expect(firstSettings.showUsageSummaryCard)
+        #expect(firstSettings.showCreditsBalanceCard)
+        #expect(firstSettings.dashboardSectionOrder == DashboardSection.allCases)
+
+        firstSettings.showQuotaCard = false
+        firstSettings.showTokenActivityCard = false
+        firstSettings.showUsageHeatmapCard = false
+        firstSettings.showUsageSummaryCard = false
+        firstSettings.showCreditsBalanceCard = false
+        #expect(!defaults.bool(forKey: "showQuotaCard"))
+        #expect(!defaults.bool(forKey: "showTokenActivityCard"))
+        #expect(!defaults.bool(forKey: "showUsageHeatmapCard"))
+        #expect(!defaults.bool(forKey: "showUsageSummaryCard"))
+        #expect(!defaults.bool(forKey: "showCreditsBalanceCard"))
+
+        let reorderedSections: [DashboardSection] = [
+            .creditsBalance, .usageSummary, .quota, .usageHeatmap, .tokenActivity,
+        ]
+        firstSettings.dashboardSectionOrder = reorderedSections
+        #expect(
+            defaults.stringArray(forKey: "dashboardSectionOrder")
+                == reorderedSections.map(\.rawValue)
+        )
+
+        let restoredSettings = AppSettings(
+            defaults: defaults,
+            launchAtLoginManager: LaunchAtLoginManagerSpy()
+        )
+        #expect(!restoredSettings.showQuotaCard)
+        #expect(!restoredSettings.showTokenActivityCard)
+        #expect(!restoredSettings.showUsageHeatmapCard)
+        #expect(!restoredSettings.showUsageSummaryCard)
+        #expect(!restoredSettings.showCreditsBalanceCard)
+        #expect(restoredSettings.dashboardSectionOrder == reorderedSections)
+    }
+
+    @Test @MainActor
+    func sanitizesAndMovesDashboardSections() {
+        let suiteName = "CodexMeterTests.AppSettings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        defaults.set(
+            ["creditsBalance", "creditsBalance", "unknown", "quota"],
+            forKey: "dashboardSectionOrder"
+        )
+
+        let settings = AppSettings(
+            defaults: defaults,
+            launchAtLoginManager: LaunchAtLoginManagerSpy()
+        )
+        #expect(settings.dashboardSectionOrder == [
+            .creditsBalance, .quota, .tokenActivity, .usageHeatmap, .usageSummary,
+        ])
+
+        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 0), toOffset: 4)
+        #expect(settings.dashboardSectionOrder == [
+            .quota, .tokenActivity, .usageHeatmap, .creditsBalance, .usageSummary,
+        ])
+
+        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 4), toOffset: 0)
+        #expect(settings.dashboardSectionOrder == [
+            .usageSummary, .quota, .tokenActivity, .usageHeatmap, .creditsBalance,
+        ])
+    }
+
     @Test
     func includesAllSupportedLanguages() {
         #expect(

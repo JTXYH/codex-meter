@@ -829,6 +829,47 @@ struct UsageSummaryCard: View {
     }
 }
 
+struct CreditsBalanceCard: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    let snapshot: CodexUsageSnapshot
+
+    var body: some View {
+        let balance = snapshot.creditsBalance
+        let value = MeterFormatters.credits(balance, language: settings.language)
+
+        PanelCard(borderColor: Color.meterAccent.opacity(0.18)) {
+            HStack(spacing: 13) {
+                Image(systemName: "creditcard")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.meterAccent)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Color.meterAccent.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+
+                Text(L10n.text(.creditsBalance, language: settings.language))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Spacer(minLength: 12)
+
+                Text(value)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(
+                        balance == .unavailable ? Color.meterSecondary : Color.meterAccent
+                    )
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .help(value)
+            }
+        }
+    }
+}
+
 private struct SummaryMetric: View {
     let title: String
     let value: String

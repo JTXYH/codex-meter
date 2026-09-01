@@ -167,9 +167,14 @@ struct MenuBarCodexIconView: View {
 }
 
 struct PanelCard<Content: View>: View {
+    let borderColor: Color
     @ViewBuilder let content: Content
 
-    init(@ViewBuilder content: () -> Content) {
+    init(
+        borderColor: Color = .meterBorder,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.borderColor = borderColor
         self.content = content()
     }
 
@@ -181,7 +186,7 @@ struct PanelCard<Content: View>: View {
                     .fill(Color.meterCard)
                     .overlay {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(Color.meterBorder, lineWidth: 1)
+                            .stroke(borderColor, lineWidth: 1)
                     }
             )
             .shadow(color: Color.meterShadow, radius: 12, y: 3)

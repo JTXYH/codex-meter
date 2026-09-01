@@ -1,6 +1,39 @@
 import AppKit
 import SwiftUI
 
+struct DashboardCardStack: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    let snapshot: CodexUsageSnapshot
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(settings.dashboardSectionOrder) { section in
+                if settings.isDashboardSectionVisible(section) {
+                    dashboardCard(section)
+                }
+            }
+        }
+        .animation(.smooth(duration: 0.2), value: settings.dashboardSectionOrder)
+    }
+
+    @ViewBuilder
+    private func dashboardCard(_ section: DashboardSection) -> some View {
+        switch section {
+        case .quota:
+            HeroUsageCard(snapshot: snapshot)
+        case .tokenActivity:
+            TokenActivityCard(snapshot: snapshot)
+        case .usageHeatmap:
+            UsageHeatmapCard(snapshot: snapshot)
+        case .usageSummary:
+            UsageSummaryCard(snapshot: snapshot)
+        case .creditsBalance:
+            CreditsBalanceCard(snapshot: snapshot)
+        }
+    }
+}
+
 struct MeterPanelView: View {
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings
@@ -31,12 +64,7 @@ struct MeterPanelView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     Group {
                         if let snapshot = store.snapshot {
-                            VStack(spacing: 12) {
-                                HeroUsageCard(snapshot: snapshot)
-                                TokenActivityCard(snapshot: snapshot)
-                                UsageHeatmapCard(snapshot: snapshot)
-                                UsageSummaryCard(snapshot: snapshot)
-                            }
+                            DashboardCardStack(snapshot: snapshot)
                         } else {
                             EmptyStateCard(state: store.state) {
                                 Task { await store.refresh() }

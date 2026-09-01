@@ -19,6 +19,10 @@ struct CodexResponseParserTests {
         #expect(snapshot.account?.email == "tester@example.com")
         #expect(snapshot.account?.displayPlan == "Plus")
         #expect(snapshot.rateLimitBuckets.count == 1)
+        #expect(snapshot.rateLimitBuckets.first?.hasCredits == false)
+        #expect(snapshot.rateLimitBuckets.first?.unlimitedCredits == false)
+        #expect(snapshot.rateLimitBuckets.first?.creditBalance == "0")
+        #expect(snapshot.creditsBalance == .amount(0))
         #expect(snapshot.allLimitWindows.count == 2)
         #expect(snapshot.primaryWindow?.windowDurationMinutes == 300)
         #expect(snapshot.primaryWindow?.remainingPercent == 75)
@@ -45,6 +49,7 @@ struct CodexResponseParserTests {
         )
 
         #expect(snapshot.rateLimitBuckets.first?.id == "codex")
+        #expect(snapshot.creditsBalance == .unavailable)
         #expect(snapshot.primaryWindow?.clampedUsedPercent == 100)
         #expect(snapshot.primaryWindow?.remainingPercent == 0)
         #expect(snapshot.dailyUsage.isEmpty)

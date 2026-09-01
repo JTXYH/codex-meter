@@ -136,6 +136,16 @@ enum AutomaticRefreshInterval: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum DashboardSection: String, CaseIterable, Identifiable, Sendable {
+    case quota
+    case tokenActivity
+    case usageHeatmap
+    case usageSummary
+    case creditsBalance
+
+    var id: String { rawValue }
+}
+
 @MainActor
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -171,6 +181,37 @@ final class AppSettings: ObservableObject {
     }
 
     @Published private(set) var launchAtLoginErrorDescription: String?
+
+    @Published var showQuotaCard: Bool {
+        didSet { defaults.set(showQuotaCard, forKey: Keys.showQuotaCard) }
+    }
+
+    @Published var showTokenActivityCard: Bool {
+        didSet { defaults.set(showTokenActivityCard, forKey: Keys.showTokenActivityCard) }
+    }
+
+    @Published var showUsageHeatmapCard: Bool {
+        didSet { defaults.set(showUsageHeatmapCard, forKey: Keys.showUsageHeatmapCard) }
+    }
+
+    @Published var showUsageSummaryCard: Bool {
+        didSet { defaults.set(showUsageSummaryCard, forKey: Keys.showUsageSummaryCard) }
+    }
+
+    @Published var showCreditsBalanceCard: Bool {
+        didSet { defaults.set(showCreditsBalanceCard, forKey: Keys.showCreditsBalanceCard) }
+    }
+
+    @Published var dashboardSectionOrder: [DashboardSection] {
+        didSet {
+            let sanitized = Self.sanitizedDashboardSectionOrder(dashboardSectionOrder)
+            guard sanitized == dashboardSectionOrder else {
+                dashboardSectionOrder = sanitized
+                return
+            }
+            defaults.set(dashboardSectionOrder.map(\.rawValue), forKey: Keys.dashboardSectionOrder)
+        }
+    }
 
     @Published var automaticRefreshInterval: AutomaticRefreshInterval {
         didSet {
@@ -210,6 +251,23 @@ final class AppSettings: ObservableObject {
             .flatMap(AppLanguage.init(rawValue:))
             ?? AppLanguage.systemDefault(from: preferredLanguages)
         launchAtLogin = (defaults.object(forKey: Keys.launchAtLogin) as? NSNumber)?.boolValue ?? true
+        showQuotaCard = (defaults.object(forKey: Keys.showQuotaCard) as? NSNumber)?.boolValue ?? true
+        showTokenActivityCard = (
+            defaults.object(forKey: Keys.showTokenActivityCard) as? NSNumber
+        )?.boolValue ?? true
+        showUsageHeatmapCard = (
+            defaults.object(forKey: Keys.showUsageHeatmapCard) as? NSNumber
+        )?.boolValue ?? true
+        showUsageSummaryCard = (
+            defaults.object(forKey: Keys.showUsageSummaryCard) as? NSNumber
+        )?.boolValue ?? true
+        showCreditsBalanceCard = (
+            defaults.object(forKey: Keys.showCreditsBalanceCard) as? NSNumber
+        )?.boolValue ?? true
+        dashboardSectionOrder = Self.sanitizedDashboardSectionOrder(
+            (defaults.stringArray(forKey: Keys.dashboardSectionOrder) ?? [])
+                .compactMap(DashboardSection.init(rawValue:))
+        )
         let legacyMinutes = defaults.integer(forKey: Keys.automaticRefreshIntervalMinutes)
         let legacyPreset = AutomaticRefreshInterval.preset(for: legacyMinutes)
         let storedCustomMinutes = (defaults.object(forKey: Keys.customRefreshIntervalMinutes) as? NSNumber)?.intValue
@@ -229,6 +287,12 @@ final class AppSettings: ObservableObject {
 
         defaults.set(language.rawValue, forKey: Keys.language)
         defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+        defaults.set(showQuotaCard, forKey: Keys.showQuotaCard)
+        defaults.set(showTokenActivityCard, forKey: Keys.showTokenActivityCard)
+        defaults.set(showUsageHeatmapCard, forKey: Keys.showUsageHeatmapCard)
+        defaults.set(showUsageSummaryCard, forKey: Keys.showUsageSummaryCard)
+        defaults.set(showCreditsBalanceCard, forKey: Keys.showCreditsBalanceCard)
+        defaults.set(dashboardSectionOrder.map(\.rawValue), forKey: Keys.dashboardSectionOrder)
         do {
             try launchAtLoginManager.setEnabled(launchAtLogin)
         } catch {
@@ -243,6 +307,37 @@ final class AppSettings: ObservableObject {
 
     var automaticRefreshIntervalNanoseconds: UInt64 {
         UInt64(automaticRefreshIntervalMinutes) * 60 * 1_000_000_000
+    }
+
+    func isDashboardSectionVisible(_ section: DashboardSection) -> Bool {
+        switch section {
+        case .quota: showQuotaCard
+        case .tokenActivity: showTokenActivityCard
+        case .usageHeatmap: showUsageHeatmapCard
+        case .usageSummary: showUsageSummaryCard
+        case .creditsBalance: showCreditsBalanceCard
+        }
+    }
+
+    func moveDashboardSections(fromOffsets offsets: IndexSet, toOffset destination: Int) {
+        let sourceIndices = offsets.sorted()
+        guard !sourceIndices.isEmpty,
+              sourceIndices.allSatisfy(dashboardSectionOrder.indices.contains)
+        else { return }
+
+        let movingSections = sourceIndices.map { dashboardSectionOrder[$0] }
+        let remainingSections = dashboardSectionOrder.enumerated().compactMap { index, section in
+            offsets.contains(index) ? nil : section
+        }
+        let removedBeforeDestination = sourceIndices.filter { $0 < destination }.count
+        let insertionIndex = min(
+            max(destination - removedBeforeDestination, 0),
+            remainingSections.count
+        )
+
+        var reordered = remainingSections
+        reordered.insert(contentsOf: movingSections, at: insertionIndex)
+        dashboardSectionOrder = reordered
     }
 
     func applyAppearance() {
@@ -270,10 +365,25 @@ final class AppSettings: ObservableObject {
         min(max(minutes, 1), 1_440)
     }
 
+    private static func sanitizedDashboardSectionOrder(
+        _ sections: [DashboardSection]
+    ) -> [DashboardSection] {
+        var seen = Set<DashboardSection>()
+        var result = sections.filter { seen.insert($0).inserted }
+        result.append(contentsOf: DashboardSection.allCases.filter { seen.insert($0).inserted })
+        return result
+    }
+
     private enum Keys {
         static let appearance = "appAppearance"
         static let language = "appLanguage"
         static let launchAtLogin = "launchAtLogin"
+        static let showQuotaCard = "showQuotaCard"
+        static let showTokenActivityCard = "showTokenActivityCard"
+        static let showUsageHeatmapCard = "showUsageHeatmapCard"
+        static let showUsageSummaryCard = "showUsageSummaryCard"
+        static let showCreditsBalanceCard = "showCreditsBalanceCard"
+        static let dashboardSectionOrder = "dashboardSectionOrder"
         static let automaticRefreshIntervalOption = "automaticRefreshIntervalOption"
         static let automaticRefreshIntervalMinutes = "automaticRefreshIntervalMinutes"
         static let customRefreshIntervalMinutes = "customRefreshIntervalMinutes"

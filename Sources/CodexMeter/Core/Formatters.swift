@@ -1,6 +1,31 @@
 import Foundation
 
 enum MeterFormatters {
+    private static let usdPerCredit = Decimal(4) / Decimal(100)
+
+    static func credits(
+        _ balance: CreditBalance,
+        language: AppLanguage = .simplifiedChinese
+    ) -> String {
+        switch balance {
+        case .amount(let amount):
+            let usdAmount = amount * usdPerCredit
+            let formatter = NumberFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.numberStyle = .decimal
+            formatter.positivePrefix = "$"
+            formatter.negativePrefix = "-$"
+            formatter.usesGroupingSeparator = true
+            formatter.minimumFractionDigits = 2
+            formatter.maximumFractionDigits = 2
+            return formatter.string(from: NSDecimalNumber(decimal: usdAmount)) ?? "$0.00"
+        case .unlimited:
+            return L10n.text(.unlimitedCredits, language: language)
+        case .unavailable:
+            return L10n.text(.creditsBalanceUnavailable, language: language)
+        }
+    }
+
     static func tokens(
         _ value: Int64?,
         language: AppLanguage = .simplifiedChinese

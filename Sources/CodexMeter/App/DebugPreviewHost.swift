@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-private let debugPanelSnapshotSize = CGSize(width: 420, height: 950)
+private let debugPanelSnapshotSize = CGSize(width: 420, height: 1_100)
 
 struct DebugDemoUsageLoader: CodexUsageLoading {
     func fetchSnapshot() async throws -> CodexUsageSnapshot {
@@ -74,9 +74,9 @@ struct DebugDemoUsageLoader: CodexUsageLoading {
             id: "codex",
             name: "Codex",
             planType: "plus",
-            hasCredits: false,
+            hasCredits: true,
             unlimitedCredits: false,
-            creditBalance: "0",
+            creditBalance: "1905",
             windows: windows
         )
 
@@ -131,13 +131,8 @@ private struct DebugMeterPanelSnapshotView: View {
                 Divider().overlay(Color.meterBorder)
 
                 if let snapshot = store.snapshot {
-                    VStack(spacing: 12) {
-                        HeroUsageCard(snapshot: snapshot)
-                        TokenActivityCard(snapshot: snapshot)
-                        UsageHeatmapCard(snapshot: snapshot)
-                        UsageSummaryCard(snapshot: snapshot)
-                    }
-                    .padding(14)
+                    DashboardCardStack(snapshot: snapshot)
+                        .padding(14)
                 }
 
                 footer
