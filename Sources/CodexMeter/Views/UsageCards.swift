@@ -839,15 +839,11 @@ struct CreditsBalanceCard: View {
         let value = MeterFormatters.credits(balance, language: settings.language)
 
         PanelCard(borderColor: Color.meterAccent.opacity(0.18)) {
-            HStack(spacing: 13) {
+            HStack(spacing: 9) {
                 Image(systemName: "creditcard")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.meterAccent)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Color.meterAccent.opacity(0.08),
-                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    )
+                    .frame(width: 20, height: 40)
 
                 Text(L10n.text(.creditsBalance, language: settings.language))
                     .font(.system(size: 14, weight: .medium, design: .rounded))
