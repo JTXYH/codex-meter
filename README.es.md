@@ -18,10 +18,13 @@ Codex Meter es una utilidad nativa para la barra de menús de macOS que permite 
 
 - Da prioridad a la cuota restante de cinco horas de Codex en la barra de menús y usa la cuota semanal cuando es la única ventana disponible
 - Adapta la tarjeta a las ventanas devueltas por la API: la cuota de cinco horas muestra la cuenta atrás y la hora de restablecimiento, mientras que la semanal presenta en una sola línea el porcentaje restante y la fecha de restablecimiento
-- Resume la actividad de hoy, los últimos 7 días, el total histórico y un mapa de calor de 90 días
+- Muestra el desglose de hoy, ayer, los últimos 7 días, los tokens acumulados, las rachas y la tarea más larga
+- Presenta un mapa de calor de 120 días alineado por semana y lleno de cuadros compactos, con detalles diarios al pasar el cursor
 - Actualiza el recuento local de hoy cada 5 segundos desde los registros de sesión de Codex y muestra entrada, salida, entrada en caché y coste equivalente de API en USD
+- Muestra el saldo de Codex Credits convertido a su valor en USD
+- Permite mostrar u ocultar cada tarjeta del panel, reordenarla mediante arrastre y guardar la configuración automáticamente
 - Admite actualización manual, intervalos predefinidos y un intervalo personalizado de 1 a 1.440 minutos
-- Admite apariencia del sistema, clara y oscura
+- Admite inicio con la sesión y las apariencias del sistema, clara y oscura
 - Permite crear varios conjuntos de fondos de cuota, recortar imágenes de tarjeta e iconos del panel para los estados suficiente, atención y bajo, y cambiarlos automáticamente según la cuota restante
 - Comprueba actualizaciones cada 6 horas con Sparkle y las verifica, instala y reinicia dentro de la app
 - Oculta el correo de la cuenta hasta que se revela de forma explícita
@@ -40,9 +43,9 @@ El idioma predeterminado es chino simplificado. La aplicación admite actualment
 
 ## Descarga
 
-[⬇️ Descargar Codex Meter v1.4.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.4.0/CodexMeter-1.4.0-macOS.zip)
+[⬇️ Descargar Codex Meter v1.5.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.5.0/CodexMeter-1.5.0-macOS.zip)
 
-Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.4.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.4.0).
+Esta compilación admite Macs con Apple Silicon e Intel. Descarga y extrae el ZIP y mueve `CodexMeter.app` a la carpeta Aplicaciones. [Consulta las notas de la versión v1.5.0](https://github.com/JTXYH/codex-meter/releases/tag/v1.5.0).
 
 ### Si macOS bloquea la aplicación al abrirla por primera vez
 
@@ -96,13 +99,13 @@ swift run CodexMeter
 3. Haz clic en el elemento de la barra para consultar cuotas, actividad de tokens, mapa de calor y resumen de uso.
 4. Usa el botón de actualización de la esquina superior derecha para volver a leer los datos inmediatamente.
 5. Haz clic en el correo oculto para mostrarlo temporalmente. Al cerrar el panel vuelve a ocultarse.
-6. Abre Ajustes con el engranaje para cambiar la apariencia, el idioma, los fondos de cuota y el intervalo de actualización automática.
+6. Abre Ajustes con el engranaje para configurar el inicio de sesión, la apariencia, el idioma, la visibilidad y el orden de las tarjetas, los fondos de cuota y el intervalo de actualización automática.
 7. Cierra la aplicación con el botón de encendido de la esquina inferior derecha.
 
 ## Datos y privacidad
 
 - El resumen de la cuenta procede de `account/read`.
-- Las ventanas de cuota proceden de `account/rateLimits/read`; el porcentaje representa la parte utilizada de cada ventana.
+- Las ventanas de cuota y el saldo de Credits proceden de `account/rateLimits/read`; el porcentaje representa la parte utilizada de cada ventana y los Credits se convierten del saldo devuelto por el servidor a USD.
 - La actividad de tokens y el mapa de calor proceden de `account/usage/read`; son estadísticas de actividad, no límites de cuota.
 - El recuento de tokens de hoy solo lee eventos de los registros locales de sesión de Codex; no guarda ni muestra el contenido de las conversaciones.
 - El coste equivalente de API se estima con las [tarifas estándar públicas de la API GPT-5.6 de OpenAI](https://openai.com/api/pricing/) y tiene en cuenta la entrada normal, las lecturas y escrituras de caché, la salida y el contexto largo. Las rutas internas de Codex no reconocidas usan como alternativa la tarifa de GPT-5.6 Sol. Es una estimación equivalente de API, no un cargo real de la suscripción de ChatGPT.

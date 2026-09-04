@@ -18,10 +18,13 @@ Codex Meter 是一款原生 macOS 菜单栏工具，用来快速查看 ChatGPT/C
 
 - 菜单栏优先显示 Codex 5 小时剩余额度；账户仅返回周额度时自动回退
 - 根据 API 返回的窗口自适应展示额度卡片：5 小时额度显示重置倒计时与时间，周额度以单行显示剩余比例与重置日期
-- 展示今日、近 7 天、累计 token 用量和近 90 天活跃热力图
+- 展示今日明细、昨日、近 7 天、累计 token、连续使用天数和最长任务
+- 近 120 天热力图采用紧凑小方格按星期完整铺满，支持悬停查看每日用量
 - 今日 Token 从本机 Codex 会话日志增量统计，每 5 秒刷新，并细分输入、输出、缓存输入和美元 API 等效费用
+- 显示 Codex Credits 余额，并换算为美元金额
+- 所有主面板卡片可独立显示或隐藏、拖动排序，并自动保存设置
 - 支持手动刷新、预设刷新间隔和 1–1440 分钟自定义间隔
-- 支持跟随系统、浅色和深色外观
+- 支持登录时启动，以及跟随系统、浅色和深色外观
 - 可创建多组自定义额度背景，为充足、注意和紧张三种状态分别裁剪卡片图片与面板图标，并随剩余额度自动切换
 - 通过 Sparkle 每 6 小时检查更新，在应用内校验、安装并重启，无需反复手动下载
 - 账户邮箱默认脱敏，仅在主动点击后显示完整地址
@@ -40,9 +43,9 @@ Codex Meter 默认使用简体中文，目前支持：
 
 ## 下载
 
-[⬇️ 下载 Codex Meter v1.4.0（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.4.0/CodexMeter-1.4.0-macOS.zip)
+[⬇️ 下载 Codex Meter v1.5.0（macOS Universal 2）](https://github.com/JTXYH/codex-meter/releases/download/v1.5.0/CodexMeter-1.5.0-macOS.zip)
 
-该版本同时支持 Apple Silicon 和 Intel Mac。下载 ZIP 后解压，将 `CodexMeter.app` 拖入“应用程序”目录即可。[查看 v1.4.0 发布说明](https://github.com/JTXYH/codex-meter/releases/tag/v1.4.0)。
+该版本同时支持 Apple Silicon 和 Intel Mac。下载 ZIP 后解压，将 `CodexMeter.app` 拖入“应用程序”目录即可。[查看 v1.5.0 发布说明](https://github.com/JTXYH/codex-meter/releases/tag/v1.5.0)。
 
 ### 首次打开时被 macOS 拦截
 
@@ -98,13 +101,13 @@ swift run CodexMeter
 3. 点击菜单栏项打开面板，查看额度、token 活跃度、热力图和用量概览。
 4. 点击右上角刷新按钮立即更新数据。
 5. 点击脱敏邮箱可临时显示完整地址；关闭面板后会自动重新隐藏。
-6. 点击左下角齿轮打开设置，修改外观、语言、额度背景和自动刷新间隔。
+6. 点击左下角齿轮打开设置，配置登录时启动、外观、语言、卡片显隐与顺序、额度背景和自动刷新间隔。
 7. 点击右下角电源按钮退出应用。
 
 ## 数据与隐私
 
 - 账户摘要来自 `account/read`。
-- 额度窗口来自 `account/rateLimits/read`；百分比表示当前窗口的已使用比例。
+- 额度窗口和 Credits 余额来自 `account/rateLimits/read`；百分比表示当前窗口的已使用比例，Credits 按服务端返回的余额换算为美元金额。
 - Token 活跃度和热力图来自 `account/usage/read`，不等同于额度上限。
 - 今日 Token 统计只读取本机 Codex 会话日志中的 token 计数事件，不保存或展示会话内容。
 - API 等效费用按 [OpenAI 公开的 GPT-5.6 标准 API 费率](https://openai.com/api/pricing/) 估算，会区分普通输入、缓存读取、缓存写入、输出和长上下文；无法识别的 Codex 内部路由按 GPT-5.6 Sol 费率回退。这只是 API 等效估算，不代表 ChatGPT 订阅的实际扣费。

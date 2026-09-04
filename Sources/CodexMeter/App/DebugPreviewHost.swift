@@ -11,8 +11,8 @@ struct DebugDemoUsageLoader: CodexUsageLoading {
         calendar.timeZone = .current
         let today = calendar.startOfDay(for: now)
 
-        let dailyUsage = (0..<90).compactMap { index -> DailyTokenUsage? in
-            guard let date = calendar.date(byAdding: .day, value: index - 89, to: today) else {
+        let dailyUsage = (0..<120).compactMap { index -> DailyTokenUsage? in
+            guard let date = calendar.date(byAdding: .day, value: index - 119, to: today) else {
                 return nil
             }
             let tokens: Int64 = index.isMultiple(of: 11)

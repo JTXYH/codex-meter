@@ -18,10 +18,13 @@ Codex Meter is a native macOS menu bar utility for checking the quota windows an
 
 - Prioritizes the remaining Codex five-hour quota in the menu bar, falling back to weekly quota when that is the only window returned
 - Adapts the quota card to the API response: five-hour quota shows a reset countdown and time, while weekly quota uses a compact single-line percentage and reset date
-- Tracks today, the last 7 days, lifetime token activity, and a 90-day heatmap
+- Shows today's breakdown, yesterday, the last 7 days, lifetime tokens, streaks, and the longest task
+- Uses compact squares to fill a weekday-aligned 120-day heatmap, with per-day details on hover
 - Updates today's local token count incrementally from Codex session logs every 5 seconds, with input, output, cached-input, and USD API-equivalent cost details
+- Shows the Codex Credits balance converted to its USD value
+- Lets every dashboard card be shown or hidden independently, drag-reordered, and saved automatically
 - Supports manual refresh, preset intervals, and custom intervals from 1 to 1,440 minutes
-- Supports system, light, and dark appearances
+- Supports launch at login plus system, light, and dark appearances
 - Creates multiple custom quota-background sets, with separately cropped card art and panel icons for plenty, attention, and low-quota states that switch automatically
 - Checks for updates every 6 hours with Sparkle, then verifies, installs, and relaunches in-app without repeated manual downloads
 - Masks the account email until you explicitly reveal it
@@ -40,9 +43,9 @@ Simplified Chinese is the default. The app currently supports:
 
 ## Download
 
-[⬇️ Download Codex Meter v1.4.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.4.0/CodexMeter-1.4.0-macOS.zip)
+[⬇️ Download Codex Meter v1.5.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.5.0/CodexMeter-1.5.0-macOS.zip)
 
-This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.4.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.4.0).
+This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.5.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.5.0).
 
 ### If macOS blocks the app on first launch
 
@@ -98,13 +101,13 @@ swift run CodexMeter
 3. Click the menu bar item to view quota windows, token activity, the heatmap, and the usage overview.
 4. Use the refresh button in the top-right corner to update data immediately.
 5. Click the masked email to reveal it temporarily. Closing the panel masks it again.
-6. Open Settings with the gear button to change appearance, language, quota backgrounds, and the automatic refresh interval.
+6. Open Settings with the gear button to configure launch at login, appearance, language, dashboard visibility and order, quota backgrounds, and the automatic refresh interval.
 7. Quit the app with the power button in the bottom-right corner.
 
 ## Data and privacy
 
 - Account metadata comes from `account/read`.
-- Quota windows come from `account/rateLimits/read`; percentages represent the used portion of each window.
+- Quota windows and the Credits balance come from `account/rateLimits/read`; percentages represent the used portion of each window, while Credits are converted from the server-returned balance to USD.
 - Token activity and the heatmap come from `account/usage/read`; they are activity statistics, not quota limits.
 - Today's token count reads only token-count events from local Codex session logs; it neither stores nor displays conversation content.
 - API-equivalent cost uses [OpenAI's published standard GPT-5.6 API rates](https://openai.com/api/pricing/) and accounts for regular input, cache reads, cache writes, output, and long-context pricing. Unrecognized Codex internal routes fall back to GPT-5.6 Sol pricing. This is an API-equivalent estimate, not an actual ChatGPT subscription charge.

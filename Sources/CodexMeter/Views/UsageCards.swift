@@ -662,6 +662,8 @@ struct UsageHeatmapCard: View {
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings
 
+    private static let dayCount = 120
+
     let snapshot: CodexUsageSnapshot
     @State private var hoveredDay: HeatmapDay? = nil
 
@@ -670,14 +672,17 @@ struct UsageHeatmapCard: View {
             on: Date(),
             with: store.localTodayTokens
         )
-        let columns = HeatmapBuilder.columns(from: effectiveSnapshot.dailyUsage)
-        let total = effectiveSnapshot.tokensInLastDays(90)
+        let columns = HeatmapBuilder.columns(
+            from: effectiveSnapshot.dailyUsage,
+            dayCount: Self.dayCount
+        )
+        let total = effectiveSnapshot.tokensInLastDays(Self.dayCount)
 
         PanelCard {
             VStack(spacing: 13) {
                 SectionTitle(
                     icon: "calendar",
-                    title: L10n.text(.lastNinetyDays, language: settings.language),
+                    title: L10n.text(.lastOneHundredTwentyDays, language: settings.language),
                     trailing: streakText
                 )
 
@@ -701,8 +706,8 @@ struct UsageHeatmapCard: View {
                         }
                     }
 
-                    HStack(spacing: 4) {
-                        ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                    HStack(spacing: 0) {
+                        ForEach(Array(columns.enumerated()), id: \.offset) { columnIndex, column in
                             VStack(spacing: 5) {
                                 ForEach(Array(column.enumerated()), id: \.offset) { _, day in
                                     HeatmapCell(day: day) { hoveringDay in
@@ -712,9 +717,13 @@ struct UsageHeatmapCard: View {
                                     }
                                 }
                             }
+
+                            if columnIndex < columns.count - 1 {
+                                Spacer(minLength: 4)
+                            }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .frame(maxWidth: .infinity)
                 }
 
                 HStack {
@@ -767,7 +776,7 @@ private struct HeatmapCell: View {
             .frame(width: 14, height: 14)
             .overlay {
                 RoundedRectangle(cornerRadius: 3.5, style: .continuous)
-                    .stroke(day == nil ? Color.clear : Color.meterBorder, lineWidth: 0.5)
+                    .stroke(Color.meterBorder, lineWidth: 0.5)
             }
             .onHover { hovering in
                 guard let day else { return }
@@ -776,7 +785,7 @@ private struct HeatmapCell: View {
     }
 
     private var fillColor: Color {
-        guard let day else { return .clear }
+        guard let day else { return Color.meterTrack }
         guard day.tokens > 0 else { return Color.meterTrack }
         return Color.meterAccent.opacity(0.2 + day.intensity * 0.8)
     }

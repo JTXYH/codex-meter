@@ -101,7 +101,7 @@ struct CodexResponseParserTests {
     }
 
     @Test
-    func buildsNinetyDayHeatmap() {
+    func buildsOneHundredTwentyDayHeatmap() {
         let end = DateOnlyParser.date(from: "2026-08-07")!
         let usage = [
             DailyTokenUsage(date: end, tokens: 1_000),
@@ -109,10 +109,11 @@ struct CodexResponseParserTests {
             DailyTokenUsage(date: DateOnlyParser.date(from: "2026-08-01")!, tokens: 10_000),
         ]
 
-        let columns = HeatmapBuilder.columns(from: usage, endingAt: end, dayCount: 90)
+        let columns = HeatmapBuilder.columns(from: usage, endingAt: end, dayCount: 120)
         let visibleDays = columns.flatMap { $0 }.compactMap { $0 }
 
-        #expect(visibleDays.count == 90)
+        #expect(columns.count == 18)
+        #expect(visibleDays.count == 120)
         #expect(visibleDays.last?.tokens == 1_500)
         #expect(visibleDays.contains(where: { $0.tokens == 10_000 && $0.intensity == 1 }))
     }
