@@ -172,7 +172,7 @@ struct CodexResponseParserTests {
         #expect(columns.count == 18)
         #expect(visibleDays.count == 120)
         #expect(visibleDays.last?.tokens == 1_500)
-        #expect(visibleDays.contains(where: { $0.tokens == 10_000 && $0.intensity == 1 }))
+        #expect(visibleDays.contains(where: { $0.tokens == 10_000 && $0.level == .peak }))
     }
 
     @Test
@@ -190,7 +190,7 @@ struct CodexResponseParserTests {
         #expect(visibleDays.count == 7)
         #expect(visibleDays.map(\.tokens).max() == 100)
         #expect(visibleDays.last?.tokens == 100)
-        #expect(visibleDays.last?.intensity == 1)
+        #expect(visibleDays.last?.level == .peak)
     }
 
     @Test

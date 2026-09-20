@@ -1,0 +1,53 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "5 小时额度面板": {
+      "versions": [
+        {
+          "path": "Five Hour Quota Panel.html",
+          "createdAt": "2026-08-26T01:42:31.125Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "状态栏与周额度精简稿": {
+      "versions": [
+        {
+          "path": "Status Bar Weekly Text Mockup.html",
+          "createdAt": "2026-08-26T07:15:35.718Z",
+          "status": "needs-review",
+          "viewport": {
+            "width": 830,
+            "height": 626
+          }
+        },
+        {
+          "path": "Status Bar Weekly Inline Mockup.html",
+          "createdAt": "2026-08-26T08:00:05.283Z",
+          "status": "needs-review",
+          "viewport": {
+            "width": 830,
+            "height": 626
+          }
+        }
+      ]
+    },
+    "圆环周额度单行稿": {
+      "versions": [
+        {
+          "path": "Ring Weekly Inline Mockup.html",
+          "createdAt": "2026-08-26T07:27:11.983Z",
+          "status": "needs-review",
+          "viewport": {
+            "width": 816,
+            "height": 414
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-08-26T01:42:31.126Z",
+  "updatedAt": "2026-08-26T08:00:05.284Z"
+}

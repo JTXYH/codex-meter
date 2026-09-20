@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="design_doc_mode" content="prototype">
+  <title>Codex Meter · 5 小时额度</title>
+  <!--
+    Design source:
+    - Sources/CodexMeter/Views/MeterPanelView.swift
+    - Sources/CodexMeter/Views/UsageCards.swift
+    - Sources/CodexMeter/Views/DesignSystem.swift
+    - designs/token-cost-panel/Token Cost Panel.html
+  -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --stage: #edf0f6;
+      --stage-grid: rgba(57, 67, 95, 0.055);
+      --panel: rgba(248, 248, 246, 0.96);
+      --panel-top: #fbfbfa;
+      --card: rgba(255, 255, 255, 0.94);
+      --card-solid: #ffffff;
+      --footer: rgba(252, 252, 251, 0.97);
+      --control: rgba(24, 25, 31, 0.055);
+      --border: rgba(27, 29, 38, 0.085);
+      --divider: rgba(27, 29, 38, 0.075);
+      --track: rgba(27, 29, 38, 0.075);
+      --text: #1b1c21;
+      --secondary: rgba(27, 28, 33, 0.57);
+      --tertiary: rgba(27, 28, 33, 0.37);
+      --accent: #596cff;
+      --accent-2: #8f7cff;
+      --accent-soft: rgba(89, 108, 255, 0.115);
+      --cyan: #5dbbff;
+      --success: #11a87d;
+      --warning: #ef8d32;
+      --shadow: 0 19px 55px rgba(46, 52, 72, 0.16), 0 2px 8px rgba(46, 52, 72, 0.07);
+      --card-shadow: 0 8px 28px rgba(56, 61, 79, 0.055);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --stage: #121419;
+      --stage-grid: rgba(255, 255, 255, 0.035);
+      --panel: rgba(25, 27, 32, 0.97);
+      --panel-top: #1b1d22;
+      --card: rgba(38, 40, 47, 0.95);
+      --card-solid: #272930;
+      --footer: rgba(29, 31, 36, 0.98);
+      --control: rgba(255, 255, 255, 0.075);
+      --border: rgba(255, 255, 255, 0.09);
+      --divider: rgba(255, 255, 255, 0.08);
+      --track: rgba(255, 255, 255, 0.105);
+      --text: rgba(255, 255, 255, 0.93);
+      --secondary: rgba(255, 255, 255, 0.58);
+      --tertiary: rgba(255, 255, 255, 0.38);
+      --accent: #7585ff;
+      --accent-2: #a58cff;
+      --accent-soft: rgba(117, 133, 255, 0.16);
+      --cyan: #65c7ff;
+      --success: #30c99a;
+      --warning: #ff9f45;
+      --shadow: 0 25px 70px rgba(0, 0, 0, 0.46), 0 2px 10px rgba(0, 0, 0, 0.28);
+      --card-shadow: 0 9px 30px rgba(0, 0, 0, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body, #root { min-height: 100%; }
+
+    body {
+      margin: 0;
+      min-width: 760px;
+      min-height: 820px;
+      overflow: hidden;
+      font-family: var(--font);
+      color: var(--text);
+      background-color: var(--stage);
+      background-image:
+        linear-gradient(var(--stage-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--stage-grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      transition: background-color 220ms ease, color 220ms ease;
+    }
+
+    button { font: inherit; }
+
+    .prototype-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 420px 186px;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      padding: 38px;
+    }
+
+    .app-window {
+      width: 420px;
+      height: 700px;
+      display: grid;
+      grid-template-rows: 73px minmax(0, 1fr) 56px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 25px;
+      background: linear-gradient(150deg, var(--panel-top), var(--panel));
+      box-shadow: var(--shadow);
+      transition: background 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 14px 17px 12px;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .app-icon {
+      width: 38px;
+      height: 38px;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(75, 88, 180, 0.14);
+    }
+
+    .account { min-width: 0; }
+
+    .account-top {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      height: 20px;
+    }
+
+    .product-name {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: -0.28px;
+    }
+
+    .plan-badge {
+      padding: 3px 7px;
+      border-radius: 999px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-size: 9px;
+      font-weight: 760;
+      letter-spacing: 0.35px;
+    }
+
+    .email-button {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      max-width: 245px;
+      margin-top: 1px;
+      padding: 0;
+      border: 0;
+      color: var(--secondary);
+      background: none;
+      cursor: pointer;
+      font-size: 10.5px;
+    }
+
+    .email-button:hover { color: var(--text); }
+    .email-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .eye-icon {
+      width: 13px;
+      height: 9px;
+      border: 1.5px solid currentColor;
+      border-radius: 50% 50% 48% 48%;
+      transform: scaleY(0.72);
+      position: relative;
+      flex: none;
+    }
+
+    .eye-icon::after {
+      content: "";
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      inset: 2px auto auto 3.5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .icon-button {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      margin-left: auto;
+      border: 0;
+      border-radius: 50%;
+      color: var(--text);
+      background: var(--control);
+      cursor: pointer;
+      transition: transform 150ms ease, background 150ms ease;
+    }
+
+    .icon-button:hover { transform: translateY(-1px); background: var(--accent-soft); }
+    .icon-button:active { transform: translateY(0) scale(0.96); }
+    .icon-button svg { width: 15px; height: 15px; }
+    .icon-button.is-loading svg { animation: spin 650ms linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .content-scroll {
+      overflow: auto;
+      padding: 13px 13px 18px;
+      scrollbar-width: none;
+    }
+
+    .content-scroll::-webkit-scrollbar { display: none; }
+
+    .stack { display: grid; gap: 12px; }
+
+    .panel-card {
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--card);
+      box-shadow: var(--card-shadow);
+      transition: background 220ms ease, border-color 220ms ease;
+    }
+
+    .quota-card {
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .quota-card::before {
+      content: "";
+      position: absolute;
+      width: 190px;
+      height: 190px;
+      right: -92px;
+      top: -108px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--accent-soft), transparent 68%);
+      pointer-events: none;
+    }
+
+    .quota-overview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 15px 0;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--secondary);
+      font-size: 10px;
+      font-weight: 610;
+    }
+
+    .eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 5px var(--accent-soft);
+    }
+
+    .health {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--success);
+      font-size: 9.5px;
+      font-weight: 620;
+    }
+
+    .health::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 7px currentColor;
+    }
+
+    .health.warning { color: var(--warning); }
+
+    .primary-quota {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 15px;
+      align-items: center;
+      min-height: 140px;
+      padding: 8px 15px 13px;
+    }
+
+    .ring {
+      --percentage: 72;
+      width: 108px;
+      height: 108px;
+      position: relative;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: conic-gradient(from -90deg, var(--cyan), var(--accent), var(--accent-2) calc(var(--percentage) * 1%), var(--track) 0);
+      box-shadow: 0 8px 24px var(--accent-soft);
+      transition: background 420ms ease;
+    }
+
+    .ring::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      background: var(--card-solid);
+      box-shadow: inset 0 0 0 1px var(--border);
+      transition: background 220ms ease;
+    }
+
+    .ring-copy {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      justify-items: center;
+    }
+
+    .ring-value {
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 720;
+      letter-spacing: -1.1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ring-label {
+      margin-top: 4px;
+      color: var(--secondary);
+      font-size: 9px;
+      font-weight: 560;
+    }
+
+    .quota-copy { min-width: 0; }
+
+    .quota-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .quota-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 680;
+      letter-spacing: -0.35px;
+    }
+
+    .priority-pill {
+      padding: 3px 6px;
+      border: 1px solid rgba(89, 108, 255, 0.16);
+      border-radius: 999px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-size: 8.5px;
+      font-weight: 690;
+      white-space: nowrap;
+    }
+
+    .quota-metric {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .quota-metric span:first-child { color: var(--secondary); font-size: 10px; }
+    .quota-metric strong {
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 730;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.45px;
+    }
+
+    .progress {
+      height: 6px;
+      overflow: hidden;
+      margin-top: 8px;
+      border-radius: 999px;
+      background: var(--track);
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--accent) 72%, var(--accent-2));
+      transition: width 420ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .reset-primary {
+      margin-top: 8px;
+      font-size: 10.5px;
+      font-weight: 610;
+    }
+
+    .reset-date {
+      margin-top: 2px;
+      color: var(--secondary);
+      font-size: 9px;
+    }
+
+    .secondary-quota {
+      display: grid;
+      grid-template-columns: 1fr 116px;
+      gap: 13px;
+      align-items: center;
+      min-height: 65px;
+      padding: 11px 15px 13px;
+      border-top: 1px solid var(--divider);
+      background: linear-gradient(90deg, var(--accent-soft), transparent 48%);
+    }
+
+    .secondary-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      font-weight: 650;
+    }
+
+    .calendar-icon {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      flex: none;
+      border-radius: 8px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-size: 13px;
+    }
+
+    .secondary-reset {
+      margin: 2px 0 0 34px;
+      color: var(--secondary);
+      font-size: 9px;
+    }
+
+    .secondary-meter { min-width: 0; }
+
+    .secondary-number {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: 4px;
+      font-size: 9px;
+      color: var(--secondary);
+    }
+
+    .secondary-number strong {
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 710;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .secondary-meter .progress { height: 5px; margin-top: 5px; }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 13px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 660;
+      letter-spacing: -0.18px;
+    }
+
+    .section-glyph {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .section-meta { color: var(--secondary); font-size: 9.5px; }
+
+    .activity-row { display: grid; gap: 5px; }
+    .activity-row + .activity-row { margin-top: 11px; }
+
+    .activity-copy {
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      align-items: baseline;
+      gap: 7px;
+    }
+
+    .activity-label { color: var(--secondary); font-size: 9.5px; }
+    .activity-value { font-size: 14.5px; font-weight: 690; }
+    .activity-rate { color: var(--secondary); font-size: 9px; }
+    .activity-row .progress { height: 5px; margin-top: 1px; }
+
+    .today-detail {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--divider);
+    }
+
+    .detail-item { padding: 0 9px; }
+    .detail-item:first-child { padding-left: 0; }
+    .detail-item + .detail-item { border-left: 1px solid var(--divider); }
+    .detail-label { color: var(--secondary); font-size: 8.5px; }
+    .detail-value { margin-top: 4px; font-size: 13px; font-weight: 670; }
+    .detail-note { margin-top: 12px; color: var(--secondary); font-size: 8.5px; }
+
+    .heatmap {
+      display: grid;
+      grid-template-columns: 20px repeat(13, 1fr);
+      gap: 4px;
+      align-items: center;
+    }
+
+    .weekday {
+      color: var(--secondary);
+      font-size: 8px;
+      text-align: center;
+    }
+
+    .heat-cell {
+      aspect-ratio: 1;
+      min-width: 0;
+      border-radius: 3px;
+      background: var(--track);
+    }
+
+    .heat-cell[data-level="1"] { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+    .heat-cell[data-level="2"] { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+    .heat-cell[data-level="3"] { background: color-mix(in srgb, var(--accent) 70%, transparent); }
+    .heat-cell[data-level="4"] { background: var(--accent); }
+
+    .heat-footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      color: var(--secondary);
+      font-size: 8.5px;
+    }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+    .summary-item {
+      padding: 10px;
+      border-radius: 12px;
+      background: var(--control);
+    }
+
+    .summary-label { color: var(--secondary); font-size: 8px; }
+    .summary-value { margin-top: 5px; font-size: 12px; font-weight: 670; }
+
+    .app-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-top: 1px solid var(--divider);
+      background: var(--footer);
+    }
+
+    .footer-button {
+      width: 40px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 10px;
+      color: var(--text);
+      background: var(--control);
+      cursor: pointer;
+      transition: background 150ms ease, transform 150ms ease;
+    }
+
+    .footer-button:hover { background: var(--accent-soft); color: var(--accent); transform: translateY(-1px); }
+    .footer-button svg { width: 16px; height: 16px; }
+
+    .preview-controls {
+      align-self: center;
+      width: 186px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 17px;
+      background: var(--card);
+      box-shadow: var(--card-shadow);
+    }
+
+    .preview-kicker {
+      color: var(--secondary);
+      font-size: 9px;
+      font-weight: 650;
+      letter-spacing: 0.65px;
+      text-transform: uppercase;
+    }
+
+    .preview-title { margin: 4px 0 13px; font-size: 13px; font-weight: 680; }
+    .control-label { margin: 12px 0 6px; color: var(--secondary); font-size: 9px; }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 10px;
+      background: var(--control);
+    }
+
+    .segmented button {
+      min-height: 28px;
+      padding: 4px 6px;
+      border: 0;
+      border-radius: 8px;
+      color: var(--secondary);
+      background: transparent;
+      cursor: pointer;
+      font-size: 9px;
+      font-weight: 610;
+    }
+
+    .segmented button.active {
+      color: var(--text);
+      background: var(--card-solid);
+      box-shadow: 0 1px 4px rgba(38, 42, 60, 0.1);
+    }
+
+    .design-note {
+      margin: 13px 0 0;
+      padding-top: 11px;
+      border-top: 1px solid var(--divider);
+      color: var(--secondary);
+      font-size: 9px;
+      line-height: 1.55;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 32px;
+      z-index: 9;
+      transform: translate(-50%, 18px);
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+      background: var(--card-solid);
+      box-shadow: var(--card-shadow);
+      opacity: 0;
+      pointer-events: none;
+      font-size: 10px;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 780px) {
+      body { min-width: 440px; }
+      .prototype-shell { grid-template-columns: 420px; padding: 24px 10px; }
+      .preview-controls { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useEffect, useMemo, useState } = React;
+
+    function RefreshIcon() {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 7v5h-5"></path>
+          <path d="M18.5 16.5A8 8 0 1 1 20 10l-5 2"></path>
+        </svg>
+      );
+    }
+
+    function GearIcon() {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"></path>
+        </svg>
+      );
+    }
+
+    function PowerIcon() {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" aria-hidden="true">
+          <path d="M12 2v9"></path>
+          <path d="M7.1 5.7a8 8 0 1 0 9.8 0"></path>
+        </svg>
+      );
+    }
+
+    function ProgressBar({ value }) {
+      return (
+        <div className="progress" aria-label={`剩余额度 ${value}%`}>
+          <div className="progress-fill" style={{ width: `${value}%` }}></div>
+        </div>
+      );
+    }
+
+    function QuotaCard({ hasFiveHour, lowQuota }) {
+      const fiveHour = lowQuota ? 9 : 72;
+      const weekly = lowQuota ? 8 : 63;
+      const primary = hasFiveHour ? fiveHour : weekly;
+      const title = hasFiveHour ? "5 小时额度" : "每周额度";
+      const reset = hasFiveHour ? "2 小时 18 分后恢复" : "4 天 2 小时后恢复";
+      const date = hasFiveHour ? "今天 17:23" : "8 月 30 日 17:23";
+      const isWarning = primary <= 10;
+
+      return (
+        <section className="panel-card quota-card" aria-label="额度概览">
+          <div className="quota-overview-head">
+            <div className="eyebrow"><span className="eyebrow-dot"></span>额度概览</div>
+            <div className={`health ${isWarning ? "warning" : ""}`}>{isWarning ? "额度紧张" : "额度充足"}</div>
+          </div>
+
+          <div className="primary-quota">
+            <div className="ring" style={{ "--percentage": primary }}>
+              <div className="ring-copy">
+                <span className="ring-value">{primary}%</span>
+                <span className="ring-label">剩余额度</span>
+              </div>
+            </div>
+
+            <div className="quota-copy">
+              <div className="quota-title-row">
+                <h2 className="quota-title">{title}</h2>
+                {hasFiveHour && <span className="priority-pill">当前周期</span>}
+              </div>
+              <div className="quota-metric"><span>剩余</span><strong>{primary}%</strong></div>
+              <ProgressBar value={primary} />
+              <div className="reset-primary">{reset}</div>
+              <div className="reset-date">{date}</div>
+            </div>
+          </div>
+
+          {hasFiveHour && (
+            <div className="secondary-quota">
+              <div>
+                <div className="secondary-title"><span className="calendar-icon">周</span>每周额度</div>
+                <div className="secondary-reset">4 天 2 小时后恢复</div>
+              </div>
+              <div className="secondary-meter">
+                <div className="secondary-number"><span>剩余</span><strong>{weekly}%</strong></div>
+                <ProgressBar value={weekly} />
+              </div>
+            </div>
+          )}
+        </section>
+      );
+    }
+
+    function ActivityCard() {
+      return (
+        <section className="panel-card">
+          <div className="section-head">
+            <h2 className="section-title"><span className="section-glyph">∿</span>Token 活跃度</h2>
+            <span className="section-meta">峰值基准</span>
+          </div>
+          <div className="activity-row">
+            <div className="activity-copy"><span className="activity-label">今日</span><strong className="activity-value">3.3 百万</strong><span className="activity-rate">79%</span></div>
+            <ProgressBar value={79} />
+          </div>
+          <div className="activity-row">
+            <div className="activity-copy"><span className="activity-label">近 7 天</span><strong className="activity-value">7.1 百万</strong><span className="activity-rate">24%</span></div>
+            <ProgressBar value={24} />
+          </div>
+          <div className="today-detail">
+            <div className="detail-item"><div className="detail-label">↓ 输入</div><div className="detail-value">3.1 百万</div></div>
+            <div className="detail-item"><div className="detail-label">↑ 输出</div><div className="detail-value">18.4 万</div></div>
+            <div className="detail-item"><div className="detail-label">＄ API 等效费用</div><div className="detail-value">$2.47</div></div>
+          </div>
+          <div className="detail-note">● 缓存输入 2.6 百万 · 命中 84%</div>
+        </section>
+      );
+    }
+
+    const heatLevels = [
+      [0,1,2,2,3,3,1,0,3,4,2,3,1],
+      [1,3,3,2,4,3,2,3,3,2,4,3,0],
+      [0,2,4,3,3,1,2,4,3,3,2,4,2],
+      [1,3,2,4,2,3,3,0,4,2,3,3,1],
+      [0,2,3,2,4,3,1,3,2,4,0,2,3],
+      [1,3,4,0,3,2,4,3,3,2,3,4,2],
+      [0,2,3,2,4,1,3,2,4,3,2,3,1]
+    ];
+
+    function HeatmapCard() {
+      const weekdays = ["一", "二", "三", "四", "五", "六", "日"];
+      return (
+        <section className="panel-card">
+          <div className="section-head">
+            <h2 className="section-title"><span className="section-glyph">▦</span>近 90 天用量</h2>
+            <span className="section-meta">连续使用 18 天</span>
+          </div>
+          <div className="heatmap">
+            {heatLevels.map((row, rowIndex) => (
+              <React.Fragment key={weekdays[rowIndex]}>
+                <span className="weekday">{weekdays[rowIndex]}</span>
+                {row.map((level, cellIndex) => <span className="heat-cell" data-level={level} key={`${rowIndex}-${cellIndex}`}></span>)}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="heat-footer"><span>合计 1.7 亿 Token</span><span>少　▣ ▣ ▣ ▣　多</span></div>
+        </section>
+      );
+    }
+
+    function SummaryCard() {
+      return (
+        <section className="panel-card">
+          <div className="section-head">
+            <h2 className="section-title"><span className="section-glyph">▥</span>使用概览</h2>
+            <span className="section-meta">更新于 15:05</span>
+          </div>
+          <div className="summary-grid">
+            <div className="summary-item"><div className="summary-label">累计 Token</div><div className="summary-value">1.3 亿</div></div>
+            <div className="summary-item"><div className="summary-label">最长连续</div><div className="summary-value">31 天</div></div>
+            <div className="summary-item"><div className="summary-label">最长任务</div><div className="summary-value">2 小时 10 分</div></div>
+          </div>
+        </section>
+      );
+    }
+
+    function App() {
+      const [theme, setTheme] = useState("light");
+      const [hasFiveHour, setHasFiveHour] = useState(true);
+      const [lowQuota, setLowQuota] = useState(false);
+      const [emailVisible, setEmailVisible] = useState(false);
+      const [refreshing, setRefreshing] = useState(false);
+      const [toast, setToast] = useState("");
+
+      useEffect(() => {
+        document.documentElement.dataset.theme = theme;
+      }, [theme]);
+
+      useEffect(() => {
+        if (!toast) return undefined;
+        const timeout = window.setTimeout(() => setToast(""), 1500);
+        return () => window.clearTimeout(timeout);
+      }, [toast]);
+
+      const refresh = () => {
+        if (refreshing) return;
+        setRefreshing(true);
+        window.setTimeout(() => {
+          setRefreshing(false);
+          setToast("额度已更新 · 刚刚");
+        }, 850);
+      };
+
+      const quotaLabel = useMemo(() => hasFiveHour ? "5 小时额度优先展示" : "无 5 小时额度时自动回退", [hasFiveHour]);
+
+      return (
+        <main className="prototype-shell" data-screen-label="5 小时额度面板">
+          <article className="app-window" aria-label="Codex Meter 菜单栏面板">
+            <header className="app-header">
+              <img className="app-icon" src="CodexIcon.png" alt="Codex">
+              </img>
+              <div className="account">
+                <div className="account-top"><h1 className="product-name">Codex Meter</h1><span className="plan-badge">PLUS</span></div>
+                <button className="email-button" onClick={() => setEmailVisible((current) => !current)} aria-label={emailVisible ? "隐藏邮箱" : "显示邮箱"}>
+                  <span>{emailVisible ? "demo.user@example.com" : "de••••@example.com"}</span><i className="eye-icon"></i>
+                </button>
+              </div>
+              <button className={`icon-button ${refreshing ? "is-loading" : ""}`} onClick={refresh} aria-label="刷新额度"><RefreshIcon /></button>
+            </header>
+
+            <div className="content-scroll">
+              <div className="stack">
+                <QuotaCard hasFiveHour={hasFiveHour} lowQuota={lowQuota} />
+                <ActivityCard />
+                <HeatmapCard />
+                <SummaryCard />
+              </div>
+            </div>
+
+            <footer className="app-footer">
+              <button className="footer-button" onClick={() => setToast("设置入口")} aria-label="设置"><GearIcon /></button>
+              <button className="footer-button" onClick={() => setToast("退出 Codex Meter")} aria-label="退出"><PowerIcon /></button>
+            </footer>
+          </article>
+
+          <aside className="preview-controls" aria-label="原型控制">
+            <div className="preview-kicker">Prototype</div>
+            <div className="preview-title">额度展示状态</div>
+
+            <div className="control-label">数据返回</div>
+            <div className="segmented">
+              <button className={hasFiveHour ? "active" : ""} onClick={() => setHasFiveHour(true)}>双额度</button>
+              <button className={!hasFiveHour ? "active" : ""} onClick={() => setHasFiveHour(false)}>仅周额度</button>
+            </div>
+
+            <div className="control-label">额度状态</div>
+            <div className="segmented">
+              <button className={!lowQuota ? "active" : ""} onClick={() => setLowQuota(false)}>充足</button>
+              <button className={lowQuota ? "active" : ""} onClick={() => setLowQuota(true)}>紧张</button>
+            </div>
+
+            <div className="control-label">外观</div>
+            <div className="segmented">
+              <button className={theme === "light" ? "active" : ""} onClick={() => setTheme("light")}>浅色</button>
+              <button className={theme === "dark" ? "active" : ""} onClick={() => setTheme("dark")}>深色</button>
+            </div>
+
+            <p className="design-note">{quotaLabel}。5 小时额度是近期最可行动的信息，周额度保持同屏可见，不藏在切换里。</p>
+          </aside>
+
+          <div className={`toast ${toast ? "visible" : ""}`}>{toast}</div>
+        </main>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

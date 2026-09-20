@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Meter 圆环额度卡片确认稿</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, "SF Pro Text", "PingFang SC", "Noto Sans SC", sans-serif;
+      --canvas: #f4f4f1;
+      --card: rgba(255, 255, 255, 0.97);
+      --ink: #181818;
+      --secondary: #6f6f72;
+      --tertiary: #89898e;
+      --track: #ececef;
+      --accent-start: #4e68f6;
+      --accent-mid: #7f7bff;
+      --accent-end: #4e9aff;
+      --weekly: #988cff;
+      --success: #16b97a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: #d8d8d8;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    .capture-stage {
+      width: 1632px;
+      height: 828px;
+      overflow: hidden;
+    }
+
+    .mockup {
+      position: relative;
+      width: 816px;
+      height: 414px;
+      overflow: hidden;
+      background: var(--canvas);
+      transform: scale(2);
+      transform-origin: top left;
+    }
+
+    .quota-card {
+      position: absolute;
+      inset: 20px 8px 24px;
+      display: grid;
+      grid-template-columns: 264px minmax(0, 1fr);
+      gap: 40px;
+      align-items: center;
+      padding: 36px 31px 36px 20px;
+      overflow: hidden;
+      border: 1px solid rgba(28, 28, 30, 0.11);
+      border-radius: 42px;
+      background: var(--card);
+      box-shadow:
+        0 18px 44px rgba(30, 31, 35, 0.065),
+        0 1px 2px rgba(30, 31, 35, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    }
+
+    .ring-shell {
+      position: relative;
+      width: 264px;
+      height: 264px;
+      display: grid;
+      place-items: center;
+    }
+
+    .ring {
+      position: relative;
+      width: 262px;
+      height: 262px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        var(--accent-start) 0%,
+        var(--accent-mid) 36%,
+        var(--accent-end) 70%,
+        var(--track) 70%,
+        var(--track) 100%
+      );
+      filter: drop-shadow(0 7px 10px rgba(82, 103, 245, 0.13));
+    }
+
+    .ring::after {
+      content: "";
+      position: absolute;
+      inset: 26px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.75),
+        0 2px 18px rgba(56, 61, 76, 0.035);
+    }
+
+    .ring-cap {
+      position: absolute;
+      z-index: 2;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+    }
+
+    .ring-cap-start {
+      top: 0;
+      left: 118px;
+      background: var(--accent-start);
+    }
+
+    .ring-cap-end {
+      top: 155px;
+      left: 7px;
+      background: var(--accent-end);
+    }
+
+    .ring-value {
+      position: absolute;
+      z-index: 3;
+      top: 85px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 1px;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ring-number {
+      font-size: 53px;
+      font-weight: 750;
+      line-height: 1;
+      letter-spacing: -2.6px;
+    }
+
+    .ring-sign {
+      font-size: 29px;
+      font-weight: 710;
+      line-height: 1;
+      letter-spacing: -0.8px;
+    }
+
+    .ring-label {
+      position: absolute;
+      z-index: 3;
+      top: 151px;
+      left: 0;
+      width: 100%;
+      margin: 0;
+      color: var(--secondary);
+      font-size: 17px;
+      font-weight: 540;
+      line-height: 24px;
+      text-align: center;
+    }
+
+    .details {
+      align-self: stretch;
+      min-width: 0;
+      padding-top: 0;
+    }
+
+    .status-dot {
+      position: absolute;
+      top: 37px;
+      right: 31px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 7px rgba(22, 185, 122, 0.08), 0 3px 9px rgba(22, 185, 122, 0.22);
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--secondary);
+      font-size: 17px;
+      font-weight: 620;
+      line-height: 24px;
+      letter-spacing: 0.15px;
+    }
+
+    .title {
+      margin: 2px 0 26px;
+      color: var(--ink);
+      font-size: 32px;
+      font-weight: 780;
+      line-height: 42px;
+      letter-spacing: -0.9px;
+    }
+
+    .primary-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .primary-label {
+      margin: 0;
+      color: var(--secondary);
+      font-size: 16px;
+      font-weight: 540;
+      line-height: 23px;
+    }
+
+    .primary-value {
+      margin: 0;
+      color: var(--ink);
+      font-size: 37px;
+      font-weight: 760;
+      line-height: 42px;
+      letter-spacing: -1.2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 11px;
+      overflow: hidden;
+      margin-top: 7px;
+      border-radius: 999px;
+      background: var(--track);
+    }
+
+    .progress-fill {
+      width: 70%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent-start), var(--accent-mid));
+    }
+
+    .primary-reset {
+      margin: 9px 0 0;
+      color: var(--tertiary);
+      font-size: 15px;
+      font-weight: 520;
+      line-height: 22px;
+      letter-spacing: 0.05px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .weekly-inline {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      margin-top: 31px;
+      white-space: nowrap;
+      font-size: 16px;
+      line-height: 24px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .weekly-label {
+      color: var(--secondary);
+      font-weight: 590;
+    }
+
+    .weekly-value {
+      color: var(--ink);
+      font-weight: 750;
+    }
+
+    .weekly-separator,
+    .weekly-reset {
+      color: var(--tertiary);
+      font-weight: 520;
+    }
+  </style>
+</head>
+<body>
+  <div class="capture-stage">
+    <main class="mockup" data-screen-label="圆环额度卡片确认稿" aria-label="Codex Meter 圆环额度卡片确认稿">
+      <section class="quota-card" aria-label="额度信息">
+        <div class="ring-shell" aria-label="五小时额度剩余 70%">
+          <div class="ring" aria-hidden="true"></div>
+          <span class="ring-cap ring-cap-start" aria-hidden="true"></span>
+          <span class="ring-cap ring-cap-end" aria-hidden="true"></span>
+          <div class="ring-value">
+            <span class="ring-number">70</span>
+            <span class="ring-sign">%</span>
+          </div>
+          <p class="ring-label">剩余额度</p>
+        </div>
+
+        <div class="details">
+          <span class="status-dot" aria-label="状态正常"></span>
+          <p class="eyebrow">当前周期</p>
+          <h1 class="title">5 小时额度</h1>
+
+          <div class="primary-row">
+            <p class="primary-label">剩余额度</p>
+            <p class="primary-value">70%</p>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill"></div>
+          </div>
+          <p class="primary-reset">4 小时 17 分后重置 · 19:40</p>
+
+          <div class="weekly-inline" aria-label="周额度剩余 80%，9月2日 09:36 重置">
+            <span class="weekly-label">周额度剩余</span>
+            <strong class="weekly-value">80%</strong>
+            <span class="weekly-separator">·</span>
+            <span class="weekly-reset">9月2日 09:36 重置</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

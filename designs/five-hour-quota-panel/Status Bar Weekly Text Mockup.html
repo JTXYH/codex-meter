@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Meter 状态栏与周额度确认稿</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, "SF Pro Text", "PingFang SC", "Noto Sans SC", sans-serif;
+      --ink: #202020;
+      --muted: #777775;
+      --soft-muted: #8c8c89;
+      --accent: #5868f7;
+      --track: rgba(35, 35, 35, 0.09);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: #d8d8d8;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    .capture-stage {
+      position: relative;
+      width: 1660px;
+      height: 1252px;
+      overflow: hidden;
+    }
+
+    .mockup {
+      position: relative;
+      width: 830px;
+      height: 626px;
+      overflow: hidden;
+      background: #f6f6f4;
+      transform: scale(2);
+      transform-origin: top left;
+    }
+
+    .reference {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .menu-value-mask {
+      position: absolute;
+      top: 0;
+      left: 49px;
+      width: 72px;
+      height: 52px;
+      background: #000;
+    }
+
+    .menu-value {
+      position: absolute;
+      top: 2px;
+      left: 54px;
+      color: #fff;
+      font-size: 28px;
+      font-weight: 650;
+      line-height: 38px;
+      letter-spacing: -0.7px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-content-mask {
+      position: absolute;
+      top: 218px;
+      left: 24px;
+      width: 515px;
+      height: 313px;
+      border-radius: 34px 0 0 34px;
+      background: linear-gradient(
+        90deg,
+        rgba(253, 253, 252, 1) 0%,
+        rgba(253, 253, 252, 1) 73%,
+        rgba(253, 253, 252, 0.96) 78%,
+        rgba(253, 253, 252, 0.64) 86%,
+        rgba(253, 253, 252, 0) 100%
+      );
+    }
+
+    .quota-content {
+      position: absolute;
+      top: 231px;
+      left: 56px;
+      width: 290px;
+      color: var(--ink);
+    }
+
+    .eyebrow {
+      margin: 0 0 1px;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 22px;
+      letter-spacing: 0.2px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 750;
+      line-height: 31px;
+      letter-spacing: -0.45px;
+    }
+
+    .percentage {
+      display: flex;
+      align-items: baseline;
+      gap: 2px;
+      height: 79px;
+      margin-top: 5px;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .percentage-number {
+      font-size: 68px;
+      font-weight: 760;
+      line-height: 79px;
+      letter-spacing: -3px;
+    }
+
+    .percentage-sign {
+      font-size: 32px;
+      font-weight: 720;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .primary-label {
+      margin: -1px 0 5px;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 550;
+      line-height: 22px;
+    }
+
+    .progress-track {
+      width: 289px;
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--track);
+    }
+
+    .progress-fill {
+      width: 84%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #7d75ff 0%, #5267f5 100%);
+    }
+
+    .primary-reset {
+      margin: 7px 0 0;
+      color: var(--soft-muted);
+      font-size: 15px;
+      font-weight: 520;
+      line-height: 21px;
+      letter-spacing: -0.05px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .weekly {
+      display: grid;
+      gap: 1px;
+      margin-top: 7px;
+    }
+
+    .weekly-summary {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 580;
+      line-height: 22px;
+      letter-spacing: -0.1px;
+      white-space: nowrap;
+    }
+
+    .weekly-summary strong {
+      color: var(--ink);
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .weekly-reset {
+      margin: 0;
+      color: var(--soft-muted);
+      font-size: 15px;
+      font-weight: 520;
+      line-height: 21px;
+      letter-spacing: -0.05px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <div class="capture-stage">
+    <main class="mockup" data-screen-label="状态栏与周额度确认稿" aria-label="Codex Meter 状态栏与周额度确认稿">
+      <img class="reference" src="imgs/current-panel-reference.png" alt="Codex Meter 当前界面参考">
+
+      <div class="menu-value-mask" aria-hidden="true"></div>
+      <div class="menu-value" aria-label="菜单栏显示五小时额度百分比">84%</div>
+
+      <div class="card-content-mask" aria-hidden="true"></div>
+      <section class="quota-content" aria-label="额度信息">
+        <p class="eyebrow">当前周期</p>
+        <h1 class="title">5 小时额度</h1>
+
+        <div class="percentage" aria-label="五小时额度剩余 84%">
+          <span class="percentage-number">84</span>
+          <span class="percentage-sign">%</span>
+        </div>
+
+        <p class="primary-label">剩余额度</p>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill"></div>
+        </div>
+        <p class="primary-reset">1 小时 36 分后重置 · 18:40</p>
+
+        <div class="weekly">
+          <p class="weekly-summary">周额度剩余 <strong>82%</strong></p>
+          <p class="weekly-reset">2026年9月2日 09:36 重置</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

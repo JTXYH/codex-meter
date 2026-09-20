@@ -177,11 +177,17 @@ struct CodexUsageSnapshot: Equatable, Sendable {
     }
 }
 
+enum HeatmapLevel {
+    case none, low, medium, high, peak
+
+    static let activeLevels: [HeatmapLevel] = [.low, .medium, .high, .peak]
+}
+
 struct HeatmapDay: Identifiable, Equatable {
     var id: Date { date }
     let date: Date
     let tokens: Int64
-    let intensity: Double
+    let level: HeatmapLevel
 }
 
 enum HeatmapBuilder {
@@ -214,8 +220,12 @@ enum HeatmapBuilder {
             let (sum, overflow) = tokenByDay[date, default: 0].addingReportingOverflow(tokens)
             tokenByDay[date] = overflow ? .max : sum
         }
-        let maximum = max(tokenByDay.values.max() ?? 0, 1)
-        let maximumLog = log1p(Double(maximum))
+        // Use nearest-rank quartiles of active days so zeros and outliers do not
+        // compress ordinary usage into a single shade. Ties keep the same level.
+        let activeTokens = tokenByDay.values.filter { $0 > 0 }.sorted()
+        let thresholds: [Int64] = activeTokens.isEmpty ? [] : (1...3).map {
+            activeTokens[(activeTokens.count * $0 - 1) / 4]
+        }
 
         var columns: [[HeatmapDay?]] = []
         var cursor = alignedStart
@@ -233,8 +243,17 @@ enum HeatmapBuilder {
                 }
 
                 let tokens = tokenByDay[date] ?? 0
-                let intensity = tokens == 0 ? 0 : log1p(Double(tokens)) / maximumLog
-                column.append(HeatmapDay(date: date, tokens: tokens, intensity: intensity))
+                let level: HeatmapLevel
+                if tokens == 0 {
+                    level = .none
+                } else if tokens == activeTokens.last {
+                    // Also covers a single active day or identical daily totals.
+                    level = .peak
+                } else {
+                    let quartile = thresholds.firstIndex(where: { tokens <= $0 }) ?? 3
+                    level = HeatmapLevel.activeLevels[quartile]
+                }
+                column.append(HeatmapDay(date: date, tokens: tokens, level: level))
             }
             columns.append(column)
             guard let next = calendar.date(byAdding: .day, value: 7, to: cursor) else { break }

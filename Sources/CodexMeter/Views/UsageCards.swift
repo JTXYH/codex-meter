@@ -737,9 +737,9 @@ struct UsageHeatmapCard: View {
                         .font(.system(size: 10.5, weight: .medium, design: .rounded))
                     Spacer()
                     Text(L10n.text(.less, language: settings.language))
-                    ForEach(0..<4) { level in
+                    ForEach(HeatmapLevel.activeLevels, id: \.self) { level in
                         RoundedRectangle(cornerRadius: 2.5)
-                            .fill(Color.meterAccent.opacity(0.16 + Double(level) * 0.25))
+                            .fill(level.color)
                             .frame(width: 10, height: 10)
                     }
                     Text(L10n.text(.more, language: settings.language))
@@ -767,6 +767,18 @@ struct UsageHeatmapCard: View {
     }
 }
 
+private extension HeatmapLevel {
+    var color: Color {
+        switch self {
+        case .none: Color.meterTrack
+        case .low: Color.meterAccent.opacity(0.22)
+        case .medium: Color.meterAccent.opacity(0.46)
+        case .high: Color.meterAccent.opacity(0.72)
+        case .peak: Color.meterAccent
+        }
+    }
+}
+
 private struct HeatmapCell: View {
     let day: HeatmapDay?
     let onHoverDay: (HeatmapDay?) -> Void
@@ -786,9 +798,7 @@ private struct HeatmapCell: View {
     }
 
     private var fillColor: Color {
-        guard let day else { return Color.meterTrack }
-        guard day.tokens > 0 else { return Color.meterTrack }
-        return Color.meterAccent.opacity(0.2 + day.intensity * 0.8)
+        (day?.level ?? .none).color
     }
 
 }
