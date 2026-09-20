@@ -56,9 +56,21 @@ struct CodexResponseParserTests {
     }
 
     @Test
-    func promotesWeeklyQuotaWhenFiveHourWindowIsMissing() throws {
+    func promotesWeeklyCodexQuotaWithoutBorrowingSparkFiveHourWindow() throws {
         let account = Data(#"{"id":1,"result":{"account":{"type":"chatgpt"}}}"#.utf8)
-        let limits = Data(#"{"id":2,"result":{"rateLimits":{"limitId":"codex","primary":{"usedPercent":38,"windowDurationMins":10080,"resetsAt":1786704934},"secondary":null}}}"#.utf8)
+        let limits = Data(#"""
+        {"id":2,"result":{"rateLimitsByLimitId":{
+            "codex_bengalfox":{
+                "limitName":"GPT-5.3-Codex-Spark",
+                "primary":{"usedPercent":0,"windowDurationMins":300},
+                "secondary":{"usedPercent":10,"windowDurationMins":10080}
+            },
+            "codex":{
+                "primary":{"usedPercent":38,"windowDurationMins":10080,"resetsAt":1786704934},
+                "secondary":null
+            }
+        }}}
+        """#.utf8)
         let usage = Data(#"{"id":3,"result":{"summary":null}}"#.utf8)
 
         let snapshot = try CodexResponseParser.parse(
@@ -67,9 +79,54 @@ struct CodexResponseParserTests {
             usageData: usage
         )
 
+        #expect(snapshot.allLimitWindows.count == 3)
         #expect(snapshot.fiveHourWindow == nil)
+        #expect(snapshot.primaryWindow?.bucketID == "codex")
         #expect(snapshot.quotaCardPrimaryWindow?.windowDurationMinutes == 10_080)
         #expect(snapshot.quotaCardPrimaryWindow?.remainingPercent == 62)
+        #expect(snapshot.quotaCardSecondaryWindow == nil)
+        #expect(snapshot.featuredWindow?.remainingPercent == 62)
+        let window = try #require(snapshot.quotaCardPrimaryWindow)
+        #expect(MeterFormatters.quotaTitle(for: window) == "周额度")
+    }
+
+    @Test
+    func doesNotBorrowWeeklyWindowFromAnotherBucket() throws {
+        let snapshot = try CodexResponseParser.parse(
+            accountData: Data(#"{"result":{"account":null}}"#.utf8),
+            rateLimitsData: Data(#"""
+            {"result":{"rateLimitsByLimitId":{
+                "codex":{"primary":{"usedPercent":25,"windowDurationMins":300}},
+                "codex_bengalfox":{"secondary":{"usedPercent":80,"windowDurationMins":10080}}
+            }}}
+            """#.utf8),
+            usageData: Data(#"{"result":{}}"#.utf8)
+        )
+
+        #expect(snapshot.fiveHourWindow?.remainingPercent == 75)
+        #expect(snapshot.weeklyWindow == nil)
+        #expect(snapshot.quotaCardPrimaryWindow?.bucketID == "codex")
+        #expect(snapshot.quotaCardSecondaryWindow == nil)
+        #expect(snapshot.featuredWindow?.bucketID == "codex")
+    }
+
+    @Test
+    func keepsFallbackWindowsInOneBucketWhenCodexBucketIsMissing() throws {
+        let snapshot = try CodexResponseParser.parse(
+            accountData: Data(#"{"result":{"account":null}}"#.utf8),
+            rateLimitsData: Data(#"""
+            {"result":{"rateLimitsByLimitId":{
+                "other_a":{"secondary":{"usedPercent":40,"windowDurationMins":10080}},
+                "other_b":{"primary":{"usedPercent":5,"windowDurationMins":300}}
+            }}}
+            """#.utf8),
+            usageData: Data(#"{"result":{}}"#.utf8)
+        )
+
+        #expect(snapshot.primaryWindow?.bucketID == "other_a")
+        #expect(snapshot.fiveHourWindow == nil)
+        #expect(snapshot.weeklyWindow?.bucketID == "other_a")
+        #expect(snapshot.quotaCardPrimaryWindow?.remainingPercent == 60)
         #expect(snapshot.quotaCardSecondaryWindow == nil)
     }
 
@@ -212,9 +269,9 @@ struct CodexResponseParserTests {
             resetsAt: now.addingTimeInterval(2 * 60 * 60 + 17 * 60)
         )
         #expect(MeterFormatters.quotaTitle(for: weekly) == "周额度")
-        #expect(MeterFormatters.tokens(1_253_637_101) == "12.5亿")
-        #expect(MeterFormatters.tokens(22_000_000) == "2.2千万")
-        #expect(MeterFormatters.tokens(5_400_000) == "5.4百万")
+        #expect(MeterFormatters.tokens(1_253_637_101) == "12亿5千万")
+        #expect(MeterFormatters.tokens(22_000_000) == "2千2百万")
+        #expect(MeterFormatters.tokens(5_400_000) == "540万")
         #expect(MeterFormatters.tokens(845_000) == "84.5万")
         #expect(MeterFormatters.tokens(8_200) == "8.2千")
         #expect(
@@ -227,7 +284,7 @@ struct CodexResponseParserTests {
         )
         #expect(
             MeterFormatters.tokens(1_253_637_101, language: .traditionalChinese)
-                == "12.5億"
+                == "12億5千萬"
         )
         #expect(
             MeterFormatters.tokens(1_253_637_101, language: .english)
@@ -241,7 +298,7 @@ struct CodexResponseParserTests {
         #expect(MeterFormatters.weeklyRemainingLabel() == "周额度剩余")
         #expect(
             MeterFormatters.quotaResetDescription(for: weekly, now: now)
-                == "\(MeterFormatters.resetDate(weekly.resetsAt!)) 重置"
+                == "\(MeterFormatters.resetDate(weekly.resetsAt!, now: now)) 重置"
         )
         #expect(MeterFormatters.quotaResetDescription(for: weekly, now: now)?.contains("2026") == false)
         #expect(

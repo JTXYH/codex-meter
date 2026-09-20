@@ -31,6 +31,9 @@ enum MeterFormatters {
         language: AppLanguage = .simplifiedChinese
     ) -> String {
         guard let value else { return L10n.text(.notAvailable, language: language) }
+        if language == .simplifiedChinese || language == .traditionalChinese {
+            return chineseTokens(value, language: language)
+        }
         let number = Double(value)
         let absolute = abs(number)
         let divisor: Double
@@ -96,6 +99,42 @@ enum MeterFormatters {
         return scaled.formatted(
             .number.precision(.fractionLength(0...1)).locale(language.locale)
         ) + suffix
+    }
+
+    private static func chineseTokens(_ value: Int64, language: AppLanguage) -> String {
+        let wan = language == .traditionalChinese ? "萬" : "万"
+        let yi = language == .traditionalChinese ? "億" : "亿"
+        let precisionDivisors: [UInt64] = [100_000_000, 10_000_000, 1_000_000, 10_000, 1_000]
+        let magnitude = value.magnitude
+        guard let precisionDivisor = precisionDivisors.first(where: { magnitude >= $0 }) else {
+            return value.formatted(.number.locale(language.locale))
+        }
+
+        // Preserve the existing precision before choosing a readable display unit.
+        let step = precisionDivisor / 10
+        let quotient = magnitude / step
+        let remainder = magnitude % step
+        let roundUp = remainder > step / 2 || (remainder == step / 2 && quotient % 2 != 0)
+        let rounded = (quotient + (roundUp ? 1 : 0)) * step
+        let sign = value < 0 ? "-" : ""
+
+        if rounded < 10_000_000 {
+            let divisor: Double = rounded >= 10_000 ? 10_000 : 1_000
+            let suffix = rounded >= 10_000 ? wan : "千"
+            let number = (Double(rounded) / divisor).formatted(
+                .number.precision(.fractionLength(0...1)).locale(language.locale)
+            )
+            return "\(sign)\(number)\(suffix)"
+        }
+
+        let unit: (divisor: UInt64, major: String, minor: String, suffix: String) =
+            rounded >= 100_000_000
+                ? (100_000_000, yi, "千\(wan)", "")
+                : (10_000_000, "千", "百", wan)
+        let major = rounded / unit.divisor
+        let minor = rounded % unit.divisor / (unit.divisor / 10)
+        let minorText = minor > 0 ? "\(minor)\(unit.minor)" : ""
+        return "\(sign)\(major)\(unit.major)\(minorText)\(unit.suffix)"
     }
 
     static func usd(_ value: Double) -> String {
@@ -258,30 +297,54 @@ enum MeterFormatters {
 
     static func resetDate(
         _ date: Date,
-        language: AppLanguage = .simplifiedChinese
+        now: Date = Date(),
+        language: AppLanguage = .simplifiedChinese,
+        calendar: Calendar = .current
     ) -> String {
-        date.formatted(
-            .dateTime.month().day().hour().minute().locale(language.locale)
+        let dayOffset = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: now),
+            to: calendar.startOfDay(for: date)
+        ).day
+        let time = resetTime(date, language: language, calendar: calendar)
+        if dayOffset == 0 { return time }
+        if dayOffset == 1 || dayOffset == 2 {
+            let label = switch language {
+            case .simplifiedChinese: dayOffset == 1 ? "明天" : "后天"
+            case .traditionalChinese: dayOffset == 1 ? "明天" : "後天"
+            case .english: dayOffset == 1 ? "Tomorrow" : "The day after tomorrow"
+            case .japanese: dayOffset == 1 ? "明日" : "明後日"
+            case .korean: dayOffset == 1 ? "내일" : "모레"
+            case .spanish: dayOffset == 1 ? "Mañana" : "Pasado mañana"
+            }
+            return "\(label) \(time)"
+        }
+        return date.formatted(
+            Date.FormatStyle(locale: language.locale, calendar: calendar, timeZone: calendar.timeZone)
+                .month().day().hour().minute()
         )
     }
 
     static func resetTime(
         _ date: Date,
-        language: AppLanguage = .simplifiedChinese
+        language: AppLanguage = .simplifiedChinese,
+        calendar: Calendar = .current
     ) -> String {
         date.formatted(
-            .dateTime.hour().minute().locale(language.locale)
+            Date.FormatStyle(locale: language.locale, calendar: calendar, timeZone: calendar.timeZone)
+                .hour().minute()
         )
     }
 
     static func quotaResetDescription(
         for window: RateLimitWindow,
         now: Date = Date(),
-        language: AppLanguage = .simplifiedChinese
+        language: AppLanguage = .simplifiedChinese,
+        calendar: Calendar = .current
     ) -> String? {
         guard let resetsAt = window.resetsAt else { return nil }
         if window.windowDurationMinutes == 10_080 {
-            let date = resetDate(resetsAt, language: language)
+            let date = resetDate(resetsAt, now: now, language: language, calendar: calendar)
             switch language {
             case .simplifiedChinese, .traditionalChinese:
                 return "\(date) 重置"
@@ -295,7 +358,7 @@ enum MeterFormatters {
                 return "Se restablece \(date)"
             }
         }
-        return "\(resetCountdown(to: resetsAt, now: now, language: language)) · \(resetTime(resetsAt, language: language))"
+        return "\(resetCountdown(to: resetsAt, now: now, language: language)) · \(resetTime(resetsAt, language: language, calendar: calendar))"
     }
 
     static func weeklyRemainingLabel(

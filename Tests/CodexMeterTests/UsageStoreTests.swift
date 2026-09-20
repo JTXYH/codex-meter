@@ -34,10 +34,29 @@ struct UsageStoreTests {
         )
         let mixedSnapshot = snapshot(windows: [fiveHour, weekly])
         let weeklyOnlySnapshot = snapshot(windows: [weekly])
+        let sparkBucket = RateLimitBucket(
+            id: "codex_bengalfox",
+            name: "GPT-5.3-Codex-Spark",
+            planType: nil,
+            hasCredits: nil,
+            unlimitedCredits: nil,
+            creditBalance: nil,
+            windows: [RateLimitWindow(
+                id: "codex_bengalfox-primary",
+                bucketID: "codex_bengalfox",
+                bucketName: "GPT-5.3-Codex-Spark",
+                kind: .primary,
+                usedPercent: 5,
+                windowDurationMinutes: 300,
+                resetsAt: nil
+            )]
+        )
         let store = UsageStore(
             loader: SequencedUsageLoader(results: [
                 .success(mixedSnapshot),
                 .success(weeklyOnlySnapshot),
+                .success(snapshot(windows: [weekly], otherBuckets: [sparkBucket])),
+                .success(snapshot(windows: [], otherBuckets: [sparkBucket])),
             ]),
             settings: AppSettings(defaults: defaults)
         )
@@ -47,6 +66,17 @@ struct UsageStoreTests {
 
         await store.refresh()
         #expect(store.menuBarText == "80%")
+
+        await store.refresh()
+        #expect(store.menuBarText == "80%")
+        #expect(store.snapshot?.fiveHourWindow == nil)
+        #expect(store.snapshot?.quotaCardSecondaryWindow == nil)
+
+        await store.refresh()
+        #expect(store.menuBarText == "--")
+        #expect(store.snapshot?.primaryWindow == nil)
+        #expect(store.snapshot?.quotaCardPrimaryWindow == nil)
+        #expect(store.snapshot?.quotaCardSecondaryWindow == nil)
     }
 
     @Test @MainActor
@@ -88,7 +118,10 @@ struct UsageStoreTests {
         #expect(store.refreshErrorMessage == nil)
     }
 
-    private func snapshot(windows: [RateLimitWindow]) -> CodexUsageSnapshot {
+    private func snapshot(
+        windows: [RateLimitWindow],
+        otherBuckets: [RateLimitBucket] = []
+    ) -> CodexUsageSnapshot {
         CodexUsageSnapshot(
             fetchedAt: Date(timeIntervalSince1970: 1_786_600_000),
             account: nil,
@@ -102,7 +135,7 @@ struct UsageStoreTests {
                     creditBalance: nil,
                     windows: windows
                 ),
-            ],
+            ] + otherBuckets,
             usageSummary: nil,
             dailyUsage: []
         )

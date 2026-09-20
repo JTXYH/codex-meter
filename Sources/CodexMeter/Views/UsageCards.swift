@@ -644,6 +644,7 @@ private struct ActivityOverviewTile: View {
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
+                .minimumScaleFactor(0.68)
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)

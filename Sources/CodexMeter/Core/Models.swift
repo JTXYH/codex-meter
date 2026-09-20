@@ -88,9 +88,14 @@ struct CodexUsageSnapshot: Equatable, Sendable {
     let usageSummary: TokenUsageSummary?
     let dailyUsage: [DailyTokenUsage]
 
-    var creditsBalance: CreditBalance {
-        let bucket = rateLimitBuckets.first(where: { $0.id == "codex" })
+    // Select one bucket before choosing windows; different buckets have independent quotas.
+    private var preferredRateLimitBucket: RateLimitBucket? {
+        rateLimitBuckets.first(where: { $0.id == "codex" })
             ?? rateLimitBuckets.first
+    }
+
+    var creditsBalance: CreditBalance {
+        let bucket = preferredRateLimitBucket
         return CreditBalance(balance: bucket?.creditBalance, unlimited: bucket?.unlimitedCredits)
     }
 
@@ -99,24 +104,17 @@ struct CodexUsageSnapshot: Equatable, Sendable {
     }
 
     var primaryWindow: RateLimitWindow? {
-        let preferredBucket = rateLimitBuckets.first(where: { $0.id == "codex" })
-            ?? rateLimitBuckets.first
-        return preferredBucket?.windows.first(where: { $0.kind == .primary })
-            ?? allLimitWindows.first
+        let windows = preferredRateLimitBucket?.windows
+        return windows?.first(where: { $0.kind == .primary })
+            ?? windows?.first
     }
 
     var fiveHourWindow: RateLimitWindow? {
-        let preferredBucket = rateLimitBuckets.first(where: { $0.id == "codex" })
-            ?? rateLimitBuckets.first
-        return preferredBucket?.windows.first(where: { $0.windowDurationMinutes == 300 })
-            ?? allLimitWindows.first(where: { $0.windowDurationMinutes == 300 })
+        preferredRateLimitBucket?.windows.first(where: { $0.windowDurationMinutes == 300 })
     }
 
     var weeklyWindow: RateLimitWindow? {
-        let preferredBucket = rateLimitBuckets.first(where: { $0.id == "codex" })
-            ?? rateLimitBuckets.first
-        return preferredBucket?.windows.first(where: { $0.windowDurationMinutes == 10_080 })
-            ?? allLimitWindows.first(where: { $0.windowDurationMinutes == 10_080 })
+        preferredRateLimitBucket?.windows.first(where: { $0.windowDurationMinutes == 10_080 })
     }
 
     var featuredWindow: RateLimitWindow? {
