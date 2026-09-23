@@ -24,6 +24,7 @@ let package = Package(
                 .process("Resources"),
             ],
             linkerSettings: [
+                .linkedLibrary("sqlite3"),
                 .unsafeFlags([
                     "-Xlinker", "-rpath",
                     "-Xlinker", "@executable_path/../Frameworks",

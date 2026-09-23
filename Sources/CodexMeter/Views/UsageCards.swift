@@ -30,13 +30,13 @@ struct HeroUsageCard: View {
                 PanelCard {
                     HStack(spacing: 12) {
                         Image(systemName: "gauge.with.dots.needle.0percent")
-                            .font(.system(size: 28))
+                            .font(.meter(size: 28))
                             .foregroundStyle(Color.meterSecondary)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(L10n.text(.noQuotaWindow, language: settings.language))
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .meterText(.title)
                             Text(L10n.text(.noQuotaExplanation, language: settings.language))
-                                .font(.system(size: 10.5, design: .rounded))
+                                .meterText(.detail)
                                 .foregroundStyle(Color.meterSecondary)
                         }
                     }
@@ -47,7 +47,7 @@ struct HeroUsageCard: View {
     }
 }
 
-private enum QuotaVisualState {
+enum QuotaVisualState {
     case available
     case low
     case exhausted
@@ -116,15 +116,16 @@ private struct PlainQuotaUsageCard: View {
                     HStack(alignment: .top, spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(L10n.text(.currentPeriod, language: settings.language))
-                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .meterText(.detail)
                                 .foregroundStyle(Color.meterSecondary)
                             Text(MeterFormatters.quotaTitle(
                                 for: window,
                                 language: settings.language
                             ))
-                                .font(.system(size: 17, weight: .bold, design: .rounded))
+                                .meterText(.title)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.76)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 4)
                         StatusDot(color: visualState.statusDotColor)
@@ -163,21 +164,14 @@ private struct QuotaWindowMeter: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(label)
-                    .font(.system(
-                        size: emphasized ? 10 : 10.5,
-                        weight: emphasized ? .regular : .medium,
-                        design: .rounded
-                    ))
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 Text("\(Int(window.remainingPercent.rounded()))%")
-                    .font(.system(
-                        size: emphasized ? 18 : 13,
-                        weight: .bold,
-                        design: .rounded
-                    ))
+                    .meterText(.value)
                     .monospacedDigit()
             }
 
@@ -192,14 +186,11 @@ private struct QuotaWindowMeter: View {
                 language: settings.language
             ) {
                 Text(resetDescription)
-                    .font(.system(
-                        size: emphasized ? 10.2 : 9.6,
-                        weight: .medium,
-                        design: .rounded
-                    ))
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.68)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -208,6 +199,7 @@ private struct QuotaWindowMeter: View {
 
 private struct WeeklyQuotaInline: View {
     @EnvironmentObject private var settings: AppSettings
+    @Environment(\.meterFontSizes) private var fontSizes
 
     let window: RateLimitWindow
     var compact = false
@@ -220,43 +212,28 @@ private struct WeeklyQuotaInline: View {
             ) {
                 labelText
                     + Text(" \(Int(window.remainingPercent.rounded()))%")
-                        .font(.system(
-                            size: compact ? 8.8 : 10.5,
-                            weight: .bold,
-                            design: .rounded
-                        ))
+                        .font(.meter(size: CGFloat(fontSizes.detail)))
                         .foregroundColor(.meterPrimary)
                     + Text(" · \(resetDescription)")
-                        .font(.system(
-                            size: compact ? 8.1 : 9.5,
-                            weight: .medium,
-                            design: .rounded
-                        ))
+                        .font(.meter(size: CGFloat(fontSizes.detail)))
                         .foregroundColor(.meterSecondary)
             } else {
                 labelText
                     + Text(" \(Int(window.remainingPercent.rounded()))%")
-                        .font(.system(
-                            size: compact ? 8.8 : 10.5,
-                            weight: .bold,
-                            design: .rounded
-                        ))
+                        .font(.meter(size: CGFloat(fontSizes.detail)))
                         .foregroundColor(.meterPrimary)
             }
         }
         .lineLimit(1)
         .minimumScaleFactor(compact ? 0.62 : 0.68)
+        .fixedSize(horizontal: false, vertical: true)
         .monospacedDigit()
         .accessibilityElement(children: .combine)
     }
 
     private var labelText: Text {
         Text(MeterFormatters.weeklyRemainingLabel(language: settings.language))
-            .font(.system(
-                size: compact ? 8.4 : 9.8,
-                weight: .medium,
-                design: .rounded
-            ))
+            .font(.meter(size: CGFloat(fontSizes.detail)))
             .foregroundColor(.meterSecondary)
     }
 }
@@ -268,7 +245,13 @@ struct BackgroundQuotaUsageCard: View {
     let weeklyWindow: RateLimitWindow?
     let backgroundImage: NSImage
 
-    private let designSize = CGSize(width: 392.5, height: 157)
+    private var designSize: CGSize {
+        let sizes = settings.fontSettings.quota
+        let extraHeight = max(0, sizes.value - 16) * 1.3
+            + max(0, sizes.title - 12) * 1.3
+            + max(0, sizes.detail - 10) * 5.2
+        return CGSize(width: 392.5, height: 157 + extraHeight)
+    }
 
     init(
         window: RateLimitWindow,
@@ -333,7 +316,7 @@ struct BackgroundQuotaUsageCard: View {
                 )
         }
         .aspectRatio(
-            QuotaBackgroundImageProcessor.cardAspectRatio,
+            designSize.width / designSize.height,
             contentMode: .fit
         )
         .accessibilityElement(children: .combine)
@@ -343,6 +326,7 @@ struct BackgroundQuotaUsageCard: View {
                 language: settings.language
             )
         )
+        .meterTypography(for: .quota)
     }
 
     private var cardCanvas: some View {
@@ -368,34 +352,27 @@ struct BackgroundQuotaUsageCard: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(L10n.text(.currentPeriod, language: settings.language))
-                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterSecondary)
 
                 Text(MeterFormatters.quotaTitle(for: window, language: settings.language))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .meterText(.title)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 1)
 
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text("\(Int(window.remainingPercent.rounded()))")
-                        .font(.system(
-                            size: weeklyWindow == nil ? 40 : 34,
-                            weight: .bold,
-                            design: .rounded
-                        ))
-                    Text("%")
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                }
-                .foregroundStyle(primaryVisualState.color)
-                .monospacedDigit()
-                .padding(.top, 1)
+                Text("\(Int(window.remainingPercent.rounded()))%")
+                    .meterText(.value)
+                    .foregroundStyle(primaryVisualState.color)
+                    .monospacedDigit()
+                    .padding(.top, 1)
 
                 Text(MeterFormatters.quotaStatus(
                     remainingPercent: window.remainingPercent,
                     language: settings.language
                 ))
-                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterSecondary)
 
                 MeterProgressBar(
@@ -411,10 +388,11 @@ struct BackgroundQuotaUsageCard: View {
                     language: settings.language
                 ) {
                     Text(resetDescription)
-                        .font(.system(size: 9.2, weight: .medium, design: .rounded))
+                        .meterText(.detail)
                         .foregroundStyle(Color.meterSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.70)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 5)
                 }
 
@@ -445,17 +423,44 @@ struct BackgroundQuotaUsageCard: View {
 struct TokenActivityCard: View {
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings
+    let snapshot: CodexUsageSnapshot
 
+    var body: some View {
+        PanelCard {
+            VStack(alignment: .leading, spacing: 13) {
+                HStack(alignment: .center) {
+                    TokenActivitySectionTitle(
+                        title: L10n.text(.todayDetails, language: settings.language)
+                    )
+                    Spacer()
+                    Text(L10n.text(
+                        store.hasLoadedLocalTodayUsage ? .statisticsCurrent : .calculatingUsage,
+                        language: settings.language
+                    ))
+                        .meterText(.detail)
+                        .foregroundStyle(Color.meterSecondary)
+                }
+
+                TodayTokenDetails(usage: store.hasLoadedLocalTodayUsage ? store.localTodayUsage : nil)
+
+            }
+        }
+    }
+}
+
+struct ActivityOverviewCard: View {
+    @EnvironmentObject private var store: UsageStore
+    @EnvironmentObject private var settings: AppSettings
     let snapshot: CodexUsageSnapshot
 
     var body: some View {
         let calendar = Calendar.current
         let today = Date()
-        let effectiveSnapshot = snapshot.replacingTokenUsage(
+        let effectiveSnapshot = store.hasLoadedLocalTodayUsage ? snapshot.replacingTokenUsage(
             on: today,
             with: store.localTodayTokens,
             calendar: calendar
-        )
+        ) : snapshot
         let yesterday = calendar.date(byAdding: .day, value: -1, to: today)
             .map { effectiveSnapshot.tokens(on: $0, calendar: calendar) } ?? 0
         let week = effectiveSnapshot.tokensInLastDays(
@@ -468,24 +473,12 @@ struct TokenActivityCard: View {
             VStack(alignment: .leading, spacing: 13) {
                 HStack(alignment: .center) {
                     TokenActivitySectionTitle(
-                        title: L10n.text(.todayDetails, language: settings.language)
-                    )
-                    Spacer()
-                    Text(L10n.text(.statisticsCurrent, language: settings.language))
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.meterSecondary)
-                }
-
-                TodayTokenDetails(usage: store.localTodayUsage)
-
-                HStack(alignment: .center) {
-                    TokenActivitySectionTitle(
                         title: L10n.text(.activityOverview, language: settings.language)
                     )
                     Spacer()
                 }
 
-                HStack(spacing: 9) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     ActivityOverviewTile(
                         label: L10n.text(.yesterday, language: settings.language),
                         value: MeterFormatters.tokens(yesterday, language: settings.language)
@@ -493,6 +486,19 @@ struct TokenActivityCard: View {
                     ActivityOverviewTile(
                         label: L10n.text(.lastSevenDays, language: settings.language),
                         value: MeterFormatters.tokens(week, language: settings.language)
+                    )
+                    ActivityOverviewTile(
+                        label: L10n.text(.thisMonthTokens, language: settings.language),
+                        value: store.hasLoadedLocalLifetimeUsage
+                            ? MeterFormatters.tokens(store.localCurrentMonthUsage?.totalTokens, language: settings.language)
+                            : L10n.text(.calculatingUsage, language: settings.language)
+                    )
+                    ActivityOverviewTile(
+                        label: L10n.text(.thisMonthAPIEquivalentCost, language: settings.language),
+                        value: store.hasLoadedLocalLifetimeUsage
+                            ? store.localCurrentMonthUsage.map { MeterFormatters.usd($0.apiEquivalentCostUSD) }
+                                ?? L10n.text(.notAvailable, language: settings.language)
+                            : L10n.text(.calculatingUsage, language: settings.language)
                     )
                 }
             }
@@ -511,7 +517,7 @@ private struct TokenActivitySectionTitle: View {
                 .padding(4)
                 .background(Color.meterAccent.opacity(0.10), in: Circle())
             Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .meterText(.title)
         }
     }
 }
@@ -519,7 +525,15 @@ private struct TokenActivitySectionTitle: View {
 private struct TodayTokenDetails: View {
     @EnvironmentObject private var settings: AppSettings
 
-    let usage: LocalTokenUsage
+    let usage: LocalTokenUsage?
+
+    private var loadingText: String {
+        L10n.text(.calculatingUsage, language: settings.language)
+    }
+
+    private func tokens(_ value: Int64?) -> String {
+        value.map { MeterFormatters.tokens($0, language: settings.language) } ?? loadingText
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -527,25 +541,19 @@ private struct TodayTokenDetails: View {
                 TodayTokenDetailMetric(
                     icon: "arrow.down",
                     label: L10n.text(.inputTokens, language: settings.language),
-                    value: MeterFormatters.tokens(
-                        usage.inputTokens,
-                        language: settings.language
-                    )
+                    value: tokens(usage?.inputTokens)
                 )
 
                 TodayTokenDetailMetric(
                     icon: "arrow.up",
                     label: L10n.text(.outputTokens, language: settings.language),
-                    value: MeterFormatters.tokens(
-                        usage.outputTokens,
-                        language: settings.language
-                    )
+                    value: tokens(usage?.outputTokens)
                 )
 
                 TodayTokenDetailMetric(
                     icon: "dollarsign",
                     label: L10n.text(.apiEquivalentCost, language: settings.language),
-                    value: MeterFormatters.usd(usage.apiEquivalentCostUSD)
+                    value: usage.map { MeterFormatters.usd($0.apiEquivalentCostUSD) } ?? loadingText
                 )
             }
 
@@ -554,23 +562,20 @@ private struct TodayTokenDetails: View {
                     .fill(Color.meterAccent)
                     .frame(width: 6, height: 6)
                 Text(L10n.text(.cachedInput, language: settings.language))
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .meterText(.detail)
                     .lineLimit(1)
-                Text(MeterFormatters.tokens(
-                    usage.cachedInputTokens,
-                    language: settings.language
-                ))
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                Text(tokens(usage?.cachedInputTokens))
+                    .meterText(.detail)
                     .monospacedDigit()
                 Spacer(minLength: 4)
-                Text(L10n.hitRate(
-                    Int((usage.cacheHitPercentage * 100).rounded()),
-                    language: settings.language
-                ))
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                Text(usage.map {
+                    L10n.hitRate(Int(($0.cacheHitPercentage * 100).rounded()), language: settings.language)
+                } ?? "—")
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterAccent)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 10)
             .frame(height: 31)
@@ -595,7 +600,7 @@ private struct TodayTokenDetailMetric: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 8.5, weight: .bold))
+                    .font(.meter(size: 8.5))
                     .foregroundStyle(Color.meterAccent)
                     .frame(width: 18, height: 18)
                     .background(Color.meterAccent.opacity(0.09), in: RoundedRectangle(
@@ -603,20 +608,22 @@ private struct TodayTokenDetailMetric: View {
                         style: .continuous
                     ))
                 Text(label)
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .meterText(.detail)
                     .lineLimit(2)
                     .minimumScaleFactor(0.72)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Text(value)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .meterText(.value)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.68)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 72)
+        .frame(minHeight: 76)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.meterCard)
@@ -635,16 +642,18 @@ private struct ActivityOverviewTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .meterText(.detail)
                 .foregroundStyle(Color.meterSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.70)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(value)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .meterText(.value)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.68)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -662,17 +671,20 @@ private struct ActivityOverviewTile: View {
 struct UsageHeatmapCard: View {
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings
+    @Environment(\.meterFontSizes) private var fontSizes
 
     private static let dayCount = 120
 
     let snapshot: CodexUsageSnapshot
     @State private var hoveredDay: HeatmapDay? = nil
 
+    private var rowHeight: CGFloat { max(14, ceil(fontSizes.detail * 1.3)) }
+
     var body: some View {
-        let effectiveSnapshot = snapshot.replacingTokenUsage(
+        let effectiveSnapshot = store.hasLoadedLocalTodayUsage ? snapshot.replacingTokenUsage(
             on: Date(),
             with: store.localTodayTokens
-        )
+        ) : snapshot
         let columns = HeatmapBuilder.columns(
             from: effectiveSnapshot.dailyUsage,
             dayCount: Self.dayCount
@@ -693,17 +705,17 @@ struct UsageHeatmapCard: View {
                         .contentTransition(.numericText())
                     Spacer()
                 }
-                .font(.system(size: 9.5, weight: .regular, design: .rounded))
+                .meterText(.detail)
                 .foregroundStyle(Color.meterSecondary)
-                .frame(height: 14)
+                .frame(minHeight: rowHeight)
 
                 HStack(alignment: .top, spacing: 8) {
                     VStack(spacing: 5) {
                         ForEach(Array(L10n.weekdaySymbols(language: settings.language).enumerated()), id: \.offset) { _, day in
                             Text(day)
-                                .font(.system(size: 8.5, weight: .regular, design: .rounded))
+                                .meterText(.detail)
                                 .foregroundStyle(Color.meterSecondary)
-                                .frame(width: 12, height: 14)
+                                .frame(width: max(12, fontSizes.detail), height: rowHeight)
                         }
                     }
 
@@ -716,6 +728,7 @@ struct UsageHeatmapCard: View {
                                             hoveredDay = hoveringDay
                                         }
                                     }
+                                    .frame(height: rowHeight)
                                 }
                             }
 
@@ -734,7 +747,7 @@ struct UsageHeatmapCard: View {
                             language: settings.language
                         )
                     )
-                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        .meterText(.detail)
                     Spacer()
                     Text(L10n.text(.less, language: settings.language))
                     ForEach(HeatmapLevel.activeLevels, id: \.self) { level in
@@ -744,7 +757,7 @@ struct UsageHeatmapCard: View {
                     }
                     Text(L10n.text(.more, language: settings.language))
                 }
-                .font(.system(size: 8.5, weight: .regular, design: .rounded))
+                .meterText(.detail)
                 .foregroundStyle(Color.meterSecondary)
             }
         }
@@ -804,6 +817,7 @@ private struct HeatmapCell: View {
 }
 
 struct UsageSummaryCard: View {
+    @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings
 
     let snapshot: CodexUsageSnapshot
@@ -817,7 +831,7 @@ struct UsageSummaryCard: View {
                     title: L10n.text(.usageOverview, language: settings.language),
                     trailing: fetchedText
                 )
-                HStack(spacing: 8) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     SummaryMetric(
                         title: L10n.text(.lifetimeTokens, language: settings.language),
                         value: MeterFormatters.tokens(
@@ -825,6 +839,16 @@ struct UsageSummaryCard: View {
                             language: settings.language
                         )
                     )
+                    SummaryMetric(
+                        title: L10n.text(.lifetimeAPIEquivalentCost, language: settings.language),
+                        value: store.localLifetimeUsage.map {
+                            MeterFormatters.usd($0.apiEquivalentCostUSD)
+                        } ?? L10n.text(
+                            store.hasLoadedLocalLifetimeUsage ? .notAvailable : .calculatingUsage,
+                            language: settings.language
+                        )
+                    )
+                    .help(L10n.text(.lifetimeAPIEquivalentCostHint, language: settings.language))
                     SummaryMetric(
                         title: L10n.text(.longestStreak, language: settings.language),
                         value: L10n.longestStreakValue(
@@ -861,25 +885,27 @@ struct CreditsBalanceCard: View {
         PanelCard(borderColor: Color.meterAccent.opacity(0.18)) {
             HStack(spacing: 9) {
                 Image(systemName: "creditcard")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.meter(size: 16))
                     .foregroundStyle(Color.meterAccent)
                     .frame(width: 20, height: 40)
 
                 Text(L10n.text(.creditsBalance, language: settings.language))
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .meterText(.title)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 12)
 
                 Text(value)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .meterText(.value)
                     .monospacedDigit()
                     .foregroundStyle(
                         balance == .unavailable ? Color.meterSecondary : Color.meterAccent
                     )
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .fixedSize(horizontal: false, vertical: true)
                     .help(value)
             }
         }
@@ -893,14 +919,17 @@ private struct SummaryMetric: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.system(size: 9, weight: .regular, design: .rounded))
+                .meterText(.detail)
                 .foregroundStyle(Color.meterSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
+                .fixedSize(horizontal: false, vertical: true)
             Text(value)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .meterText(.value)
+                .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)

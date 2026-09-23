@@ -139,6 +139,8 @@ enum AutomaticRefreshInterval: String, CaseIterable, Identifiable, Sendable {
 enum DashboardSection: String, CaseIterable, Identifiable, Sendable {
     case quota
     case tokenActivity
+    case activityOverview
+    case monthlyUsage
     case usageHeatmap
     case usageSummary
     case creditsBalance
@@ -149,6 +151,29 @@ enum DashboardSection: String, CaseIterable, Identifiable, Sendable {
 @MainActor
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
+    static let menuBarIconSizeRange: ClosedRange<Double> = 12...22
+    static let defaultMenuBarIconSize: Double = 18
+
+    @Published var fontSettings: MeterFontSettings {
+        didSet {
+            let sanitized = fontSettings.sanitized
+            if sanitized != fontSettings { fontSettings = sanitized }
+            guard sanitized != oldValue else { return }
+            if let data = try? JSONEncoder().encode(sanitized) {
+                defaults.set(data, forKey: Keys.fontSettings)
+            }
+        }
+    }
+
+    @Published var menuBarIconSize: Double {
+        didSet {
+            let sanitized = Self.sanitizedMenuBarIconSize(menuBarIconSize)
+            if sanitized != menuBarIconSize {
+                menuBarIconSize = sanitized
+            }
+            defaults.set(sanitized, forKey: Keys.menuBarIconSize)
+        }
+    }
 
     @Published var appearance: AppAppearance {
         didSet {
@@ -188,6 +213,68 @@ final class AppSettings: ObservableObject {
 
     @Published var showTokenActivityCard: Bool {
         didSet { defaults.set(showTokenActivityCard, forKey: Keys.showTokenActivityCard) }
+    }
+
+    @Published var showActivityOverviewCard: Bool {
+        didSet { defaults.set(showActivityOverviewCard, forKey: Keys.showActivityOverviewCard) }
+    }
+
+    @Published var showMonthlyUsageCard: Bool {
+        didSet { defaults.set(showMonthlyUsageCard, forKey: Keys.showMonthlyUsageCard) }
+    }
+
+    @Published var monthlyUsageMonthCount: Int {
+        didSet {
+            let sanitized = Self.sanitizedMonthlyUsageMonthCount(monthlyUsageMonthCount)
+            if sanitized != monthlyUsageMonthCount { monthlyUsageMonthCount = sanitized }
+            defaults.set(sanitized, forKey: Keys.monthlyUsageMonthCount)
+        }
+    }
+
+    @Published var usageStatisticsPeriod: UsagePeriod {
+        didSet { defaults.set(usageStatisticsPeriod.rawValue, forKey: Keys.usageStatisticsPeriod) }
+    }
+
+    @Published var usageStatisticsDayCount: Int {
+        didSet {
+            let sanitized = UsagePeriod.day.sanitizedRange(usageStatisticsDayCount)
+            if sanitized != usageStatisticsDayCount { usageStatisticsDayCount = sanitized }
+            defaults.set(sanitized, forKey: Keys.usageStatisticsDayCount)
+        }
+    }
+
+    @Published var usageStatisticsHourCount: Int {
+        didSet {
+            let sanitized = UsagePeriod.hour.sanitizedRange(usageStatisticsHourCount)
+            if sanitized != usageStatisticsHourCount { usageStatisticsHourCount = sanitized }
+            defaults.set(sanitized, forKey: Keys.usageStatisticsHourCount)
+        }
+    }
+
+    @Published var usageStatisticsYearCount: Int {
+        didSet {
+            let sanitized = UsagePeriod.year.sanitizedRange(usageStatisticsYearCount)
+            if sanitized != usageStatisticsYearCount { usageStatisticsYearCount = sanitized }
+            defaults.set(sanitized, forKey: Keys.usageStatisticsYearCount)
+        }
+    }
+
+    func usageStatisticsRange(for period: UsagePeriod) -> Int {
+        switch period {
+        case .hour: usageStatisticsHourCount
+        case .day: usageStatisticsDayCount
+        case .month: monthlyUsageMonthCount
+        case .year: usageStatisticsYearCount
+        }
+    }
+
+    func setUsageStatisticsRange(_ count: Int, for period: UsagePeriod) {
+        switch period {
+        case .hour: usageStatisticsHourCount = count
+        case .day: usageStatisticsDayCount = count
+        case .month: monthlyUsageMonthCount = count
+        case .year: usageStatisticsYearCount = count
+        }
     }
 
     @Published var showUsageHeatmapCard: Bool {
@@ -234,17 +321,24 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    private let defaults: UserDefaults
+    private let defaults: any PreferencesStore
     private let launchAtLoginManager: any LaunchAtLoginManaging
     private var isRestoringLaunchAtLogin = false
 
     init(
-        defaults: UserDefaults = .standard,
+        defaults: any PreferencesStore = SQLitePreferences.shared,
         preferredLanguages: [String] = Locale.preferredLanguages,
         launchAtLoginManager: any LaunchAtLoginManaging = SystemLaunchAtLoginManager()
     ) {
         self.defaults = defaults
         self.launchAtLoginManager = launchAtLoginManager
+        fontSettings = (defaults.object(forKey: Keys.fontSettings) as? Data)
+            .flatMap { try? JSONDecoder().decode(MeterFontSettings.self, from: $0) }?
+            .sanitized ?? MeterFontSettings()
+        menuBarIconSize = Self.sanitizedMenuBarIconSize(
+            (defaults.object(forKey: Keys.menuBarIconSize) as? NSNumber)?.doubleValue
+                ?? Self.defaultMenuBarIconSize
+        )
         appearance = defaults.string(forKey: Keys.appearance)
             .flatMap(AppAppearance.init(rawValue:)) ?? .system
         language = defaults.string(forKey: Keys.language)
@@ -255,6 +349,23 @@ final class AppSettings: ObservableObject {
         showTokenActivityCard = (
             defaults.object(forKey: Keys.showTokenActivityCard) as? NSNumber
         )?.boolValue ?? true
+        showActivityOverviewCard = (defaults.object(forKey: Keys.showActivityOverviewCard) as? NSNumber)?.boolValue
+            ?? (defaults.object(forKey: Keys.showTokenActivityCard) as? NSNumber)?.boolValue ?? true
+        showMonthlyUsageCard = (defaults.object(forKey: Keys.showMonthlyUsageCard) as? NSNumber)?.boolValue ?? true
+        monthlyUsageMonthCount = Self.sanitizedMonthlyUsageMonthCount(
+            (defaults.object(forKey: Keys.monthlyUsageMonthCount) as? NSNumber)?.intValue ?? 6
+        )
+        usageStatisticsPeriod = defaults.string(forKey: Keys.usageStatisticsPeriod)
+            .flatMap(UsagePeriod.init(rawValue:)) ?? .month
+        usageStatisticsHourCount = UsagePeriod.hour.sanitizedRange(
+            (defaults.object(forKey: Keys.usageStatisticsHourCount) as? NSNumber)?.intValue ?? 24
+        )
+        usageStatisticsDayCount = UsagePeriod.day.sanitizedRange(
+            (defaults.object(forKey: Keys.usageStatisticsDayCount) as? NSNumber)?.intValue ?? 7
+        )
+        usageStatisticsYearCount = UsagePeriod.year.sanitizedRange(
+            (defaults.object(forKey: Keys.usageStatisticsYearCount) as? NSNumber)?.intValue ?? 3
+        )
         showUsageHeatmapCard = (
             defaults.object(forKey: Keys.showUsageHeatmapCard) as? NSNumber
         )?.boolValue ?? true
@@ -289,6 +400,13 @@ final class AppSettings: ObservableObject {
         defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
         defaults.set(showQuotaCard, forKey: Keys.showQuotaCard)
         defaults.set(showTokenActivityCard, forKey: Keys.showTokenActivityCard)
+        defaults.set(showActivityOverviewCard, forKey: Keys.showActivityOverviewCard)
+        defaults.set(showMonthlyUsageCard, forKey: Keys.showMonthlyUsageCard)
+        defaults.set(monthlyUsageMonthCount, forKey: Keys.monthlyUsageMonthCount)
+        defaults.set(usageStatisticsPeriod.rawValue, forKey: Keys.usageStatisticsPeriod)
+        defaults.set(usageStatisticsHourCount, forKey: Keys.usageStatisticsHourCount)
+        defaults.set(usageStatisticsDayCount, forKey: Keys.usageStatisticsDayCount)
+        defaults.set(usageStatisticsYearCount, forKey: Keys.usageStatisticsYearCount)
         defaults.set(showUsageHeatmapCard, forKey: Keys.showUsageHeatmapCard)
         defaults.set(showUsageSummaryCard, forKey: Keys.showUsageSummaryCard)
         defaults.set(showCreditsBalanceCard, forKey: Keys.showCreditsBalanceCard)
@@ -313,6 +431,8 @@ final class AppSettings: ObservableObject {
         switch section {
         case .quota: showQuotaCard
         case .tokenActivity: showTokenActivityCard
+        case .activityOverview: showActivityOverviewCard
+        case .monthlyUsage: showMonthlyUsageCard
         case .usageHeatmap: showUsageHeatmapCard
         case .usageSummary: showUsageSummaryCard
         case .creditsBalance: showCreditsBalanceCard
@@ -361,6 +481,15 @@ final class AppSettings: ObservableObject {
         defaults.set(automaticRefreshIntervalMinutes, forKey: Keys.automaticRefreshIntervalMinutes)
     }
 
+    private static func sanitizedMenuBarIconSize(_ size: Double) -> Double {
+        guard size.isFinite else { return defaultMenuBarIconSize }
+        return min(max(size, menuBarIconSizeRange.lowerBound), menuBarIconSizeRange.upperBound)
+    }
+
+    private static func sanitizedMonthlyUsageMonthCount(_ count: Int) -> Int {
+        [3, 6, 12].contains(count) ? count : 6
+    }
+
     private static func sanitizedRefreshMinutes(_ minutes: Int) -> Int {
         min(max(minutes, 1), 1_440)
     }
@@ -370,16 +499,34 @@ final class AppSettings: ObservableObject {
     ) -> [DashboardSection] {
         var seen = Set<DashboardSection>()
         var result = sections.filter { seen.insert($0).inserted }
+        // Insert the new card beside token activity when migrating an existing order.
+        if !result.isEmpty, !seen.contains(.monthlyUsage), let index = result.firstIndex(of: .tokenActivity) {
+            result.insert(.monthlyUsage, at: index + 1)
+            seen.insert(.monthlyUsage)
+        }
+        if !result.isEmpty, !seen.contains(.activityOverview), let index = result.firstIndex(of: .tokenActivity) {
+            result.insert(.activityOverview, at: index + 1)
+            seen.insert(.activityOverview)
+        }
         result.append(contentsOf: DashboardSection.allCases.filter { seen.insert($0).inserted })
         return result
     }
 
     private enum Keys {
+        static let fontSettings = "meterFontSettings"
+        static let menuBarIconSize = "menuBarIconSize"
         static let appearance = "appAppearance"
         static let language = "appLanguage"
         static let launchAtLogin = "launchAtLogin"
         static let showQuotaCard = "showQuotaCard"
         static let showTokenActivityCard = "showTokenActivityCard"
+        static let showActivityOverviewCard = "showActivityOverviewCard"
+        static let showMonthlyUsageCard = "showMonthlyUsageCard"
+        static let monthlyUsageMonthCount = "monthlyUsageMonthCount"
+        static let usageStatisticsPeriod = "usageStatisticsPeriod"
+        static let usageStatisticsHourCount = "usageStatisticsHourCount"
+        static let usageStatisticsDayCount = "usageStatisticsDayCount"
+        static let usageStatisticsYearCount = "usageStatisticsYearCount"
         static let showUsageHeatmapCard = "showUsageHeatmapCard"
         static let showUsageSummaryCard = "showUsageSummaryCard"
         static let showCreditsBalanceCard = "showCreditsBalanceCard"

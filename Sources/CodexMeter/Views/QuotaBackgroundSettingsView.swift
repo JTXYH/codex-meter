@@ -72,7 +72,7 @@ struct QuotaBackgroundSettingsView: View {
     private var profileList: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(QuotaBackgroundL10n.text(.profiles, language: settings.language))
-                .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                .font(.meter(size: 12.5))
 
             VStack(spacing: 6) {
                 ForEach(backgrounds.profiles) { profile in
@@ -89,7 +89,7 @@ struct QuotaBackgroundSettingsView: View {
                     QuotaBackgroundL10n.text(.addBackground, language: settings.language),
                     systemImage: "plus"
                 )
-                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                .font(.meter(size: 11.5))
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
             }
@@ -121,13 +121,13 @@ struct QuotaBackgroundSettingsView: View {
             .clipShape(Circle())
 
             Text(profile.name)
-                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                .font(.meter(size: 11.5))
                 .lineLimit(1)
 
             Spacer(minLength: 2)
 
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.meter(size: 15))
                 .foregroundStyle(Color.meterAccent)
                 .opacity(isSelected ? 1 : 0)
         }
@@ -171,7 +171,7 @@ struct QuotaBackgroundSettingsView: View {
 
                 HStack {
                     Text(QuotaBackgroundL10n.text(.enableBackground, language: settings.language))
-                        .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                        .font(.meter(size: 11.5))
                     Spacer()
                     QuotaInlineSwitch(isOn: $backgrounds.isEnabled)
                 }
@@ -181,10 +181,10 @@ struct QuotaBackgroundSettingsView: View {
 
                 HStack {
                     Text(QuotaBackgroundL10n.text(.quotaStatusImages, language: settings.language))
-                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        .font(.meter(size: 11.5))
                     Spacer()
                     Text("\(profile.configuredSlotCount)/\(QuotaBackgroundSlot.allCases.count)")
-                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        .font(.meter(size: 10.5))
                         .foregroundStyle(Color.meterSecondary)
                         .monospacedDigit()
                 }
@@ -211,10 +211,10 @@ struct QuotaBackgroundSettingsView: View {
                    ) {
                     HStack(spacing: 8) {
                         Text(QuotaBackgroundL10n.text(.cardPreview, language: settings.language))
-                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            .font(.meter(size: 11.5))
                         Spacer()
                         Text(QuotaBackgroundL10n.rangeTitle(activePreviewSlot))
-                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            .font(.meter(size: 11.5))
                             .foregroundStyle(Color.meterSecondary)
                     }
 
@@ -262,14 +262,14 @@ struct QuotaBackgroundSettingsView: View {
 
                     HStack(spacing: 8) {
                         Text(QuotaBackgroundL10n.text(.automaticSwitchHint, language: settings.language))
-                            .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                            .font(.meter(size: 9.5))
                             .foregroundStyle(Color.meterSecondary)
                         Spacer(minLength: 4)
                         autoSavedLabel
                     }
                 } else {
                     Text(QuotaBackgroundL10n.text(.supportedFormats, language: settings.language))
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .font(.meter(size: 10))
                         .foregroundStyle(Color.meterSecondary)
                         .padding(.top, 2)
 
@@ -285,17 +285,17 @@ struct QuotaBackgroundSettingsView: View {
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "photo.stack")
-                    .font(.system(size: 30, weight: .light))
+                    .font(.meter(size: 30))
                     .foregroundStyle(Color.meterTertiary)
                 Text(QuotaBackgroundL10n.text(.emptyProfiles, language: settings.language))
-                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                    .font(.meter(size: 11.5))
                     .foregroundStyle(Color.meterSecondary)
                     .multilineTextAlignment(.center)
                 Button(QuotaBackgroundL10n.text(.addBackground, language: settings.language)) {
                     isAddingProfile = true
                 }
                 .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.meter(size: 11))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .frame(height: 28)
@@ -311,7 +311,7 @@ struct QuotaBackgroundSettingsView: View {
             QuotaBackgroundL10n.text(.autoSaved, language: settings.language),
             systemImage: "checkmark.circle.fill"
         )
-        .font(.system(size: 9.5, weight: .medium, design: .rounded))
+        .font(.meter(size: 9.5))
         .foregroundStyle(Color.meterAccent)
         .fixedSize()
     }
@@ -322,7 +322,7 @@ struct QuotaBackgroundSettingsView: View {
     ) -> some View {
         VStack(spacing: 5) {
             Text(QuotaBackgroundL10n.rangeTitle(slot))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.meter(size: 11))
                 .foregroundStyle(Color.meterSecondary)
 
             if let image = backgrounds.image(for: slot, profileID: profile.id) {
@@ -344,17 +344,17 @@ struct QuotaBackgroundSettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.meterAccent)
-                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .font(.meter(size: 9))
             } else {
                 Button {
                     chooseImage(slot, profileID: profile.id)
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: "photo.badge.plus")
-                            .font(.system(size: 22, weight: .regular))
+                            .font(.meter(size: 22))
                             .foregroundStyle(Color.meterSecondary)
                         Text(QuotaBackgroundL10n.text(.uploadImage, language: settings.language))
-                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                            .font(.meter(size: 9.5))
                             .foregroundStyle(Color.meterAccent)
                     }
                     .frame(maxWidth: .infinity, minHeight: 100)
@@ -412,7 +412,7 @@ struct QuotaBackgroundSettingsView: View {
             previewSlot = slots[nextIndex]
         } label: {
             Image(systemName: systemImage)
-                .font(.system(size: 8.5, weight: .bold))
+                .font(.meter(size: 8.5))
                 .foregroundStyle(Color.meterAccent)
                 .frame(width: 20, height: 20)
                 .background(Color.meterControl, in: Circle())
@@ -516,7 +516,7 @@ private struct QuotaProfileNameEditor: View {
                     Text(profile.name)
                 }
             }
-            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .font(.meter(size: 14))
             .lineLimit(1)
 
             Spacer(minLength: 8)
@@ -529,7 +529,7 @@ private struct QuotaProfileNameEditor: View {
                 }
             } label: {
                 Image(systemName: "pencil")
-                    .font(.system(size: 10.5, weight: .semibold))
+                    .font(.meter(size: 10.5))
                     .foregroundStyle(isEditing ? Color.meterAccent : Color.meterTertiary)
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
@@ -704,9 +704,9 @@ private struct QuotaBackgroundCropView: View {
         VStack(spacing: 12) {
             VStack(spacing: 2) {
                 Text(QuotaBackgroundL10n.text(.cropImage, language: settings.language))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.meter(size: 16))
                 Text(QuotaBackgroundL10n.text(.cropHint, language: settings.language))
-                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .font(.meter(size: 10.5))
                     .foregroundStyle(Color.meterSecondary)
             }
 
@@ -738,7 +738,7 @@ private struct QuotaBackgroundCropView: View {
 
                 VStack(spacing: 10) {
                     Text(QuotaBackgroundL10n.text(.panelIcon, language: settings.language))
-                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                        .font(.meter(size: 11.5))
 
                     Picker("", selection: $usesDefaultPanelIcon) {
                         Text(QuotaBackgroundL10n.text(.defaultIcon, language: settings.language))
@@ -801,24 +801,24 @@ private struct QuotaBackgroundCropView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                         }
                         Text("Codex Meter")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .font(.meter(size: 12))
                     }
                 }
             }
 
             Text(QuotaBackgroundL10n.text(.dragToPosition, language: settings.language))
-                .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                .font(.meter(size: 9.5))
                 .foregroundStyle(Color.meterSecondary)
 
             HStack(spacing: 8) {
                 Text("5:2")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .font(.meter(size: 10))
                     .padding(.horizontal, 8)
                     .frame(height: 26)
                     .background(Color.meterControl, in: RoundedRectangle(cornerRadius: 7))
 
                 Text(QuotaBackgroundL10n.text(.zoom, language: settings.language))
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(.meter(size: 10))
                 Slider(value: $zoom, in: 1...3)
                     .frame(width: 104)
 
@@ -831,7 +831,7 @@ private struct QuotaBackgroundCropView: View {
                 Divider().frame(height: 18)
 
                 Text(QuotaBackgroundL10n.text(.panelIcon, language: settings.language))
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(.meter(size: 10))
                 Slider(value: $panelIconZoom, in: 1...3)
                     .frame(width: 90)
                     .disabled(usesDefaultPanelIcon)
@@ -870,7 +870,7 @@ private struct QuotaBackgroundCropView: View {
 
             if let errorMessage {
                 Text(errorMessage)
-                    .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                    .font(.meter(size: 9.5))
                     .foregroundStyle(.red)
             }
         }

@@ -5,7 +5,7 @@ import Testing
 
 struct CreditsBalanceCardTests {
     @Test @MainActor
-    func rendersBalanceStatesInEveryLanguageAndAppearance() throws {
+    func rendersBalanceStatesInEveryLanguageAndAppearance() async throws {
         let suiteName = "CodexMeterTests.CreditsCard.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         let originalAppearance = NSApplication.shared.appearance
@@ -14,6 +14,16 @@ struct CreditsBalanceCardTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
         let settings = AppSettings(defaults: defaults, launchAtLoginManager: CreditsPreviewLoginManager())
+        let store = UsageStore(localUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
+            today: .zero,
+            lifetime: LocalTokenUsage(
+                totalTokens: 128_640_000, inputTokens: 120_000_000, cachedInputTokens: 96_000_000,
+                cacheWriteInputTokens: 0, outputTokens: 8_640_000, reasoningOutputTokens: 0,
+                apiEquivalentCostUSD: 307.20
+            )
+        )), settings: settings)
+        await store.refreshLocalUsage()
+        await store.refreshLifetimeUsage()
         let states: [(name: String, balance: String?, unlimited: Bool)] = [
             ("amount", "1905", false),
             ("zero", "0", false),
@@ -67,6 +77,7 @@ struct CreditsBalanceCardTests {
                             .background(Color.meterPanel)
                             .foregroundStyle(Color.meterPrimary)
                             .environmentObject(settings)
+                            .environmentObject(store)
                             .environment(\.colorScheme, colorScheme)
                         )
                         renderer.scale = 2

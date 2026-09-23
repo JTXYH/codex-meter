@@ -10,14 +10,17 @@ Codex Meter is a native macOS menu bar utility for checking the quota windows an
 
 | Simplified Chinese · Light | English · Dark |
 | --- | --- |
-| ![Simplified Chinese light interface](docs/images/overview-zh-Hans-light.png) | ![English dark interface](docs/images/overview-en-dark.png) |
+| [![Simplified Chinese light interface](docs/images/overview-zh-Hans-light.png)](docs/images/overview-zh-Hans-light.png) | [![English dark interface](docs/images/overview-en-dark.png)](docs/images/overview-en-dark.png) |
 
-> Screenshots use synthetic demo data and contain no real account information.
+> Both screenshots show all seven dashboard cards using synthetic demo data. Click either image for the full-size view. Neither contains real account information.
 
 ## Features
 
 - Prioritizes the remaining Codex five-hour quota in the menu bar, falling back to weekly quota when that is the only window returned
+- Shows a colored quota ring in the menu bar by default, matching the dashboard ring
 - Adapts the quota card to the API response: five-hour quota shows a reset countdown and time, while weekly quota uses a compact single-line percentage and reset date
+- Adds separate Activity Overview and Usage Statistics cards, with hourly, daily, monthly, and yearly local usage ranges
+- Lets you adjust shared or card-specific font sizes and clear saved local statistics in Data Management
 - Shows today's breakdown, yesterday, the last 7 days, lifetime tokens, streaks, and the longest task
 - Uses compact squares to fill a weekday-aligned 120-day heatmap, with per-day details on hover
 - Updates today's local token count incrementally from Codex session logs every 5 seconds, with input, output, cached-input, and USD API-equivalent cost details
@@ -43,9 +46,9 @@ Simplified Chinese is the default. The app currently supports:
 
 ## Download
 
-[⬇️ Download Codex Meter v1.5.1 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.5.1/CodexMeter-1.5.1-macOS.zip)
+[⬇️ Download Codex Meter v1.6.0 (macOS Universal 2)](https://github.com/JTXYH/codex-meter/releases/download/v1.6.0/CodexMeter-1.6.0-macOS.zip)
 
-This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.5.1 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.5.1).
+This build supports both Apple Silicon and Intel Macs. Download and extract the ZIP, then move `CodexMeter.app` to Applications. [View the v1.6.0 release notes](https://github.com/JTXYH/codex-meter/releases/tag/v1.6.0).
 
 ### If macOS blocks the app on first launch
 

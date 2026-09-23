@@ -23,15 +23,15 @@ struct CodexResponseParserTests {
         #expect(snapshot.rateLimitBuckets.first?.unlimitedCredits == false)
         #expect(snapshot.rateLimitBuckets.first?.creditBalance == "0")
         #expect(snapshot.creditsBalance == .amount(0))
-        #expect(snapshot.allLimitWindows.count == 2)
+        #expect(snapshot.rateLimitBuckets.flatMap(\.windows).count == 2)
         #expect(snapshot.primaryWindow?.windowDurationMinutes == 300)
         #expect(snapshot.primaryWindow?.remainingPercent == 75)
         #expect(snapshot.fiveHourWindow?.remainingPercent == 75)
         #expect(snapshot.weeklyWindow?.windowDurationMinutes == 10_080)
-        #expect(snapshot.featuredWindow?.remainingPercent == 22)
         #expect(snapshot.quotaCardPrimaryWindow?.remainingPercent == 75)
         #expect(snapshot.quotaCardSecondaryWindow?.remainingPercent == 22)
         #expect(snapshot.usageSummary?.lifetimeTokens == 1_253_637_101)
+        #expect(snapshot.usageSummary?.longestRunningTurnSeconds == 22_847)
         #expect(snapshot.dailyUsage.count == 2)
         #expect(snapshot.tokenUsage(on: DateOnlyParser.date(from: "2026-08-06")!)?.tokens == 105_004_229)
     }
@@ -79,13 +79,12 @@ struct CodexResponseParserTests {
             usageData: usage
         )
 
-        #expect(snapshot.allLimitWindows.count == 3)
+        #expect(snapshot.rateLimitBuckets.flatMap(\.windows).count == 3)
         #expect(snapshot.fiveHourWindow == nil)
         #expect(snapshot.primaryWindow?.bucketID == "codex")
         #expect(snapshot.quotaCardPrimaryWindow?.windowDurationMinutes == 10_080)
         #expect(snapshot.quotaCardPrimaryWindow?.remainingPercent == 62)
         #expect(snapshot.quotaCardSecondaryWindow == nil)
-        #expect(snapshot.featuredWindow?.remainingPercent == 62)
         let window = try #require(snapshot.quotaCardPrimaryWindow)
         #expect(MeterFormatters.quotaTitle(for: window) == "周额度")
     }
@@ -107,7 +106,6 @@ struct CodexResponseParserTests {
         #expect(snapshot.weeklyWindow == nil)
         #expect(snapshot.quotaCardPrimaryWindow?.bucketID == "codex")
         #expect(snapshot.quotaCardSecondaryWindow == nil)
-        #expect(snapshot.featuredWindow?.bucketID == "codex")
     }
 
     @Test
@@ -143,11 +141,11 @@ struct CodexResponseParserTests {
         )
         let primary = try #require(snapshot.primaryWindow)
         let secondary = try #require(
-            snapshot.allLimitWindows.first(where: { $0.kind == .secondary })
+            snapshot.rateLimitBuckets.flatMap(\.windows).first(where: { $0.kind == .secondary })
         )
 
         #expect(snapshot.rateLimitBuckets.first?.id == "codex")
-        #expect(snapshot.allLimitWindows.count == 2)
+        #expect(snapshot.rateLimitBuckets.flatMap(\.windows).count == 2)
         #expect(primary.remainingPercent == 75)
         #expect(primary.windowDurationMinutes == nil)
         #expect(primary.resetsAt == nil)

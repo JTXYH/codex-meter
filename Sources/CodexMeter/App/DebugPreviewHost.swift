@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-private let debugPanelSnapshotSize = CGSize(width: 420, height: 1_100)
+private let debugPanelSnapshotWidth: CGFloat = 420
 
 struct DebugDemoUsageLoader: CodexUsageLoading {
     func fetchSnapshot() async throws -> CodexUsageSnapshot {
@@ -97,8 +97,8 @@ struct DebugDemoUsageLoader: CodexUsageLoading {
 }
 
 struct DebugDemoLocalTokenUsageLoader: LocalTokenUsageLoading {
-    func todayUsage(at now: Date) async -> LocalTokenUsage {
-        LocalTokenUsage(
+    func usage(at now: Date) async -> LocalTokenUsageSnapshot {
+        let today = LocalTokenUsage(
             totalTokens: 3_280_000,
             inputTokens: 3_096_000,
             cachedInputTokens: 2_600_000,
@@ -106,6 +106,57 @@ struct DebugDemoLocalTokenUsageLoader: LocalTokenUsageLoading {
             outputTokens: 184_000,
             reasoningOutputTokens: 96_000,
             apiEquivalentCostUSD: 8.25
+        )
+        let calendar = Calendar.current
+        let currentMonth = calendar.dateInterval(of: .month, for: now)!.start
+        let monthly = (0..<6).map { offset in
+            let factor = Int64(6 - offset)
+            return MonthlyTokenUsage(
+                month: calendar.date(byAdding: .month, value: -offset, to: currentMonth)!,
+                usage: LocalTokenUsage(
+                    totalTokens: 6_000_000 * factor, inputTokens: 5_600_000 * factor,
+                    cachedInputTokens: 4_200_000 * factor, cacheWriteInputTokens: 0,
+                    outputTokens: 400_000 * factor, reasoningOutputTokens: 200_000 * factor,
+                    apiEquivalentCostUSD: 14.628571 * Double(factor)
+                )
+            )
+        }
+        return LocalTokenUsageSnapshot(
+            today: today,
+            lifetime: LocalTokenUsage(
+                totalTokens: 128_640_000,
+                inputTokens: 120_000_000,
+                cachedInputTokens: 96_000_000,
+                cacheWriteInputTokens: 0,
+                outputTokens: 8_640_000,
+                reasoningOutputTokens: 4_320_000,
+                apiEquivalentCostUSD: 307.20
+            ),
+            monthlyUsage: monthly,
+            dailyUsage: (0..<30).map { offset in
+                let factor = Double((offset * 7) % 10 + 4) / 10
+                return PeriodTokenUsage(
+                    start: calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: now))!,
+                    usage: offset == 0 ? today : LocalTokenUsage(
+                        totalTokens: Int64(3_280_000 * factor), inputTokens: Int64(3_096_000 * factor),
+                        cachedInputTokens: Int64(2_600_000 * factor), cacheWriteInputTokens: 0,
+                        outputTokens: Int64(184_000 * factor), reasoningOutputTokens: Int64(96_000 * factor),
+                        apiEquivalentCostUSD: 8.25 * factor
+                    )
+                )
+            },
+            hourlyUsage: (0..<24).map { offset in
+                let factor = Double((offset * 7) % 10 + 4) / 10
+                return PeriodTokenUsage(
+                    start: calendar.date(byAdding: .hour, value: -offset, to: calendar.dateInterval(of: .hour, for: now)!.start)!,
+                    usage: LocalTokenUsage(
+                        totalTokens: Int64(328_000 * factor), inputTokens: Int64(309_600 * factor),
+                        cachedInputTokens: Int64(260_000 * factor), cacheWriteInputTokens: 0,
+                        outputTokens: Int64(18_400 * factor), reasoningOutputTokens: Int64(9_600 * factor),
+                        apiEquivalentCostUSD: 0.825 * factor
+                    )
+                )
+            }
         )
     }
 }
@@ -144,11 +195,9 @@ private struct DebugMeterPanelSnapshotView: View {
                     }
             }
         }
-        .frame(
-            width: debugPanelSnapshotSize.width,
-            height: debugPanelSnapshotSize.height
-        )
+        .frame(width: debugPanelSnapshotWidth)
         .foregroundStyle(Color.meterPrimary)
+        .meterTypography()
     }
 
     private var header: some View {
@@ -157,10 +206,10 @@ private struct DebugMeterPanelSnapshotView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 7) {
                     Text("Codex Meter")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .meterText(.title)
                     if let plan = store.snapshot?.account?.displayPlan {
                         Text(plan.uppercased())
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .meterText(.detail)
                             .foregroundStyle(Color.meterAccent)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -171,15 +220,15 @@ private struct DebugMeterPanelSnapshotView: View {
                     HStack(spacing: 4) {
                         Text(EmailPrivacy.masked(email))
                         Image(systemName: "eye.fill")
-                            .font(.system(size: 8.5, weight: .semibold))
+                            .font(.meter(size: 8.5))
                     }
-                    .font(.system(size: 10.5, weight: .regular, design: .rounded))
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterSecondary)
                 }
             }
             Spacer()
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.meter(size: 13))
                 .frame(width: 28, height: 28)
                 .background(Color.meterControl, in: Circle())
         }
@@ -310,24 +359,32 @@ struct DebugPreviewHost: View {
         let previewBackgrounds = makeDebugBackgroundStore(
             includeImages: includeBackgroundImages
         )
-        let renderer = ImageRenderer(
-            content: DebugMeterPanelSnapshotView()
+        // Let the full card stack choose its height so snapshot constraints do
+        // not shrink text. Hosting also captures the horizontal month scroller.
+        let hosting = NSHostingView(
+            rootView: DebugMeterPanelSnapshotView()
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(previewBackgrounds)
                 .environment(\.colorScheme, colorScheme)
         )
-        renderer.proposedSize = ProposedViewSize(
-            width: debugPanelSnapshotSize.width,
-            height: debugPanelSnapshotSize.height
+        hosting.setFrameSize(NSSize(
+            width: debugPanelSnapshotWidth,
+            height: hosting.fittingSize.height
+        ))
+        let window = NSWindow(
+            contentRect: hosting.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
         )
-        renderer.scale = 2
+        window.contentView = hosting
+        defer { window.contentView = nil }
+        hosting.layoutSubtreeIfNeeded()
 
-        guard let image = renderer.nsImage,
-              let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:])
-        else { return }
+        guard let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+        guard let png = bitmap.representation(using: .png, properties: [:]) else { return }
 
         try? png.write(to: URL(fileURLWithPath: filename), options: .atomic)
     }
@@ -440,9 +497,14 @@ struct DebugPreviewHost: View {
 
     private func menuBarIconSample(colorScheme: ColorScheme, background: Color) -> some View {
         HStack(spacing: 6) {
-            MenuBarCodexIconView()
-            Text("100%")
-                .font(.system(size: 16, weight: .medium))
+            Image(nsImage: MenuBarProgressRingImage.make(
+                remainingPercent: 81,
+                size: 18,
+                colorScheme: colorScheme
+            ))
+            .renderingMode(.original)
+            Text("81%")
+                .font(.meter(size: 16))
         }
         .padding(.horizontal, 10)
         .frame(width: 96, height: 32, alignment: .leading)

@@ -27,16 +27,12 @@ enum QuotaBackgroundL10n {
         case panelIcon
         case defaultIcon
         case customIcon
-        case livePreview
-        case livePreviewHint
         case dragToPosition
         case zoom
         case rotateLeft
         case reset
         case cancel
         case finishCrop
-        case imageError
-        case switchProfile
         case previousQuotaStyle
         case nextQuotaStyle
     }
@@ -101,10 +97,6 @@ enum QuotaBackgroundL10n {
             localized("默认", "預設", "Default", "デフォルト", "기본", "Predeterminado", language: language)
         case .customIcon:
             localized("自定义", "自訂", "Custom", "カスタム", "사용자 지정", "Personalizado", language: language)
-        case .livePreview:
-            localized("实时预览", "即時預覽", "Live preview", "ライブプレビュー", "실시간 미리보기", "Vista previa en directo", language: language)
-        case .livePreviewHint:
-            localized("每周额度卡中的显示效果", "每週額度卡中的顯示效果", "How it will look in the weekly quota card", "週間割り当てカードでの表示", "주간 할당량 카드 표시 모습", "Así se verá en la tarjeta semanal", language: language)
         case .dragToPosition:
             localized(
                 "拖动或双指移动，捏合缩放",
@@ -125,10 +117,6 @@ enum QuotaBackgroundL10n {
             localized("取消", "取消", "Cancel", "キャンセル", "취소", "Cancelar", language: language)
         case .finishCrop:
             localized("完成裁剪", "完成裁切", "Finish crop", "切り抜きを完了", "자르기 완료", "Terminar recorte", language: language)
-        case .imageError:
-            localized("无法读取或保存这张图片", "無法讀取或儲存此圖片", "This image could not be read or saved", "この画像を読み込むか保存できませんでした", "이미지를 읽거나 저장할 수 없습니다", "No se pudo leer o guardar esta imagen", language: language)
-        case .switchProfile:
-            localized("切换背景", "切換背景", "Switch background", "背景を切り替え", "배경 전환", "Cambiar fondo", language: language)
         case .previousQuotaStyle:
             localized("上一个额度样式", "上一個額度樣式", "Previous quota style", "前の割り当てスタイル", "이전 할당량 스타일", "Estilo de cuota anterior", language: language)
         case .nextQuotaStyle:

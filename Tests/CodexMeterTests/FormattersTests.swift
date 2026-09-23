@@ -3,6 +3,14 @@ import Testing
 @testable import CodexMeter
 
 struct FormattersTests {
+    @Test
+    func formatsServerTaskDurationInSeconds() {
+        // Current account reports 7,296 seconds: 2h 1m 36s, displayed to whole minutes.
+        #expect(MeterFormatters.elapsed(seconds: 7_296) == "2 小时 1 分")
+        #expect(MeterFormatters.elapsed(seconds: 22_847) == "6 小时 20 分")
+        #expect(MeterFormatters.elapsed(seconds: nil) == L10n.text(.notAvailable, language: .simplifiedChinese))
+    }
+
     @Test(arguments: [
         (Int64(53_000_000), "5千3百万"),
         (50_000_000, "5千万"),

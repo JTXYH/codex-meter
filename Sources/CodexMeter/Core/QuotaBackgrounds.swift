@@ -157,15 +157,19 @@ final class QuotaBackgroundStore: ObservableObject {
 
     let storageDirectory: URL
 
-    private let defaults: UserDefaults
+    private let defaults: any PreferencesStore
+    private let database: SQLiteStore
     private let fileManager: FileManager
     private var imageCache: [URL: NSImage] = [:]
 
     init(
-        defaults: UserDefaults = .standard,
+        defaults: any PreferencesStore = SQLitePreferences.shared,
+        database: SQLiteStore? = nil,
         storageDirectory: URL? = nil,
         fileManager: FileManager = .default
     ) {
+        self.database = database ?? (defaults as? SQLitePreferences)?.database
+            ?? (try! SQLiteStore(url: storageDirectory?.appendingPathComponent("backgrounds.sqlite")))
         self.defaults = defaults
         self.fileManager = fileManager
         self.storageDirectory = storageDirectory ?? Self.defaultStorageDirectory(fileManager: fileManager)
@@ -184,6 +188,7 @@ final class QuotaBackgroundStore: ObservableObject {
         } else {
             selectedProfileID = profiles.first?.id
         }
+        migrateLegacyImages()
     }
 
     var selectedProfile: QuotaBackgroundProfile? {
@@ -210,26 +215,20 @@ final class QuotaBackgroundStore: ObservableObject {
     }
 
     func removeProfile(id: UUID) {
+        let previousProfiles = profiles
         profiles.removeAll(where: { $0.id == id })
-        let directory = profileDirectory(for: id)
-        imageCache = imageCache.filter { !$0.key.path.hasPrefix(directory.path) }
-        try? fileManager.removeItem(at: directory)
-
-        if selectedProfileID == id {
-            selectedProfileID = profiles.first?.id
+        do {
+            try database.transaction {
+                try database.execute("DELETE FROM records WHERE namespace='images' AND key LIKE ?", [.text(id.uuidString + "/%")])
+                try persistProfilesThrowing()
+            }
+            let directory = profileDirectory(for: id)
+            imageCache = imageCache.filter { !$0.key.path.hasPrefix(directory.path) }
+            if selectedProfileID == id { selectedProfileID = profiles.first?.id }
+        } catch {
+            profiles = previousProfiles
+            database.recordFailure(error)
         }
-        persistProfiles()
-    }
-
-    func selectNextProfile() {
-        guard profiles.count > 1 else { return }
-        guard let selectedProfileID,
-              let index = profiles.firstIndex(where: { $0.id == selectedProfileID })
-        else {
-            self.selectedProfileID = profiles.first?.id
-            return
-        }
-        self.selectedProfileID = profiles[(index + 1) % profiles.count].id
     }
 
     func saveImage(
@@ -247,7 +246,6 @@ final class QuotaBackgroundStore: ObservableObject {
         }
 
         let directory = profileDirectory(for: profileID)
-        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         let originalFilename = "\(slot.rawValue)-original.jpg"
         let croppedFilename = "\(slot.rawValue)-cropped.jpg"
         let panelIconFilename = "\(slot.rawValue)-panel-icon.jpg"
@@ -261,40 +259,49 @@ final class QuotaBackgroundStore: ObservableObject {
             throw QuotaBackgroundError.couldNotEncodeImage
         }
 
-        try originalData.write(to: originalURL, options: .atomic)
-        try croppedData.write(to: croppedURL, options: .atomic)
-        imageCache[originalURL] = original
-        imageCache[croppedURL] = cropped
+        let previousProfiles = profiles
+        do {
+            try database.transaction {
+                try database.setData(originalData, namespace: "images", key: imageKey(originalURL))
+                try database.setData(croppedData, namespace: "images", key: imageKey(croppedURL))
+                imageCache[originalURL] = original
+                imageCache[croppedURL] = cropped
 
-        if let previousIconFilename = profiles[profileIndex].assets[slot]?.panelIconFilename,
-           previousIconFilename != panelIconFilename {
-            let previousIconURL = directory.appendingPathComponent(previousIconFilename)
-            try? fileManager.removeItem(at: previousIconURL)
-            imageCache.removeValue(forKey: previousIconURL)
-        }
+                if let previousIconFilename = profiles[profileIndex].assets[slot]?.panelIconFilename,
+                   previousIconFilename != panelIconFilename {
+                    let previousIconURL = directory.appendingPathComponent(previousIconFilename)
+                    try database.setData(nil, namespace: "images", key: imageKey(previousIconURL))
+                    imageCache.removeValue(forKey: previousIconURL)
+                }
 
-        var savedPanelIconFilename: String?
-        if usesDefaultPanelIcon {
-            try? fileManager.removeItem(at: panelIconURL)
-            imageCache.removeValue(forKey: panelIconURL)
-        } else if let panelIcon {
-            guard let panelIconData = panelIcon.jpegData(compressionFactor: 0.94) else {
-                throw QuotaBackgroundError.couldNotEncodeImage
+                var savedPanelIconFilename: String?
+                if usesDefaultPanelIcon {
+                    try database.setData(nil, namespace: "images", key: imageKey(panelIconURL))
+                    imageCache.removeValue(forKey: panelIconURL)
+                } else if let panelIcon {
+                    guard let panelIconData = panelIcon.jpegData(compressionFactor: 0.94) else {
+                        throw QuotaBackgroundError.couldNotEncodeImage
+                    }
+                    try database.setData(panelIconData, namespace: "images", key: imageKey(panelIconURL))
+                    imageCache[panelIconURL] = panelIcon
+                    savedPanelIconFilename = panelIconFilename
+                }
+
+                profiles[profileIndex].assets[slot] = QuotaBackgroundAsset(
+                    originalFilename: originalFilename,
+                    croppedFilename: croppedFilename,
+                    cropConfiguration: cropConfiguration,
+                    panelIconFilename: savedPanelIconFilename,
+                    panelIconCropConfiguration: panelIconCropConfiguration,
+                    usesDefaultPanelIcon: usesDefaultPanelIcon
+                )
+                try persistProfilesThrowing()
             }
-            try panelIconData.write(to: panelIconURL, options: .atomic)
-            imageCache[panelIconURL] = panelIcon
-            savedPanelIconFilename = panelIconFilename
+        } catch {
+            profiles = previousProfiles
+            imageCache.removeAll()
+            throw error
         }
-
-        profiles[profileIndex].assets[slot] = QuotaBackgroundAsset(
-            originalFilename: originalFilename,
-            croppedFilename: croppedFilename,
-            cropConfiguration: cropConfiguration,
-            panelIconFilename: savedPanelIconFilename,
-            panelIconCropConfiguration: panelIconCropConfiguration,
-            usesDefaultPanelIcon: usesDefaultPanelIcon
-        )
-        persistProfiles()
     }
 
     func cropConfiguration(
@@ -347,7 +354,8 @@ final class QuotaBackgroundStore: ObservableObject {
         let filename = original ? asset.originalFilename : asset.croppedFilename
         let url = profileDirectory(for: resolvedProfileID).appendingPathComponent(filename)
         if let cached = imageCache[url] { return cached }
-        guard let loaded = NSImage(contentsOf: url) else { return nil }
+        guard let data = try? database.data(namespace: "images", key: imageKey(url)),
+              let loaded = NSImage(data: data) else { return nil }
         imageCache[url] = loaded
         return loaded
     }
@@ -370,7 +378,8 @@ final class QuotaBackgroundStore: ObservableObject {
 
         let url = profileDirectory(for: resolvedProfileID).appendingPathComponent(filename)
         if let cached = imageCache[url] { return cached }
-        guard let loaded = NSImage(contentsOf: url) else { return nil }
+        guard let data = try? database.data(namespace: "images", key: imageKey(url)),
+              let loaded = NSImage(data: data) else { return nil }
         imageCache[url] = loaded
         return loaded
     }
@@ -398,12 +407,50 @@ final class QuotaBackgroundStore: ObservableObject {
     }
 
     private func persistProfiles() {
-        if let encoded = try? JSONEncoder().encode(profiles) {
-            defaults.set(encoded, forKey: Keys.profiles)
+        do { try persistProfilesThrowing() } catch { database.recordFailure(error) }
+    }
+
+    private func persistProfilesThrowing() throws {
+        let data = try JSONEncoder().encode(profiles)
+        if defaults is SQLitePreferences {
+            let encoded = try PropertyListSerialization.data(fromPropertyList: ["value": data], format: .binary, options: 0)
+            try database.setData(encoded, namespace: "preferences", key: Keys.profiles)
+        } else {
+            defaults.set(data, forKey: Keys.profiles)
         }
     }
 
+    private func imageKey(_ url: URL) -> String {
+        url.deletingLastPathComponent().lastPathComponent + "/" + url.lastPathComponent
+    }
+
+    private func migrateLegacyImages() {
+        do {
+            var imported: [URL] = []
+            try database.transaction {
+                guard try database.data(namespace: "metadata", key: "imagesMigrated") == nil else { return }
+                for profile in profiles {
+                    for asset in profile.assets.values {
+                        for name in [asset.originalFilename, asset.croppedFilename, asset.panelIconFilename].compactMap({ $0 }) {
+                            let url = profileDirectory(for: profile.id).appendingPathComponent(name)
+                            guard fileManager.fileExists(atPath: url.path) else { continue }
+                            if try database.data(namespace: "images", key: imageKey(url)) == nil {
+                                try database.setData(Data(contentsOf: url), namespace: "images", key: imageKey(url))
+                            }
+                            imported.append(url)
+                        }
+                    }
+                }
+                try database.setData(Data([1]), namespace: "metadata", key: "imagesMigrated")
+            }
+            for url in imported { try? fileManager.removeItem(at: url) }
+        } catch { database.recordFailure(error) }
+    }
+
     private static func defaultStorageDirectory(fileManager: FileManager) -> URL {
+        if let path = ProcessInfo.processInfo.environment["CODEX_METER_DATA_DIRECTORY"] {
+            return URL(fileURLWithPath: path).appendingPathComponent("QuotaBackgrounds")
+        }
         let root = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
         return root

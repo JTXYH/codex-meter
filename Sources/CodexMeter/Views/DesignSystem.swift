@@ -1,6 +1,54 @@
 import AppKit
 import SwiftUI
 
+private struct MeterFontSizesKey: EnvironmentKey {
+    static let defaultValue = MeterFontSizes()
+}
+
+extension EnvironmentValues {
+    var meterFontSizes: MeterFontSizes {
+        get { self[MeterFontSizesKey.self] }
+        set { self[MeterFontSizesKey.self] = newValue }
+    }
+}
+
+private struct MeterTextModifier: ViewModifier {
+    @Environment(\.meterFontSizes) private var sizes
+    let role: MeterTextRole
+
+    func body(content: Content) -> some View {
+        content.font(.meter(size: CGFloat(sizes[role])))
+    }
+}
+
+private struct MeterTypographyScope: ViewModifier {
+    @EnvironmentObject private var settings: AppSettings
+    let section: DashboardSection?
+
+    func body(content: Content) -> some View {
+        content.environment(\.meterFontSizes, settings.fontSettings.sizes(for: section))
+    }
+}
+
+extension View {
+    func meterText(_ role: MeterTextRole) -> some View {
+        modifier(MeterTextModifier(role: role))
+    }
+
+    func meterTypography(for section: DashboardSection? = nil) -> some View {
+        modifier(MeterTypographyScope(section: section))
+    }
+}
+
+extension Font {
+    /// SF system text with the platform CJK fallback, matching the HTML design's
+    /// -apple-system / SF Pro Text / PingFang stack throughout the application.
+    static func meter(size: CGFloat) -> Font {
+        .system(size: size, weight: .regular, design: .default)
+    }
+
+}
+
 private func adaptiveMeterColor(light: NSColor, dark: NSColor) -> Color {
     let color = NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
@@ -85,48 +133,6 @@ private enum CodexIconResource {
     }()
 
     static let image: NSImage? = url.flatMap(NSImage.init(contentsOf:))
-
-    static let menuBarTemplateImage: NSImage = {
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size, flipped: false) { _ in
-            guard let context = NSGraphicsContext.current?.cgContext else { return false }
-
-            context.setShouldAntialias(true)
-            context.setAllowsAntialiasing(true)
-            context.setFillColor(NSColor.black.cgColor)
-            context.addPath(
-                CGPath(
-                    roundedRect: CGRect(x: 1, y: 1, width: 16, height: 16),
-                    cornerWidth: 4.2,
-                    cornerHeight: 4.2,
-                    transform: nil
-                )
-            )
-            context.fillPath()
-
-            // A fully transparent terminal mark keeps maximum contrast at menu-bar size.
-            context.setBlendMode(.clear)
-            context.setStrokeColor(NSColor.clear.cgColor)
-            context.setLineWidth(2.35)
-            context.setLineCap(.round)
-            context.setLineJoin(.round)
-
-            context.beginPath()
-            context.move(to: CGPoint(x: 5.1, y: 12.2))
-            context.addLine(to: CGPoint(x: 8.2, y: 9.0))
-            context.addLine(to: CGPoint(x: 5.1, y: 5.8))
-            context.strokePath()
-
-            context.beginPath()
-            context.move(to: CGPoint(x: 9.6, y: 5.9))
-            context.addLine(to: CGPoint(x: 13.0, y: 5.9))
-            context.strokePath()
-            context.setBlendMode(.normal)
-            return true
-        }
-        image.isTemplate = true
-        return image
-    }()
 }
 
 struct CodexIconView: View {
@@ -148,21 +154,6 @@ struct CodexIconView: View {
         }
         .frame(width: size, height: size)
         .accessibilityLabel("Codex")
-    }
-}
-
-struct MenuBarCodexIconView: View {
-    var size: CGFloat = 18
-
-    var body: some View {
-        Image(nsImage: CodexIconResource.menuBarTemplateImage)
-            .resizable()
-            .renderingMode(.template)
-            .scaledToFit()
-            .foregroundStyle(.primary)
-            .frame(width: size, height: size)
-            .fixedSize()
-            .accessibilityLabel("Codex Meter")
     }
 }
 
@@ -201,15 +192,15 @@ struct SectionTitle: View {
     var body: some View {
         HStack(spacing: 9) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.meter(size: 14))
                 .foregroundStyle(Color.meterAccent)
                 .frame(width: 20)
             Text(title)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .meterText(.title)
             Spacer()
             if let trailing {
                 Text(trailing)
-                    .font(.system(size: 11, weight: .regular, design: .rounded))
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterSecondary)
             }
         }
@@ -255,28 +246,19 @@ struct ProgressRing: View {
 
     var body: some View {
         ZStack {
-            Circle()
-                .stroke(Color.meterTrack, style: StrokeStyle(lineWidth: 13, lineCap: .round))
-            Circle()
-                .trim(from: 0, to: min(max(remainingPercent / 100, 0), 1))
-                .stroke(
-                    AngularGradient(
-                        colors: colors,
-                        center: .center,
-                        startAngle: .degrees(-90),
-                        endAngle: .degrees(270)
-                    ),
-                    style: StrokeStyle(lineWidth: 13, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .shadow(color: (colors.last ?? .meterAccent).opacity(0.16), radius: 8)
+            QuotaRingStroke(
+                remainingPercent: remainingPercent,
+                lineWidth: 13,
+                colors: colors,
+                shadowRadius: 8
+            )
 
             VStack(spacing: 1) {
                 Text("\(Int(remainingPercent.rounded()))%")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .meterText(.value)
                     .monospacedDigit()
                 Text(subtitle)
-                    .font(.system(size: 10, weight: .regular, design: .rounded))
+                    .meterText(.detail)
                     .foregroundStyle(Color.meterSecondary)
                     .lineLimit(1)
             }
@@ -285,6 +267,53 @@ struct ProgressRing: View {
         .accessibilityLabel(
             L10n.remaining(Int(remainingPercent.rounded()), language: settings.language)
         )
+    }
+}
+
+struct QuotaRingStroke: View {
+    let remainingPercent: Double?
+    let lineWidth: CGFloat
+    let colors: [Color]
+    var shadowRadius: CGFloat = 0
+
+    private var progress: Double? {
+        remainingPercent.flatMap { $0.isFinite ? min(max($0 / 100, 0), 1) : nil }
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.meterTrack, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+
+            if let progress {
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        AngularGradient(
+                            colors: colors,
+                            center: .center,
+                            startAngle: .degrees(-90),
+                            endAngle: .degrees(270)
+                        ),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .shadow(
+                        color: (colors.last ?? .meterAccent).opacity(shadowRadius > 0 ? 0.16 : 0),
+                        radius: shadowRadius
+                    )
+            } else {
+                Circle()
+                    .stroke(
+                        Color.meterTertiary,
+                        style: StrokeStyle(
+                            lineWidth: lineWidth,
+                            lineCap: .round,
+                            dash: [lineWidth, lineWidth]
+                        )
+                    )
+            }
+        }
     }
 }
 

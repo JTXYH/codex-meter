@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct DashboardCardStack: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var settings: AppSettings
 
     let snapshot: CodexUsageSnapshot
@@ -10,20 +11,35 @@ struct DashboardCardStack: View {
         VStack(spacing: 12) {
             ForEach(settings.dashboardSectionOrder) { section in
                 if settings.isDashboardSectionVisible(section) {
-                    dashboardCard(section)
+                    DashboardCard(section: section, snapshot: snapshot)
                 }
             }
         }
-        .animation(.smooth(duration: 0.2), value: settings.dashboardSectionOrder)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: settings.dashboardSectionOrder)
+    }
+
+}
+
+/// Shared by the main panel and font settings so previews use the exact card layout.
+struct DashboardCard: View {
+    let section: DashboardSection
+    let snapshot: CodexUsageSnapshot
+
+    var body: some View {
+        content.meterTypography(for: section)
     }
 
     @ViewBuilder
-    private func dashboardCard(_ section: DashboardSection) -> some View {
+    private var content: some View {
         switch section {
         case .quota:
             HeroUsageCard(snapshot: snapshot)
         case .tokenActivity:
             TokenActivityCard(snapshot: snapshot)
+        case .activityOverview:
+            ActivityOverviewCard(snapshot: snapshot)
+        case .monthlyUsage:
+            MonthlyUsageCard()
         case .usageHeatmap:
             UsageHeatmapCard(snapshot: snapshot)
         case .usageSummary:
@@ -85,6 +101,7 @@ struct MeterPanelView: View {
         }
         .frame(width: 420, height: 700)
         .foregroundStyle(Color.meterPrimary)
+        .meterTypography()
         .onAppear {
             store.startIfNeeded()
         }
@@ -103,10 +120,10 @@ struct MeterPanelView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 7) {
                     Text("Codex Meter")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .meterText(.title)
                     if let plan = store.snapshot?.account?.displayPlan {
                         Text(plan.uppercased())
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .meterText(.detail)
                             .foregroundStyle(Color.meterAccent)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -127,7 +144,7 @@ struct MeterPanelView: View {
                     Task { await store.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.meter(size: 13))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
@@ -166,14 +183,15 @@ struct MeterPanelView: View {
                     Text(isEmailRevealed ? email : EmailPrivacy.masked(email))
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Image(systemName: isEmailRevealed ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 8.5, weight: .semibold))
+                        .font(.meter(size: 8.5))
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .font(.system(size: 10.5, weight: .regular, design: .rounded))
+            .meterText(.detail)
             .foregroundStyle(Color.meterSecondary)
             .frame(maxWidth: 238, alignment: .leading)
             .help(
@@ -189,7 +207,7 @@ struct MeterPanelView: View {
             )
         } else {
             Text(L10n.text(.currentMacServer, language: settings.language))
-                .font(.system(size: 10.5, weight: .regular, design: .rounded))
+                .meterText(.detail)
                 .foregroundStyle(Color.meterSecondary)
                 .lineLimit(1)
         }
@@ -213,7 +231,7 @@ struct MeterPanelView: View {
                     L10n.text(.loadFailed, language: settings.language),
                     systemImage: "exclamationmark.triangle.fill"
                 )
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .meterText(.detail)
                 .foregroundStyle(.orange)
                 .lineLimit(1)
                 .help(message)
@@ -249,22 +267,23 @@ private struct EmptyStateCard: View {
                     ProgressView()
                         .controlSize(.large)
                     Text(L10n.text(.loadingQuota, language: settings.language))
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .meterText(.title)
                     Text(L10n.text(.loadingDetail, language: settings.language))
-                        .font(.system(size: 11, design: .rounded))
+                        .meterText(.detail)
                         .foregroundStyle(Color.meterSecondary)
                 } else if case let .failed(message) = state {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 28))
+                        .font(.meter(size: 28))
                         .foregroundStyle(.orange)
                     Text(L10n.text(.loadFailed, language: settings.language))
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .meterText(.title)
                     Text(message)
-                        .font(.system(size: 11, design: .rounded))
+                        .meterText(.detail)
                         .foregroundStyle(Color.meterSecondary)
                         .multilineTextAlignment(.center)
                         .textSelection(.enabled)
                     Button(L10n.text(.retry, language: settings.language), action: retry)
+                        .meterText(.title)
                         .buttonStyle(.borderedProminent)
                         .tint(.meterAccent)
                 }

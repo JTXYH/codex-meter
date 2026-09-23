@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsPanelView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var updateController: UpdateController
@@ -8,9 +9,12 @@ struct SettingsPanelView: View {
 
     init(
         showBackgroundsInitially: Bool = false,
-        showDisplayInitially: Bool = false
+        showDisplayInitially: Bool = false,
+        showFontsInitially: Bool = false
     ) {
-        let initialSection: SettingsSection = if showDisplayInitially {
+        let initialSection: SettingsSection = if showFontsInitially {
+            .fonts
+        } else if showDisplayInitially {
             .display
         } else if showBackgroundsInitially {
             .backgrounds
@@ -28,8 +32,11 @@ struct SettingsPanelView: View {
             Divider()
                 .overlay(Color.meterBorder)
 
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            ScrollView(.vertical) {
+                content
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(width: 760, height: 552)
         .foregroundStyle(Color.meterPrimary)
@@ -50,9 +57,9 @@ struct SettingsPanelView: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Codex Meter")
-                        .font(.system(size: 13.5, weight: .bold, design: .rounded))
+                        .font(.meter(size: 13.5))
                     Text(L10n.text(.settings, language: settings.language))
-                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        .font(.meter(size: 10.5))
                         .foregroundStyle(Color.meterSecondary)
                 }
             }
@@ -61,7 +68,7 @@ struct SettingsPanelView: View {
             .padding(.bottom, 20)
 
             VStack(spacing: 5) {
-                ForEach(SettingsSection.allCases) { section in
+                ForEach(SettingsSection.allCases.filter { $0 != .updates }) { section in
                     sidebarButton(section)
                 }
             }
@@ -69,8 +76,11 @@ struct SettingsPanelView: View {
 
             Spacer()
 
+            sidebarButton(.updates)
+                .padding(.horizontal, 10)
+
             Text(L10n.text(.settingsHint, language: settings.language))
-                .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                .font(.meter(size: 9.5))
                 .foregroundStyle(Color.meterTertiary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(14)
@@ -86,11 +96,11 @@ struct SettingsPanelView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: section.icon)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.meter(size: 13))
                     .frame(width: 18)
 
-                Text(section.title(language: settings.language))
-                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                Text(section.sidebarTitle(language: settings.language))
+                    .font(.meter(size: 12.5))
 
                 Spacer()
             }
@@ -111,24 +121,30 @@ struct SettingsPanelView: View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(selectedSection.title(language: settings.language))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.meter(size: 22))
 
                 Text(selectedSection.hint(language: settings.language))
-                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                    .font(.meter(size: 11.5))
                     .foregroundStyle(Color.meterSecondary)
             }
 
             switch selectedSection {
             case .general:
                 generalSettings
+            case .menuBar:
+                menuBarSettings
             case .display:
                 displaySettings
+            case .fonts:
+                FontSettingsView()
             case .backgrounds:
                 QuotaBackgroundSettingsView()
             case .refresh:
                 refreshSettings
             case .updates:
                 updateSettings
+            case .data:
+                DataSettingsView()
             }
 
             Spacer()
@@ -184,6 +200,57 @@ struct SettingsPanelView: View {
         }
     }
 
+    private var menuBarSettings: some View {
+        VStack(spacing: 18) {
+            SettingsCard {
+                SettingsRow(
+                    icon: "arrow.up.left.and.arrow.down.right",
+                    title: L10n.text(.menuBarIconSize, language: settings.language),
+                    detail: L10n.text(.menuBarIconSizeHint, language: settings.language)
+                ) {
+                    HStack(spacing: 10) {
+                        Slider(
+                            value: $settings.menuBarIconSize,
+                            in: AppSettings.menuBarIconSizeRange,
+                            step: 1
+                        ) {
+                            Text(L10n.text(.menuBarIconSize, language: settings.language))
+                        }
+                        .labelsHidden()
+                        .tint(.meterAccent)
+
+                        Text("\(Int(settings.menuBarIconSize)) pt")
+                            .font(.meter(size: 11))
+                            .monospacedDigit()
+                            .frame(width: 40, alignment: .trailing)
+                    }
+                    .frame(width: 180)
+                }
+            }
+
+            SettingsCard {
+                VStack(spacing: 16) {
+                    Text(L10n.text(.menuBarPreview, language: settings.language))
+                        .font(.meter(size: 11))
+                        .foregroundStyle(Color.meterSecondary)
+
+                    MenuBarLabelView()
+                        .padding(.horizontal, 18)
+                        .frame(height: 36)
+                        .background(Color.meterControl, in: Capsule())
+
+                    Text(L10n.text(.menuBarQuotaHint, language: settings.language))
+                        .font(.meter(size: 10.5))
+                        .foregroundStyle(Color.meterSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
     private var displaySettings: some View {
         SettingsCard {
             List {
@@ -203,9 +270,9 @@ struct SettingsPanelView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDisabled(true)
-            .frame(height: CGFloat(settings.dashboardSectionOrder.count) * 72)
+            .frame(height: CGFloat(settings.dashboardSectionOrder.count) * 72 + 125)
         }
-        .animation(.smooth(duration: 0.18), value: settings.dashboardSectionOrder)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.18), value: settings.dashboardSectionOrder)
     }
 
     @ViewBuilder
@@ -215,6 +282,43 @@ struct SettingsPanelView: View {
             visibilityRowContent(section, isOn: $settings.showQuotaCard)
         case .tokenActivity:
             visibilityRowContent(section, isOn: $settings.showTokenActivityCard)
+        case .activityOverview:
+            visibilityRowContent(section, isOn: $settings.showActivityOverviewCard)
+        case .monthlyUsage:
+            VStack(alignment: .leading, spacing: 0) {
+                visibilityRowContent(section, isOn: $settings.showMonthlyUsageCard)
+                VStack(alignment: .leading, spacing: 7) {
+                    Picker(UsageStatisticsL10n.text(.period, language: settings.language), selection: $settings.usageStatisticsPeriod) {
+                        ForEach(UsagePeriod.allCases) { period in
+                            Text(UsageStatisticsL10n.period(period, language: settings.language)).tag(period)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .font(.meter(size: 10))
+                    Text(L10n.text(.monthlyUsageRange, language: settings.language))
+                        .font(.meter(size: 9))
+                        .foregroundStyle(Color.meterSecondary)
+                    Picker(L10n.text(.monthlyUsageRange, language: settings.language), selection: Binding(get: { settings.usageStatisticsRange(for: settings.usageStatisticsPeriod) },
+                                      set: { settings.setUsageStatisticsRange($0, for: settings.usageStatisticsPeriod) })) {
+                        ForEach(settings.usageStatisticsPeriod.ranges, id: \.self) { count in
+                            Text(UsageStatisticsL10n.range(count, period: settings.usageStatisticsPeriod, language: settings.language)).tag(count)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .font(.meter(size: 10))
+                    Text(UsageStatisticsL10n.text(.rangeHint, language: settings.language))
+                        .font(.meter(size: 8.5))
+                        .foregroundStyle(Color.meterTertiary)
+                }
+                .padding(.leading, 49)
+                .padding(.trailing, 16)
+                .padding(.bottom, 16)
+                .frame(height: 125)
+                .disabled(!settings.showMonthlyUsageCard)
+                .opacity(settings.showMonthlyUsageCard ? 1 : 0.45)
+            }
         case .usageHeatmap:
             visibilityRowContent(section, isOn: $settings.showUsageHeatmapCard)
         case .usageSummary:
@@ -241,7 +345,7 @@ struct SettingsPanelView: View {
                     .controlSize(.small)
 
                 Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.meter(size: 12))
                     .foregroundStyle(Color.meterTertiary)
                     .frame(width: 18, height: 30)
                     .contentShape(Rectangle())
@@ -315,7 +419,7 @@ struct SettingsPanelView: View {
                 detail: L10n.updateText(.currentVersionHint, language: settings.language)
             ) {
                 Text(updateController.currentVersion)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .font(.meter(size: 12))
                     .foregroundStyle(Color.meterSecondary)
             }
 
@@ -368,11 +472,14 @@ struct SettingsPanelView: View {
     }
 }
 
-private enum SettingsSection: String, CaseIterable, Identifiable {
+enum SettingsSection: String, CaseIterable, Identifiable {
     case general
+    case menuBar
     case display
+    case fonts
     case backgrounds
     case refresh
+    case data
     case updates
 
     var id: String { rawValue }
@@ -380,30 +487,50 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: "switch.2"
+        case .menuBar: "menubar.rectangle"
         case .display: "eye"
+        case .fonts: "textformat.size"
         case .backgrounds: "photo"
         case .refresh: "arrow.clockwise"
         case .updates: "arrow.down.circle"
+        case .data: "externaldrive"
         }
     }
 
     func title(language: AppLanguage) -> String {
         switch self {
         case .general: L10n.text(.general, language: language)
+        case .menuBar: L10n.text(.menuBar, language: language)
         case .display: L10n.text(.display, language: language)
+        case .fonts: FontL10n.text(.title, language: language)
         case .backgrounds: QuotaBackgroundL10n.text(.backgrounds, language: language)
         case .refresh: L10n.text(.refresh, language: language)
         case .updates: L10n.updateText(.updates, language: language)
+        case .data: StorageL10n.text(.title, language: language)
+        }
+    }
+
+    func sidebarTitle(language: AppLanguage) -> String {
+        switch (self, language) {
+        case (.menuBar, .simplifiedChinese): "菜单"
+        case (.menuBar, .traditionalChinese): "選單"
+        case (.data, .simplifiedChinese): "数据"
+        case (.data, .traditionalChinese): "資料"
+        case (.refresh, .traditionalChinese): "刷新"
+        default: title(language: language)
         }
     }
 
     func hint(language: AppLanguage) -> String {
         switch self {
         case .general: L10n.text(.generalHint, language: language)
+        case .menuBar: L10n.text(.menuBarHint, language: language)
         case .display: L10n.text(.displayHint, language: language)
+        case .fonts: FontL10n.text(.hint, language: language)
         case .backgrounds: QuotaBackgroundL10n.text(.backgroundsHint, language: language)
         case .refresh: L10n.text(.refreshHint, language: language)
         case .updates: L10n.updateText(.updatesHint, language: language)
+        case .data: StorageL10n.text(.hint, language: language)
         }
     }
 }
@@ -412,7 +539,9 @@ private extension DashboardSection {
     var icon: String {
         switch self {
         case .quota: "gauge.with.dots.needle.67percent"
-        case .tokenActivity: "waveform.path.ecg"
+        case .tokenActivity: "list.bullet.rectangle"
+        case .activityOverview: "waveform.path.ecg"
+        case .monthlyUsage: "calendar"
         case .usageHeatmap: "calendar"
         case .usageSummary: "chart.bar.xaxis"
         case .creditsBalance: "creditcard"
@@ -422,7 +551,9 @@ private extension DashboardSection {
     var titleKey: L10n.Key {
         switch self {
         case .quota: .showQuotaCard
-        case .tokenActivity: .showTokenActivityCard
+        case .tokenActivity: .todayDetails
+        case .activityOverview: .activityOverview
+        case .monthlyUsage: .showMonthlyUsageCard
         case .usageHeatmap: .showUsageHeatmapCard
         case .usageSummary: .showUsageSummaryCard
         case .creditsBalance: .showCreditsBalanceCard
@@ -433,6 +564,8 @@ private extension DashboardSection {
         switch self {
         case .quota: .showQuotaCardHint
         case .tokenActivity: .showTokenActivityCardHint
+        case .activityOverview: .activityOverviewHint
+        case .monthlyUsage: .showMonthlyUsageCardHint
         case .usageHeatmap: .showUsageHeatmapCardHint
         case .usageSummary: .showUsageSummaryCardHint
         case .creditsBalance: .showCreditsBalanceCardHint
@@ -484,7 +617,7 @@ private struct SettingsRow<Control: View>: View {
     var body: some View {
         HStack(spacing: 13) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.meter(size: 13))
                 .foregroundStyle(Color.meterAccent)
                 .frame(width: 32, height: 32)
                 .background(
@@ -494,9 +627,9 @@ private struct SettingsRow<Control: View>: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                    .font(.meter(size: 12.5))
                 Text(detail)
-                    .font(.system(size: 9.8, weight: .medium, design: .rounded))
+                    .font(.meter(size: 9.8))
                     .foregroundStyle(Color.meterSecondary)
                     .lineLimit(2)
             }
@@ -528,13 +661,13 @@ private struct SearchableLanguagePicker: View {
         } label: {
             HStack(spacing: 8) {
                 Text(selection.nativeName)
-                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                    .font(.meter(size: 11.5))
                     .lineLimit(1)
 
                 Spacer()
 
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.meter(size: 9))
                     .foregroundStyle(Color.meterSecondary)
             }
             .padding(.horizontal, 10)
@@ -577,7 +710,7 @@ private struct LanguageSearchPopover: View {
         VStack(spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.meter(size: 11))
                     .foregroundStyle(Color.meterSecondary)
 
                 TextField(
@@ -604,10 +737,10 @@ private struct LanguageSearchPopover: View {
             if filteredLanguages.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "text.magnifyingglass")
-                        .font(.system(size: 20))
+                        .font(.meter(size: 20))
                         .foregroundStyle(Color.meterTertiary)
                     Text(L10n.text(.noLanguagesFound, language: selection))
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.meter(size: 11))
                         .foregroundStyle(Color.meterSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -638,16 +771,16 @@ private struct LanguageSearchPopover: View {
         } label: {
             HStack(spacing: 8) {
                 Text(language.nativeName)
-                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                    .font(.meter(size: 11.5))
 
                 Spacer()
 
                 Text(language.rawValue)
-                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                    .font(.meter(size: 9.5))
                     .foregroundStyle(Color.meterTertiary)
 
                 Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.meter(size: 10))
                     .foregroundStyle(Color.meterAccent)
                     .opacity(selection == language ? 1 : 0)
                     .frame(width: 14)

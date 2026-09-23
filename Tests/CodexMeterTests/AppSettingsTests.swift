@@ -5,6 +5,50 @@ import Testing
 
 struct AppSettingsTests {
     @Test @MainActor
+    func persistsMenuBarSizeAcrossLaunches() {
+        let suiteName = "CodexMeterTests.MenuBarSettings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let settings = AppSettings(defaults: defaults, launchAtLoginManager: LaunchAtLoginManagerSpy())
+        #expect(settings.menuBarIconSize == 18)
+
+        settings.menuBarIconSize = 22
+
+        let restored = AppSettings(defaults: defaults, launchAtLoginManager: LaunchAtLoginManagerSpy())
+        #expect(restored.menuBarIconSize == 22)
+    }
+
+    @Test @MainActor
+    func recoversInvalidMenuBarSizesAndPersistsClampedSizes() {
+        let suiteName = "CodexMeterTests.MenuBarSettings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        defaults.set(100, forKey: "menuBarIconSize")
+
+        let settings = AppSettings(defaults: defaults, launchAtLoginManager: LaunchAtLoginManagerSpy())
+        #expect(settings.menuBarIconSize == 22)
+
+        settings.menuBarIconSize = 0
+        #expect(settings.menuBarIconSize == 12)
+        #expect(defaults.double(forKey: "menuBarIconSize") == 12)
+        settings.menuBarIconSize = 100
+        #expect(settings.menuBarIconSize == 22)
+        #expect(defaults.double(forKey: "menuBarIconSize") == 22)
+        settings.menuBarIconSize = .nan
+        #expect(settings.menuBarIconSize == 18)
+        #expect(defaults.double(forKey: "menuBarIconSize") == 18)
+    }
+
+    @Test @MainActor
     func appliesAppearanceToTheWholeApplication() {
         let suiteName = "CodexMeterTests.AppSettings.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -94,6 +138,9 @@ struct AppSettingsTests {
         )
         #expect(firstSettings.showQuotaCard)
         #expect(firstSettings.showTokenActivityCard)
+        #expect(firstSettings.showActivityOverviewCard)
+        #expect(firstSettings.showMonthlyUsageCard)
+        #expect(firstSettings.monthlyUsageMonthCount == 6)
         #expect(firstSettings.showUsageHeatmapCard)
         #expect(firstSettings.showUsageSummaryCard)
         #expect(firstSettings.showCreditsBalanceCard)
@@ -101,6 +148,9 @@ struct AppSettingsTests {
 
         firstSettings.showQuotaCard = false
         firstSettings.showTokenActivityCard = false
+        firstSettings.showActivityOverviewCard = false
+        firstSettings.showMonthlyUsageCard = false
+        firstSettings.monthlyUsageMonthCount = 12
         firstSettings.showUsageHeatmapCard = false
         firstSettings.showUsageSummaryCard = false
         firstSettings.showCreditsBalanceCard = false
@@ -111,7 +161,7 @@ struct AppSettingsTests {
         #expect(!defaults.bool(forKey: "showCreditsBalanceCard"))
 
         let reorderedSections: [DashboardSection] = [
-            .creditsBalance, .usageSummary, .quota, .usageHeatmap, .tokenActivity,
+            .creditsBalance, .usageSummary, .quota, .usageHeatmap, .tokenActivity, .activityOverview, .monthlyUsage,
         ]
         firstSettings.dashboardSectionOrder = reorderedSections
         #expect(
@@ -125,6 +175,11 @@ struct AppSettingsTests {
         )
         #expect(!restoredSettings.showQuotaCard)
         #expect(!restoredSettings.showTokenActivityCard)
+        #expect(!restoredSettings.showActivityOverviewCard)
+        #expect(!restoredSettings.showMonthlyUsageCard)
+        #expect(restoredSettings.monthlyUsageMonthCount == 12)
+        restoredSettings.monthlyUsageMonthCount = 4
+        #expect(restoredSettings.monthlyUsageMonthCount == 6)
         #expect(!restoredSettings.showUsageHeatmapCard)
         #expect(!restoredSettings.showUsageSummaryCard)
         #expect(!restoredSettings.showCreditsBalanceCard)
@@ -150,17 +205,17 @@ struct AppSettingsTests {
             launchAtLoginManager: LaunchAtLoginManagerSpy()
         )
         #expect(settings.dashboardSectionOrder == [
-            .creditsBalance, .quota, .tokenActivity, .usageHeatmap, .usageSummary,
+            .creditsBalance, .quota, .tokenActivity, .activityOverview, .monthlyUsage, .usageHeatmap, .usageSummary,
         ])
 
-        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 0), toOffset: 4)
+        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 0), toOffset: 5)
         #expect(settings.dashboardSectionOrder == [
-            .quota, .tokenActivity, .usageHeatmap, .creditsBalance, .usageSummary,
+            .quota, .tokenActivity, .activityOverview, .monthlyUsage, .creditsBalance, .usageHeatmap, .usageSummary,
         ])
 
-        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 4), toOffset: 0)
+        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 5), toOffset: 0)
         #expect(settings.dashboardSectionOrder == [
-            .usageSummary, .quota, .tokenActivity, .usageHeatmap, .creditsBalance,
+            .usageHeatmap, .quota, .tokenActivity, .activityOverview, .monthlyUsage, .creditsBalance, .usageSummary,
         ])
     }
 

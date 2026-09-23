@@ -16,20 +16,35 @@ final class UsageStore: ObservableObject {
     @Published private(set) var state: State = .idle
     @Published private(set) var isRefreshing = false
     @Published private(set) var localTodayUsage = LocalTokenUsage.zero
+    @Published private(set) var localLifetimeUsage: LocalTokenUsage?
+    @Published private(set) var localMonthlyUsage: [MonthlyTokenUsage] = []
+    @Published private(set) var localDailyUsage: [PeriodTokenUsage] = []
+    @Published private(set) var localHourlyUsage: [PeriodTokenUsage] = []
+    @Published private(set) var localStatisticsHour: Date?
+    @Published private(set) var hasLoadedLocalTodayUsage = false
+    @Published private(set) var hasLoadedLocalLifetimeUsage = false
 
     private let loader: CodexUsageLoading
     private let localUsageLoader: LocalTokenUsageLoading
+    private let lifetimeUsageLoader: LocalTokenUsageLoading
     private let settings: AppSettings
     private var refreshLoop: Task<Void, Never>?
     private var localUsageRefreshLoop: Task<Void, Never>?
+    private var lifetimeUsageRefreshLoop: Task<Void, Never>?
+    private var isRefreshingLocalUsage = false
+    private var isRefreshingLifetimeUsage = false
 
     init(
         loader: CodexUsageLoading = CodexAppServerClient(),
-        localUsageLoader: LocalTokenUsageLoading = LocalTokenUsageScanner(),
+        localUsageLoader: LocalTokenUsageLoading? = nil,
+        lifetimeUsageLoader: LocalTokenUsageLoading? = nil,
         settings: AppSettings? = nil
     ) {
         self.loader = loader
-        self.localUsageLoader = localUsageLoader
+        // Separate actors let today's scan finish while the history scan is still running.
+        self.localUsageLoader = localUsageLoader ?? LocalTokenUsageScanner(scope: .today)
+        self.lifetimeUsageLoader = lifetimeUsageLoader ?? localUsageLoader
+            ?? LocalTokenUsageScanner(scope: .lifetime)
         self.settings = settings ?? .shared
     }
 
@@ -39,6 +54,9 @@ final class UsageStore: ObservableObject {
         }
         if localUsageRefreshLoop == nil {
             localUsageRefreshLoop = localUsageTask()
+        }
+        if lifetimeUsageRefreshLoop == nil {
+            lifetimeUsageRefreshLoop = localUsageTask(lifetime: true)
         }
     }
 
@@ -67,10 +85,14 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    private func localUsageTask() -> Task<Void, Never> {
-        Task { [weak self] in
+    private func localUsageTask(lifetime: Bool = false) -> Task<Void, Never> {
+        Task(priority: lifetime ? .utility : .userInitiated) { [weak self] in
             while !Task.isCancelled {
-                await self?.refreshLocalUsage()
+                if lifetime {
+                    await self?.refreshLifetimeUsage()
+                } else {
+                    await self?.refreshLocalUsage()
+                }
                 do {
                     try await Task.sleep(nanoseconds: 5 * 1_000_000_000)
                 } catch {
@@ -81,7 +103,45 @@ final class UsageStore: ObservableObject {
     }
 
     func refreshLocalUsage(at now: Date = Date()) async {
-        localTodayUsage = await localUsageLoader.todayUsage(at: now)
+        guard !isRefreshingLocalUsage else { return }
+        isRefreshingLocalUsage = true
+        defer { isRefreshingLocalUsage = false }
+        let usage = await localUsageLoader.usage(at: now)
+        if localTodayUsage != usage.today { localTodayUsage = usage.today }
+        if !hasLoadedLocalTodayUsage { hasLoadedLocalTodayUsage = true }
+    }
+
+    func refreshLifetimeUsage(at now: Date = Date()) async {
+        guard !isRefreshingLifetimeUsage else { return }
+        isRefreshingLifetimeUsage = true
+        defer { isRefreshingLifetimeUsage = false }
+        let usage = await lifetimeUsageLoader.usage(at: now)
+        if localLifetimeUsage != usage.lifetime { localLifetimeUsage = usage.lifetime }
+        if localMonthlyUsage != usage.monthlyUsage { localMonthlyUsage = usage.monthlyUsage }
+        if localDailyUsage != usage.dailyUsage { localDailyUsage = usage.dailyUsage }
+        if localHourlyUsage != usage.hourlyUsage { localHourlyUsage = usage.hourlyUsage }
+        // Advance the visible time windows even when no new token records arrive.
+        let hour = Calendar.current.dateInterval(of: .hour, for: now)?.start
+        if localStatisticsHour != hour { localStatisticsHour = hour }
+        if !hasLoadedLocalLifetimeUsage { hasLoadedLocalLifetimeUsage = true }
+    }
+
+    func monthlyUsage(count: Int, at date: Date = Date()) -> [MonthlyTokenUsage] {
+        MonthlyUsageBuilder.months(from: localMonthlyUsage, count: count, endingAt: date)
+    }
+
+    func periodUsage(_ period: UsagePeriod, count: Int, at date: Date = Date()) -> [PeriodTokenUsage] {
+        let records: [PeriodTokenUsage]
+        switch period {
+        case .hour: records = localHourlyUsage
+        case .day: records = localDailyUsage
+        case .month, .year: records = localMonthlyUsage.map { PeriodTokenUsage(start: $0.month, usage: $0.usage) }
+        }
+        return PeriodUsageBuilder.periods(from: records, period: period, count: count, endingAt: date)
+    }
+
+    var localCurrentMonthUsage: LocalTokenUsage? {
+        monthlyUsage(count: 1).first?.usage
     }
 
     var localTodayTokens: Int64 {
@@ -94,7 +154,11 @@ final class UsageStore: ObservableObject {
         if snapshot == nil { state = .loading }
         defer { isRefreshing = false }
 
-        await refreshLocalUsage()
+        // The first historical scan must not delay showing the account and quota.
+        async let localRefresh: Void = refreshLocalUsage()
+        Task(priority: .utility) { [weak self] in
+            await self?.refreshLifetimeUsage()
+        }
 
         do {
             snapshot = try await loader.fetchSnapshot()
@@ -106,11 +170,19 @@ final class UsageStore: ObservableObject {
                 state = .failed(error.localizedDescription)
             }
         }
+        await localRefresh
+    }
+
+    var menuBarRemainingPercent: Double? {
+        guard let window = snapshot?.quotaCardPrimaryWindow,
+              window.usedPercent.isFinite
+        else { return nil }
+        return window.remainingPercent
     }
 
     var menuBarText: String {
-        guard let window = snapshot?.quotaCardPrimaryWindow else { return "--" }
-        return "\(Int(window.remainingPercent.rounded()))%"
+        guard let percent = menuBarRemainingPercent else { return "--" }
+        return "\(Int(percent.rounded()))%"
     }
 
     var refreshErrorMessage: String? {
@@ -123,35 +195,6 @@ enum AppActions {
     @MainActor
     static func openSettings() {
         SettingsWindowController.shared.show()
-    }
-
-    @MainActor
-    static func openCodex() {
-        let workspace = NSWorkspace.shared
-        let bundleIdentifiers = [
-            "com.openai.codex",
-            "com.openai.chat",
-            "com.openai.chatgpt",
-        ]
-
-        for bundleIdentifier in bundleIdentifiers {
-            if let url = workspace.urlForApplication(withBundleIdentifier: bundleIdentifier) {
-                workspace.openApplication(at: url, configuration: .init())
-                return
-            }
-        }
-
-        for path in ["/Applications/Codex.app", "/Applications/ChatGPT.app"] {
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: path) {
-                workspace.openApplication(at: url, configuration: .init())
-                return
-            }
-        }
-
-        if let url = URL(string: "https://chatgpt.com/codex") {
-            workspace.open(url)
-        }
     }
 
     @MainActor

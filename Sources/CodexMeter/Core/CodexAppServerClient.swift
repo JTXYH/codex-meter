@@ -61,7 +61,7 @@ enum CodexExecutableLocator {
             candidates.append((override as NSString).expandingTildeInPath)
         }
 
-        if let saved = UserDefaults.standard.string(forKey: "codexExecutablePath"), !saved.isEmpty {
+        if let saved = SQLitePreferences.shared.string(forKey: "codexExecutablePath"), !saved.isEmpty {
             candidates.append((saved as NSString).expandingTildeInPath)
         }
 

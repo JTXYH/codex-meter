@@ -3,6 +3,12 @@ import Foundation
 enum L10n {
     enum Key {
         case menuBarHelp
+        case menuBar
+        case menuBarHint
+        case menuBarIconSize
+        case menuBarIconSizeHint
+        case menuBarPreview
+        case menuBarQuotaHint
         case currentMacServer
         case showEmail
         case hideEmail
@@ -51,11 +57,23 @@ enum L10n {
         case noQuotaWindow
         case noQuotaExplanation
         case tokenActivity
-        case peakBaseline
         case today
         case todayDetails
         case statisticsCurrent
+        case calculatingUsage
+        case monthlyUsage
+        case showMonthlyUsageCard
+        case showMonthlyUsageCardHint
+        case monthlyUsageRange
+        case monthlyUsageRangeHint
+        case thisMonth
+        case thisMonthTokens
+        case thisMonthAPIEquivalentCost
+        case monthStatisticsCurrent
+        case monthStatisticsComplete
+        case monthStatisticsUnavailable
         case activityOverview
+        case activityOverviewHint
         case inputTokens
         case outputTokens
         case apiEquivalentCost
@@ -64,7 +82,6 @@ enum L10n {
         case lastSevenDays
         case lastOneHundredTwentyDays
         case hoverHeatmap
-        case total
         case less
         case more
         case streakUnavailable
@@ -73,6 +90,8 @@ enum L10n {
         case creditsBalanceUnavailable
         case unlimitedCredits
         case lifetimeTokens
+        case lifetimeAPIEquivalentCost
+        case lifetimeAPIEquivalentCostHint
         case longestStreak
         case longestTask
         case notAvailable
@@ -156,21 +175,6 @@ enum L10n {
         case .japanese: "合計 \(value) Token"
         case .korean: "합계 \(value) Token"
         case .spanish: "Total: \(value) tokens"
-        }
-    }
-
-    static func cachedInputSummary(
-        _ value: String,
-        hitPercent: Int,
-        language: AppLanguage
-    ) -> String {
-        switch language {
-        case .simplifiedChinese: "缓存输入 \(value) · 命中 \(hitPercent)%"
-        case .traditionalChinese: "快取輸入 \(value) · 命中 \(hitPercent)%"
-        case .english: "Cached input \(value) · \(hitPercent)% hit"
-        case .japanese: "キャッシュ入力 \(value) · ヒット率 \(hitPercent)%"
-        case .korean: "캐시 입력 \(value) · 적중률 \(hitPercent)%"
-        case .spanish: "Entrada en caché \(value) · \(hitPercent)% de aciertos"
         }
     }
 
@@ -319,6 +323,12 @@ enum L10n {
 
     private static func simplifiedChinese(_ key: Key) -> String {
         switch key {
+        case .menuBar: "菜单栏"
+        case .menuBarHint: "调整圆环大小，实时显示剩余额度"
+        case .menuBarIconSize: "图标大小"
+        case .menuBarIconSizeHint: "调整直径，立即生效"
+        case .menuBarPreview: "实时预览"
+        case .menuBarQuotaHint: "优先显示 5 小时剩余额度，仅有周额度时自动回退"
         case .menuBarHelp: "Codex 每周剩余额度"
         case .currentMacServer: "当前 Mac / Codex App Server"
         case .showEmail: "显示完整邮箱"
@@ -336,11 +346,11 @@ enum L10n {
         case .showQuotaCard: "显示额度概览"
         case .showQuotaCardHint: "显示 5 小时和周额度区域"
         case .showTokenActivityCard: "显示 Token 活跃度"
-        case .showTokenActivityCardHint: "显示今日 Token 活跃度和明细"
+        case .showTokenActivityCardHint: "显示今日输入、输出、缓存与费用"
         case .showUsageHeatmapCard: "显示用量热力图"
         case .showUsageHeatmapCardHint: "显示近 120 天 Token 使用热力图"
         case .showUsageSummaryCard: "显示使用概览"
-        case .showUsageSummaryCardHint: "显示累计 Token、最长连续和最长任务"
+        case .showUsageSummaryCardHint: "显示累计 Token、API 等效费用、最长连续和最长任务"
         case .showCreditsBalanceCard: "显示 Credits 余额"
         case .showCreditsBalanceCardHint: "在主面板中显示 Credits 余额卡片"
         case .refresh: "刷新"
@@ -368,11 +378,23 @@ enum L10n {
         case .noQuotaWindow: "当前账户未返回额度窗口"
         case .noQuotaExplanation: "API Key 或 Bedrock 登录通常不会返回 ChatGPT 额度。"
         case .tokenActivity: "Token 活跃度"
-        case .peakBaseline: "峰值基准"
         case .today: "今日"
         case .todayDetails: "今日明细"
         case .statisticsCurrent: "统计截至当前时刻"
+        case .calculatingUsage: "统计中…"
+        case .monthlyUsage: "用量统计"
+        case .showMonthlyUsageCard: "显示用量统计"
+        case .showMonthlyUsageCardHint: "按小时、日、月、年查看 Token 和 API 等效费用"
+        case .monthlyUsageRange: "显示范围"
+        case .monthlyUsageRangeHint: "包含本月，按月份从新到旧排列"
+        case .thisMonth: "本月"
+        case .thisMonthTokens: "本月 Token"
+        case .thisMonthAPIEquivalentCost: "本月 API 等效费用"
+        case .monthStatisticsCurrent: "本月统计截至当前时刻"
+        case .monthStatisticsComplete: "该月统计已完成"
+        case .monthStatisticsUnavailable: "该月没有本机用量记录"
         case .activityOverview: "活跃度概览"
+        case .activityOverviewHint: "昨日、近 7 天和本月用量"
         case .inputTokens: "输入"
         case .outputTokens: "输出"
         case .apiEquivalentCost: "API 等效费用"
@@ -381,7 +403,6 @@ enum L10n {
         case .lastSevenDays: "近 7 天"
         case .lastOneHundredTwentyDays: "近 120 天用量"
         case .hoverHeatmap: "鼠标移到方格上查看当天用量"
-        case .total: "合计"
         case .less: "少"
         case .more: "多"
         case .streakUnavailable: "连续使用暂无数据"
@@ -390,6 +411,8 @@ enum L10n {
         case .creditsBalanceUnavailable: "暂无数据"
         case .unlimitedCredits: "无限"
         case .lifetimeTokens: "累计 Token"
+        case .lifetimeAPIEquivalentCost: "累计 API 等效费用"
+        case .lifetimeAPIEquivalentCostHint: "按本机现存会话及归档记录，以当前标准 API 费率折算的累计美元估算，不代表实际账单；统计范围可能与账户累计 Token 不同。未知模型按 GPT-5.6 Sol 估算，不含工具费用与加速附加费。"
         case .longestStreak: "最长连续"
         case .longestTask: "最长任务"
         case .notAvailable: "暂无"
@@ -398,6 +421,12 @@ enum L10n {
 
     private static func traditionalChinese(_ key: Key) -> String {
         switch key {
+        case .menuBar: "選單列"
+        case .menuBarHint: "調整圓環大小，即時顯示剩餘額度"
+        case .menuBarIconSize: "圖示大小"
+        case .menuBarIconSizeHint: "調整直徑，立即生效"
+        case .menuBarPreview: "即時預覽"
+        case .menuBarQuotaHint: "優先顯示 5 小時剩餘額度，僅有週額度時自動切換"
         case .menuBarHelp: "Codex 每週剩餘額度"
         case .currentMacServer: "目前 Mac / Codex App Server"
         case .showEmail: "顯示完整電子郵件"
@@ -415,11 +444,11 @@ enum L10n {
         case .showQuotaCard: "顯示額度概覽"
         case .showQuotaCardHint: "顯示 5 小時和週額度區域"
         case .showTokenActivityCard: "顯示 Token 活躍度"
-        case .showTokenActivityCardHint: "顯示今日 Token 活躍度和明細"
+        case .showTokenActivityCardHint: "顯示今日輸入、輸出、快取與費用"
         case .showUsageHeatmapCard: "顯示用量熱力圖"
         case .showUsageHeatmapCardHint: "顯示近 120 天 Token 使用熱力圖"
         case .showUsageSummaryCard: "顯示使用概覽"
-        case .showUsageSummaryCardHint: "顯示累計 Token、最長連續和最長任務"
+        case .showUsageSummaryCardHint: "顯示累計 Token、API 等效費用、最長連續和最長任務"
         case .showCreditsBalanceCard: "顯示 Credits 餘額"
         case .showCreditsBalanceCardHint: "在主面板中顯示 Credits 餘額卡片"
         case .refresh: "重新整理"
@@ -447,11 +476,23 @@ enum L10n {
         case .noQuotaWindow: "目前帳戶未傳回額度視窗"
         case .noQuotaExplanation: "API Key 或 Bedrock 登入通常不會傳回 ChatGPT 額度。"
         case .tokenActivity: "Token 活躍度"
-        case .peakBaseline: "峰值基準"
         case .today: "今日"
         case .todayDetails: "今日明細"
         case .statisticsCurrent: "統計截至目前時刻"
+        case .calculatingUsage: "統計中…"
+        case .monthlyUsage: "用量統計"
+        case .showMonthlyUsageCard: "顯示用量統計"
+        case .showMonthlyUsageCardHint: "按小時、日、月、年查看 Token 和 API 等效費用"
+        case .monthlyUsageRange: "顯示範圍"
+        case .monthlyUsageRangeHint: "包含本月，依月份由新到舊排列"
+        case .thisMonth: "本月"
+        case .thisMonthTokens: "本月 Token"
+        case .thisMonthAPIEquivalentCost: "本月 API 等效費用"
+        case .monthStatisticsCurrent: "本月統計截至目前"
+        case .monthStatisticsComplete: "該月統計已完成"
+        case .monthStatisticsUnavailable: "該月沒有本機用量紀錄"
         case .activityOverview: "活躍度概覽"
+        case .activityOverviewHint: "昨日、近 7 天與本月用量"
         case .inputTokens: "輸入"
         case .outputTokens: "輸出"
         case .apiEquivalentCost: "API 等效費用"
@@ -460,7 +501,6 @@ enum L10n {
         case .lastSevenDays: "近 7 天"
         case .lastOneHundredTwentyDays: "近 120 天用量"
         case .hoverHeatmap: "將滑鼠移到方格上查看當天用量"
-        case .total: "合計"
         case .less: "少"
         case .more: "多"
         case .streakUnavailable: "連續使用暫無資料"
@@ -469,6 +509,8 @@ enum L10n {
         case .creditsBalanceUnavailable: "暫無資料"
         case .unlimitedCredits: "無限"
         case .lifetimeTokens: "累計 Token"
+        case .lifetimeAPIEquivalentCost: "累計 API 等效費用"
+        case .lifetimeAPIEquivalentCostHint: "依本機現存對話及封存紀錄，以目前標準 API 費率換算的累計美元估算，不代表實際帳單；統計範圍可能與帳戶累計 Token 不同。未知模型依 GPT-5.6 Sol 估算，不含工具費用與加速附加費。"
         case .longestStreak: "最長連續"
         case .longestTask: "最長任務"
         case .notAvailable: "暫無"
@@ -477,6 +519,12 @@ enum L10n {
 
     private static func english(_ key: Key) -> String {
         switch key {
+        case .menuBar: "Menu Bar"
+        case .menuBarHint: "Adjust the ring size and see your remaining quota"
+        case .menuBarIconSize: "Icon size"
+        case .menuBarIconSizeHint: "Change the diameter instantly"
+        case .menuBarPreview: "Live preview"
+        case .menuBarQuotaHint: "Shows the 5-hour quota, or the weekly quota when that is all the account provides"
         case .menuBarHelp: "Codex weekly quota remaining"
         case .currentMacServer: "This Mac / Codex App Server"
         case .showEmail: "Show full email"
@@ -494,11 +542,11 @@ enum L10n {
         case .showQuotaCard: "Show quota overview"
         case .showQuotaCardHint: "Show the 5-hour and weekly quota section"
         case .showTokenActivityCard: "Show token activity"
-        case .showTokenActivityCardHint: "Show today's token activity and details"
+        case .showTokenActivityCardHint: "Today's input, output, cache and cost"
         case .showUsageHeatmapCard: "Show usage heatmap"
         case .showUsageHeatmapCardHint: "Show the 120-day token usage heatmap"
         case .showUsageSummaryCard: "Show usage overview"
-        case .showUsageSummaryCardHint: "Show lifetime tokens, streak, and longest task"
+        case .showUsageSummaryCardHint: "Show lifetime tokens, API-equivalent cost, streak, and longest task"
         case .showCreditsBalanceCard: "Show Credits balance"
         case .showCreditsBalanceCardHint: "Show the Credits balance card in the main panel"
         case .refresh: "Refresh"
@@ -526,11 +574,23 @@ enum L10n {
         case .noQuotaWindow: "No quota window was returned for this account"
         case .noQuotaExplanation: "API Key and Bedrock sign-ins usually do not return ChatGPT quota data."
         case .tokenActivity: "Token activity"
-        case .peakBaseline: "Peak baseline"
         case .today: "Today"
         case .todayDetails: "Today details"
         case .statisticsCurrent: "Stats through now"
+        case .calculatingUsage: "Calculating…"
+        case .monthlyUsage: "Usage statistics"
+        case .showMonthlyUsageCard: "Show usage statistics"
+        case .showMonthlyUsageCardHint: "Hourly, daily, monthly and yearly tokens and API-equivalent cost"
+        case .monthlyUsageRange: "Display range"
+        case .monthlyUsageRangeHint: "Includes this month, newest first"
+        case .thisMonth: "This month"
+        case .thisMonthTokens: "This month’s tokens"
+        case .thisMonthAPIEquivalentCost: "This month’s API cost"
+        case .monthStatisticsCurrent: "This month, up to now"
+        case .monthStatisticsComplete: "Completed month"
+        case .monthStatisticsUnavailable: "No local usage records for this month"
         case .activityOverview: "Activity overview"
+        case .activityOverviewHint: "Yesterday, last 7 days and this month"
         case .inputTokens: "Input"
         case .outputTokens: "Output"
         case .apiEquivalentCost: "API-equivalent cost"
@@ -539,7 +599,6 @@ enum L10n {
         case .lastSevenDays: "Last 7 days"
         case .lastOneHundredTwentyDays: "Last 120 days"
         case .hoverHeatmap: "Hover over a square to view that day's usage"
-        case .total: "Total"
         case .less: "Less"
         case .more: "More"
         case .streakUnavailable: "Streak data unavailable"
@@ -548,6 +607,8 @@ enum L10n {
         case .creditsBalanceUnavailable: "Not available"
         case .unlimitedCredits: "Unlimited"
         case .lifetimeTokens: "Lifetime tokens"
+        case .lifetimeAPIEquivalentCost: "Total API-equivalent cost"
+        case .lifetimeAPIEquivalentCostHint: "Estimated USD cost of locally available sessions and archives at current standard API rates, not an actual bill. Coverage may differ from account lifetime tokens. Unknown models use GPT-5.6 Sol rates; tool fees and Fast mode premiums are excluded."
         case .longestStreak: "Longest streak"
         case .longestTask: "Longest task"
         case .notAvailable: "N/A"
@@ -556,6 +617,12 @@ enum L10n {
 
     private static func japanese(_ key: Key) -> String {
         switch key {
+        case .menuBar: "メニューバー"
+        case .menuBarHint: "リングのサイズを調整し、残りの割り当てを表示"
+        case .menuBarIconSize: "アイコンのサイズ"
+        case .menuBarIconSizeHint: "直径の変更をすぐに反映"
+        case .menuBarPreview: "ライブプレビュー"
+        case .menuBarQuotaHint: "5 時間枠の残量を優先し、週間枠のみの場合はその残量を表示"
         case .menuBarHelp: "Codex の週間割り当て残量"
         case .currentMacServer: "この Mac / Codex App Server"
         case .showEmail: "メールアドレスを表示"
@@ -573,11 +640,11 @@ enum L10n {
         case .showQuotaCard: "割り当て概要を表示"
         case .showQuotaCardHint: "5 時間と週間の割り当て領域を表示します"
         case .showTokenActivityCard: "Token アクティビティを表示"
-        case .showTokenActivityCardHint: "今日の Token アクティビティと内訳を表示します"
+        case .showTokenActivityCardHint: "今日の入力・出力・キャッシュ・費用"
         case .showUsageHeatmapCard: "使用量ヒートマップを表示"
         case .showUsageHeatmapCardHint: "過去 120 日間の Token 使用量を表示します"
         case .showUsageSummaryCard: "使用状況を表示"
-        case .showUsageSummaryCardHint: "累計 Token、連続使用、最長タスクを表示します"
+        case .showUsageSummaryCardHint: "累計 Token、API 換算料金、連続使用、最長タスクを表示します"
         case .showCreditsBalanceCard: "クレジット残高を表示"
         case .showCreditsBalanceCardHint: "メインパネルにクレジット残高カードを表示します"
         case .refresh: "更新"
@@ -605,11 +672,23 @@ enum L10n {
         case .noQuotaWindow: "このアカウントの割り当て期間が返されませんでした"
         case .noQuotaExplanation: "API Key または Bedrock のサインインでは、通常 ChatGPT の割り当ては返されません。"
         case .tokenActivity: "Token アクティビティ"
-        case .peakBaseline: "ピーク基準"
         case .today: "今日"
         case .todayDetails: "今日の内訳"
         case .statisticsCurrent: "現在時点まで"
+        case .calculatingUsage: "集計中…"
+        case .monthlyUsage: "使用量の統計"
+        case .showMonthlyUsageCard: "使用量の統計を表示"
+        case .showMonthlyUsageCardHint: "時間別・日別・月別・年別の Token と API 換算料金"
+        case .monthlyUsageRange: "表示期間"
+        case .monthlyUsageRangeHint: "今月を含め、新しい月から表示"
+        case .thisMonth: "今月"
+        case .thisMonthTokens: "今月の Token"
+        case .thisMonthAPIEquivalentCost: "今月の API 換算料金"
+        case .monthStatisticsCurrent: "今月の現在までの集計"
+        case .monthStatisticsComplete: "この月の集計は完了しました"
+        case .monthStatisticsUnavailable: "この月のローカル使用記録はありません"
         case .activityOverview: "アクティビティ概要"
+        case .activityOverviewHint: "昨日・過去7日間・今月の使用量"
         case .inputTokens: "入力"
         case .outputTokens: "出力"
         case .apiEquivalentCost: "API 換算料金"
@@ -618,7 +697,6 @@ enum L10n {
         case .lastSevenDays: "過去 7 日間"
         case .lastOneHundredTwentyDays: "過去 120 日間"
         case .hoverHeatmap: "マスにポインタを置くとその日の使用量を表示します"
-        case .total: "合計"
         case .less: "少"
         case .more: "多"
         case .streakUnavailable: "連続使用データなし"
@@ -627,6 +705,8 @@ enum L10n {
         case .creditsBalanceUnavailable: "データなし"
         case .unlimitedCredits: "無制限"
         case .lifetimeTokens: "累計 Token"
+        case .lifetimeAPIEquivalentCost: "累計 API 換算料金"
+        case .lifetimeAPIEquivalentCostHint: "この Mac に残るセッションとアーカイブを現在の標準 API 料金で換算した米ドルの累計見積もりです。実際の請求額ではなく、アカウントの累計 Token とは集計範囲が異なる場合があります。不明なモデルは GPT-5.6 Sol 料金で換算し、ツール料金や高速モードの追加料金は含みません。"
         case .longestStreak: "最長連続"
         case .longestTask: "最長タスク"
         case .notAvailable: "データなし"
@@ -635,6 +715,12 @@ enum L10n {
 
     private static func korean(_ key: Key) -> String {
         switch key {
+        case .menuBar: "메뉴 막대"
+        case .menuBarHint: "링 크기를 조정하고 남은 할당량을 확인하세요"
+        case .menuBarIconSize: "아이콘 크기"
+        case .menuBarIconSizeHint: "지름 변경 즉시 적용"
+        case .menuBarPreview: "실시간 미리보기"
+        case .menuBarQuotaHint: "5시간 할당량을 우선 표시하고, 주간 할당량만 있으면 주간 잔량 표시"
         case .menuBarHelp: "Codex 주간 할당량 잔여"
         case .currentMacServer: "이 Mac / Codex App Server"
         case .showEmail: "전체 이메일 표시"
@@ -652,11 +738,11 @@ enum L10n {
         case .showQuotaCard: "할당량 개요 표시"
         case .showQuotaCardHint: "5시간 및 주간 할당량 영역을 표시합니다"
         case .showTokenActivityCard: "Token 활동 표시"
-        case .showTokenActivityCardHint: "오늘의 Token 활동과 상세 정보를 표시합니다"
+        case .showTokenActivityCardHint: "오늘의 입력, 출력, 캐시 및 비용"
         case .showUsageHeatmapCard: "사용량 히트맵 표시"
         case .showUsageHeatmapCardHint: "최근 120일 Token 사용량 히트맵을 표시합니다"
         case .showUsageSummaryCard: "사용 개요 표시"
-        case .showUsageSummaryCardHint: "누적 Token, 연속 사용, 최장 작업을 표시합니다"
+        case .showUsageSummaryCardHint: "누적 Token, API 환산 비용, 연속 사용, 최장 작업을 표시합니다"
         case .showCreditsBalanceCard: "크레딧 잔액 표시"
         case .showCreditsBalanceCardHint: "메인 패널에 크레딧 잔액 카드를 표시합니다"
         case .refresh: "새로 고침"
@@ -684,11 +770,23 @@ enum L10n {
         case .noQuotaWindow: "이 계정에 대한 할당량 기간이 반환되지 않았습니다"
         case .noQuotaExplanation: "API Key 또는 Bedrock 로그인은 일반적으로 ChatGPT 할당량을 반환하지 않습니다."
         case .tokenActivity: "Token 활동"
-        case .peakBaseline: "최고치 기준"
         case .today: "오늘"
         case .todayDetails: "오늘 상세"
         case .statisticsCurrent: "현재 시각 기준"
+        case .calculatingUsage: "집계 중…"
+        case .monthlyUsage: "사용량 통계"
+        case .showMonthlyUsageCard: "사용량 통계 표시"
+        case .showMonthlyUsageCardHint: "시간별, 일별, 월별, 연도별 Token 및 API 환산 비용"
+        case .monthlyUsageRange: "표시 기간"
+        case .monthlyUsageRangeHint: "이번 달을 포함하여 최신순으로 표시"
+        case .thisMonth: "이번 달"
+        case .thisMonthTokens: "이번 달 Token"
+        case .thisMonthAPIEquivalentCost: "이번 달 API 환산 비용"
+        case .monthStatisticsCurrent: "이번 달 현재까지 집계"
+        case .monthStatisticsComplete: "집계가 완료된 달"
+        case .monthStatisticsUnavailable: "이 달의 로컬 사용 기록이 없습니다"
         case .activityOverview: "활동 개요"
+        case .activityOverviewHint: "어제, 최근 7일 및 이번 달 사용량"
         case .inputTokens: "입력"
         case .outputTokens: "출력"
         case .apiEquivalentCost: "API 환산 비용"
@@ -697,7 +795,6 @@ enum L10n {
         case .lastSevenDays: "최근 7일"
         case .lastOneHundredTwentyDays: "최근 120일"
         case .hoverHeatmap: "칸 위에 마우스를 올려 해당 날짜의 사용량을 확인하세요"
-        case .total: "합계"
         case .less: "적음"
         case .more: "많음"
         case .streakUnavailable: "연속 사용 데이터 없음"
@@ -706,6 +803,8 @@ enum L10n {
         case .creditsBalanceUnavailable: "데이터 없음"
         case .unlimitedCredits: "무제한"
         case .lifetimeTokens: "누적 Token"
+        case .lifetimeAPIEquivalentCost: "누적 API 환산 비용"
+        case .lifetimeAPIEquivalentCostHint: "이 Mac에 남아 있는 세션 및 보관 기록을 현재 표준 API 요금으로 환산한 누적 미국 달러 추정치이며 실제 청구액이 아닙니다. 계정 누적 Token과 집계 범위가 다를 수 있습니다. 알 수 없는 모델에는 GPT-5.6 Sol 요금을 적용하며 도구 요금과 고속 모드 할증은 제외합니다."
         case .longestStreak: "최장 연속"
         case .longestTask: "가장 긴 작업"
         case .notAvailable: "데이터 없음"
@@ -714,6 +813,12 @@ enum L10n {
 
     private static func spanish(_ key: Key) -> String {
         switch key {
+        case .menuBar: "Barra de menús"
+        case .menuBarHint: "Ajusta el tamaño del anillo y consulta la cuota restante"
+        case .menuBarIconSize: "Tamaño del icono"
+        case .menuBarIconSizeHint: "Ajusta el diámetro al instante"
+        case .menuBarPreview: "Vista previa en directo"
+        case .menuBarQuotaHint: "Muestra la cuota de 5 horas, o la semanal si es la única disponible"
         case .menuBarHelp: "Cuota semanal restante de Codex"
         case .currentMacServer: "Este Mac / Codex App Server"
         case .showEmail: "Mostrar correo completo"
@@ -731,11 +836,11 @@ enum L10n {
         case .showQuotaCard: "Mostrar resumen de cuota"
         case .showQuotaCardHint: "Muestra las cuotas de 5 horas y semanal"
         case .showTokenActivityCard: "Mostrar actividad de tokens"
-        case .showTokenActivityCardHint: "Muestra la actividad y el detalle de tokens de hoy"
+        case .showTokenActivityCardHint: "Entrada, salida, caché y coste de hoy"
         case .showUsageHeatmapCard: "Mostrar mapa de uso"
         case .showUsageHeatmapCardHint: "Muestra el mapa de uso de tokens de los últimos 120 días"
         case .showUsageSummaryCard: "Mostrar resumen de uso"
-        case .showUsageSummaryCardHint: "Muestra tokens acumulados, racha y tarea más larga"
+        case .showUsageSummaryCardHint: "Muestra tokens acumulados, coste API equivalente, racha y tarea más larga"
         case .showCreditsBalanceCard: "Mostrar saldo de créditos"
         case .showCreditsBalanceCardHint: "Muestra la tarjeta de saldo de créditos en el panel principal"
         case .refresh: "Actualización"
@@ -763,11 +868,23 @@ enum L10n {
         case .noQuotaWindow: "No se devolvió ningún periodo de cuota para esta cuenta"
         case .noQuotaExplanation: "Los inicios de sesión con API Key o Bedrock normalmente no devuelven datos de cuota de ChatGPT."
         case .tokenActivity: "Actividad de tokens"
-        case .peakBaseline: "Referencia máxima"
         case .today: "Hoy"
         case .todayDetails: "Detalle de hoy"
         case .statisticsCurrent: "Datos hasta ahora"
+        case .calculatingUsage: "Calculando…"
+        case .monthlyUsage: "Estadísticas de uso"
+        case .showMonthlyUsageCard: "Mostrar estadísticas de uso"
+        case .showMonthlyUsageCardHint: "Tokens y coste API equivalente por hora, día, mes y año"
+        case .monthlyUsageRange: "Periodo"
+        case .monthlyUsageRangeHint: "Incluye el mes actual, del más reciente al más antiguo"
+        case .thisMonth: "Este mes"
+        case .thisMonthTokens: "Tokens de este mes"
+        case .thisMonthAPIEquivalentCost: "Coste API de este mes"
+        case .monthStatisticsCurrent: "Este mes, hasta ahora"
+        case .monthStatisticsComplete: "Mes completado"
+        case .monthStatisticsUnavailable: "Sin registros locales de uso de este mes"
         case .activityOverview: "Resumen de actividad"
+        case .activityOverviewHint: "Uso de ayer, últimos 7 días y este mes"
         case .inputTokens: "Entrada"
         case .outputTokens: "Salida"
         case .apiEquivalentCost: "Coste API equivalente"
@@ -776,7 +893,6 @@ enum L10n {
         case .lastSevenDays: "Últimos 7 días"
         case .lastOneHundredTwentyDays: "Últimos 120 días"
         case .hoverHeatmap: "Pasa el cursor sobre un cuadro para ver el uso de ese día"
-        case .total: "Total"
         case .less: "Menos"
         case .more: "Más"
         case .streakUnavailable: "Datos de racha no disponibles"
@@ -785,6 +901,8 @@ enum L10n {
         case .creditsBalanceUnavailable: "No disponible"
         case .unlimitedCredits: "Ilimitados"
         case .lifetimeTokens: "Tokens acumulados"
+        case .lifetimeAPIEquivalentCost: "Coste API equivalente total"
+        case .lifetimeAPIEquivalentCostHint: "Estimación acumulada en USD de las sesiones y archivos locales con las tarifas API estándar actuales; no es una factura real. La cobertura puede diferir de los tokens acumulados de la cuenta. Los modelos desconocidos usan tarifas de GPT-5.6 Sol; se excluyen herramientas y recargos del modo rápido."
         case .longestStreak: "Racha más larga"
         case .longestTask: "Tarea más larga"
         case .notAvailable: "No disponible"

@@ -99,10 +99,6 @@ struct CodexUsageSnapshot: Equatable, Sendable {
         return CreditBalance(balance: bucket?.creditBalance, unlimited: bucket?.unlimitedCredits)
     }
 
-    var allLimitWindows: [RateLimitWindow] {
-        rateLimitBuckets.flatMap(\.windows)
-    }
-
     var primaryWindow: RateLimitWindow? {
         let windows = preferredRateLimitBucket?.windows
         return windows?.first(where: { $0.kind == .primary })
@@ -115,10 +111,6 @@ struct CodexUsageSnapshot: Equatable, Sendable {
 
     var weeklyWindow: RateLimitWindow? {
         preferredRateLimitBucket?.windows.first(where: { $0.windowDurationMinutes == 10_080 })
-    }
-
-    var featuredWindow: RateLimitWindow? {
-        weeklyWindow ?? primaryWindow
     }
 
     var quotaCardPrimaryWindow: RateLimitWindow? {

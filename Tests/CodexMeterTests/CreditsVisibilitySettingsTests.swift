@@ -37,18 +37,20 @@ struct CreditsVisibilitySettingsTests {
             .environmentObject(UpdateController())
             .environmentObject(backgrounds)
             .environment(\.colorScheme, .light)
-        let renderer = ImageRenderer(content: content)
-        renderer.proposedSize = ProposedViewSize(width: 760, height: 552)
-        renderer.scale = 2
-        let image = try #require(renderer.nsImage)
-        #expect(image.size == NSSize(width: 760, height: 552))
-
+        let hosting = NSHostingView(rootView: content)
+        hosting.setFrameSize(NSSize(width: 760, height: 552))
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = hosting
+        hosting.layoutSubtreeIfNeeded()
+        let bitmap = try #require(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+        #expect(bitmap.pixelsWide > 0)
         if let path = ProcessInfo.processInfo.environment["CODEX_METER_VISIBILITY_SETTINGS_SNAPSHOT"] {
-            let tiff = try #require(image.tiffRepresentation)
-            let bitmap = try #require(NSBitmapImageRep(data: tiff))
             let png = try #require(bitmap.representation(using: .png, properties: [:]))
             try png.write(to: URL(fileURLWithPath: path), options: .atomic)
         }
+        window.contentView = nil
+
     }
 }
 
@@ -62,7 +64,9 @@ private struct CreditsVisibilityUsageLoader: CodexUsageLoading {
 }
 
 private struct CreditsVisibilityLocalUsageLoader: LocalTokenUsageLoading {
-    func todayUsage(at now: Date) async -> LocalTokenUsage { .zero }
+    func usage(at now: Date) async -> LocalTokenUsageSnapshot {
+        LocalTokenUsageSnapshot(today: .zero, lifetime: .zero)
+    }
 }
 
 private struct CreditsVisibilityLoginManager: LaunchAtLoginManaging {
