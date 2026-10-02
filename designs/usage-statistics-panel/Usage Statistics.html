@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="design_doc_mode" content="canvas">
+  <title>Codex Meter · 每日 / 每月 / 每年用量</title>
+  <!--
+  Review prototype only. App source and settings are not changed.
+  Context: MonthlyUsageCard.swift, MonthlyRangePopover.swift, DesignSystem.swift,
+  MeterFontSettings.swift and the approved monthly panel style C.
+  Plan: rename the card to 用量统计; add day/month/year granularity; preserve
+  period selection, the two metrics, and interactive comparison bars.
+  Range selection follows granularity. Each granularity remembers its selection.
+  All records are illustrative fixtures with a fixed reference date of 2026-09-22.
+  -->
+  <link rel="icon" href="CodexIcon.png">
+  <link rel="stylesheet" href="usage-statistics.css">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="usage-statistics.jsx"></script>
+</body>
+</html>

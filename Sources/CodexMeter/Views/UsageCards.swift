@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct HeroUsageCard: View {
+    @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var quotaBackgrounds: QuotaBackgroundStore
 
@@ -11,7 +12,32 @@ struct HeroUsageCard: View {
     private var secondaryWindow: RateLimitWindow? { snapshot.quotaCardSecondaryWindow }
 
     var body: some View {
-        if let primaryWindow,
+        if !store.hasLoadedRemoteSnapshot, let message = store.refreshErrorMessage {
+            PanelCard {
+                HStack(spacing: 11) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.meter(size: 20))
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.text(.loadFailed, language: settings.language))
+                            .meterText(.title)
+                        Text(message)
+                            .meterText(.detail)
+                            .foregroundStyle(Color.meterSecondary)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                    }
+                    Spacer(minLength: 4)
+                    Button(L10n.text(.retry, language: settings.language)) {
+                        Task { await store.refresh() }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(store.isRefreshing)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help(message)
+            }
+        } else if let primaryWindow,
            let backgroundImage = quotaBackgrounds.selectedImage(
                for: primaryWindow.remainingPercent
            ) {
@@ -427,7 +453,7 @@ struct TokenActivityCard: View {
 
     var body: some View {
         PanelCard {
-            VStack(alignment: .leading, spacing: 13) {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center) {
                     TokenActivitySectionTitle(
                         title: L10n.text(.todayDetails, language: settings.language)
@@ -441,8 +467,18 @@ struct TokenActivityCard: View {
                         .foregroundStyle(Color.meterSecondary)
                 }
 
-                TodayTokenDetails(usage: store.hasLoadedLocalTodayUsage ? store.localTodayUsage : nil)
+                TodayTokenDetails(
+                    usage: store.hasLoadedLocalTodayUsage ? store.localTodayUsage : nil,
+                    quotaPercent: store.localTodayQuotaPercent
+                )
+                .padding(.top, 13)
 
+                Rectangle().fill(Color.meterBorder).frame(height: 1).padding(.top, 22)
+                ModelUsageRows(
+                    rows: store.modelUsage(.day, containing: Date()),
+                    isLoaded: store.hasLoadedLocalLifetimeUsage && store.localLifetimeUsage != nil
+                )
+                .padding(.top, 17)
             }
         }
     }
@@ -526,6 +562,7 @@ private struct TodayTokenDetails: View {
     @EnvironmentObject private var settings: AppSettings
 
     let usage: LocalTokenUsage?
+    let quotaPercent: Double?
 
     private var loadingText: String {
         L10n.text(.calculatingUsage, language: settings.language)
@@ -537,7 +574,7 @@ private struct TodayTokenDetails: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 8) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 TodayTokenDetailMetric(
                     icon: "arrow.down",
                     label: L10n.text(.inputTokens, language: settings.language),
@@ -555,6 +592,19 @@ private struct TodayTokenDetails: View {
                     label: L10n.text(.apiEquivalentCost, language: settings.language),
                     value: usage.map { MeterFormatters.usd($0.apiEquivalentCostUSD) } ?? loadingText
                 )
+
+                TodayTokenDetailMetric(
+                    icon: "percent",
+                    label: TodayQuotaUsageL10n.title(settings.language),
+                    value: TodayQuotaUsageL10n.summary(
+                        tokens: usage?.totalTokens,
+                        percent: quotaPercent,
+                        language: settings.language
+                    )
+                )
+                .help(quotaPercent == nil
+                      ? TodayQuotaUsageL10n.unavailable(settings.language)
+                      : TodayQuotaUsageL10n.explanation(settings.language))
             }
 
             HStack(spacing: 7) {
@@ -587,6 +637,7 @@ private struct TodayTokenDetails: View {
                             .stroke(Color.meterAccent.opacity(0.18), lineWidth: 1)
                     }
             )
+
         }
     }
 }
@@ -623,7 +674,7 @@ private struct TodayTokenDetailMetric: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: 76)
+        .frame(minHeight: 72, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.meterCard)
@@ -835,7 +886,7 @@ struct UsageSummaryCard: View {
                     SummaryMetric(
                         title: L10n.text(.lifetimeTokens, language: settings.language),
                         value: MeterFormatters.tokens(
-                            summary?.lifetimeTokens,
+                            summary?.lifetimeTokens ?? store.localLifetimeUsage?.totalTokens,
                             language: settings.language
                         )
                     )
@@ -869,7 +920,10 @@ struct UsageSummaryCard: View {
     }
 
     private var fetchedText: String {
-        L10n.updatedAt(snapshot.fetchedAt, language: settings.language)
+        if !store.hasLoadedRemoteSnapshot {
+            return ModelUsageL10n.text(.localLogs, language: settings.language)
+        }
+        return L10n.updatedAt(snapshot.fetchedAt, language: settings.language)
     }
 }
 

@@ -1,0 +1,51 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "月度用量与配置": {
+      "versions": [
+        {
+          "path": "Monthly Usage.html",
+          "createdAt": "2026-09-21T12:21:25.123Z",
+          "status": "changes-requested",
+          "subtitle": "表头与数字统一左对齐；本月简写、当年月份省略年份",
+          "viewport": {
+            "width": 1120,
+            "height": 1200
+          }
+        }
+      ]
+    },
+    "月度统计样式探索": {
+      "versions": [
+        {
+          "path": "Monthly Usage Styles.html",
+          "createdAt": "2026-09-21T12:32:37.994Z",
+          "status": "approved",
+          "subtitle": "用户选择 C 按月切换，并要求全界面匹配设计字体",
+          "viewport": {
+            "width": 1440,
+            "height": 800
+          }
+        }
+      ]
+    },
+    "月度范围浮层": {
+      "versions": [
+        {
+          "path": "Monthly Range Popover.html",
+          "createdAt": "2026-09-21T13:08:23.504Z",
+          "status": "approved",
+          "subtitle": "用户确认按紧凑单层浮层实现，选中即切换并收起",
+          "viewport": {
+            "width": 562,
+            "height": 740
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-21T12:21:25.128Z",
+  "updatedAt": "2026-09-21T13:14:15.027Z"
+}

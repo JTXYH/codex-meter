@@ -5,6 +5,68 @@ import Testing
 @testable import CodexMeter
 
 struct MonthlyUsageTests {
+    @Test @MainActor
+    func dailyStatisticsStartYesterdayWhileWeekMonthYearAndTodayModelsKeepToday() async throws {
+        let originalAppearance = NSApplication.shared.appearance
+        defer { NSApplication.shared.appearance = originalAppearance }
+        let settings = AppSettings(defaults: SQLitePreferences(database: try SQLiteStore()),
+                                   launchAtLoginManager: MonthlyPreviewLoginManager())
+        let calendar = Calendar.current
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 1, day: 1, hour: 12)))
+        let today = calendar.startOfDay(for: now)
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: today))
+        let previousMonth = try #require(calendar.dateInterval(of: .month, for: yesterday)?.start)
+        let todayUsage = modelUsage(tokens: 330, cost: 3)
+        let yesterdayUsage = modelUsage(tokens: 220, cost: 2)
+        let store = UsageStore(localUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
+            today: todayUsage, lifetime: todayUsage.adding(yesterdayUsage),
+            dailyModelUsage: [
+                DailyModelTokenUsage(day: today, model: "today-model", usage: todayUsage),
+                DailyModelTokenUsage(day: yesterday, model: "yesterday-model", usage: yesterdayUsage),
+            ],
+            monthlyUsage: [
+                MonthlyTokenUsage(month: today, usage: todayUsage),
+                MonthlyTokenUsage(month: previousMonth, usage: yesterdayUsage),
+            ],
+            dailyUsage: [
+                PeriodTokenUsage(start: today, usage: todayUsage),
+                PeriodTokenUsage(start: yesterday, usage: yesterdayUsage),
+            ]
+        )), settings: settings)
+        await store.refreshLocalUsage(at: now)
+        await store.refreshLifetimeUsage(at: now)
+
+        for count in UsagePeriod.day.ranges {
+            let days = store.statisticsUsage(.day, count: count, at: now)
+            #expect(days.count == count)
+            #expect(days.first?.start == yesterday)
+            #expect(days.first?.usage == yesterdayUsage)
+            #expect(days.last?.start == calendar.date(byAdding: .day, value: -count, to: today))
+            #expect(days.allSatisfy { $0.start < today })
+        }
+        for period in [UsagePeriod.month, .year] {
+            #expect(store.statisticsUsage(period, count: 3, at: now).first?.usage == todayUsage)
+            #expect(store.modelUsage(period, containing: now) == [
+                ModelTokenUsage(model: "today-model", usage: todayUsage),
+            ])
+        }
+        for count in UsagePeriod.week.ranges {
+            let weeks = store.statisticsUsage(.week, count: count, at: now)
+            #expect(weeks.count == count)
+            #expect(weeks.first?.start == calendar.date(from: DateComponents(year: 2025, month: 12, day: 29)))
+            #expect(weeks.first?.usage == todayUsage.adding(yesterdayUsage))
+            #expect(weeks.dropFirst().allSatisfy { $0.usage == nil })
+        }
+        #expect(store.modelUsage(.week, containing: now) == [
+            ModelTokenUsage(model: "today-model", usage: todayUsage),
+            ModelTokenUsage(model: "yesterday-model", usage: yesterdayUsage),
+        ])
+        #expect(store.modelUsage(.day, containing: now) == [ModelTokenUsage(model: "today-model", usage: todayUsage)])
+        let tomorrow = try #require(calendar.date(byAdding: .day, value: 1, to: today))
+        #expect(store.statisticsUsage(.day, count: 7, at: tomorrow).first?.usage == todayUsage)
+        #expect(store.modelUsage(.day, containing: tomorrow).isEmpty)
+    }
+
     @Test
     func buildsCalendarMonthsAcrossYearBoundaryAndKeepsMissingMonthsUnavailable() throws {
         var calendar = Calendar(identifier: .gregorian)
@@ -60,9 +122,28 @@ struct MonthlyUsageTests {
             return PeriodTokenUsage(start: calendar.date(byAdding: .hour, value: -offset, to: currentHour)!,
                                     usage: usage(tokens: 328_000 + Int64(factor) * 42_000, cost: 0.825 + Double(factor) * 0.12))
         }
+        let modelSamples: [(String, Int64, Double)] = [
+            ("gpt-6-astra", 1_700_000, 8.20),
+            ("gpt-6-sol", 950_000, 2.35),
+            ("codex-auto-review", 410_000, 0.94),
+        ]
+        let dailyModels = (0..<30).flatMap { offset -> [DailyModelTokenUsage] in
+            let day = calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: Date()))!
+            return modelSamples.map { model, tokens, cost in
+                DailyModelTokenUsage(day: day, model: model, usage: modelUsage(tokens: tokens, cost: cost))
+            }
+        }
+        let hourlyModels = (0..<24).flatMap { offset -> [HourlyModelTokenUsage] in
+            let hour = calendar.date(byAdding: .hour, value: -offset, to: currentHour)!
+            return modelSamples.map { model, tokens, cost in
+                HourlyModelTokenUsage(hour: hour, model: model,
+                                      usage: modelUsage(tokens: tokens / 10, cost: cost / 10))
+            }
+        }
         let store = UsageStore(localUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
             today: usage(tokens: 424_000_000, cost: 901.08),
             lifetime: usage(tokens: 1_780_000_000, cost: 4884.96),
+            dailyModelUsage: dailyModels, hourlyModelUsage: hourlyModels,
             monthlyUsage: months, dailyUsage: days, hourlyUsage: hours
         )), settings: settings)
         await store.refreshLocalUsage()
@@ -86,7 +167,7 @@ struct MonthlyUsageTests {
             settings.appearance = dark ? .dark : .light
             for language in AppLanguage.allCases {
                 settings.language = language
-                for period in UsagePeriod.allCases {
+                for period in UsagePeriod.statisticsPeriods {
                     settings.usageStatisticsPeriod = period
                     for count in period.ranges {
                         settings.setUsageStatisticsRange(count, for: period)
@@ -102,7 +183,7 @@ struct MonthlyUsageTests {
                         renderer.scale = 2
                         let image = try #require(renderer.nsImage)
                         #expect(image.size.width == 420)
-                        #expect(image.size.height > 300 && image.size.height < 470)
+                        #expect(image.size.height > 450 && image.size.height < 900)
                         if let exportDirectory, language == .simplifiedChinese, count == period.defaultRange {
                             // NSHostingView also renders the native horizontal date scroller.
                             let hosting = NSHostingView(rootView: content)
@@ -126,6 +207,13 @@ struct MonthlyUsageTests {
         LocalTokenUsage(totalTokens: tokens, inputTokens: tokens, cachedInputTokens: 0,
                         cacheWriteInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0,
                         apiEquivalentCostUSD: cost)
+    }
+
+    private func modelUsage(tokens: Int64, cost: Double) -> LocalTokenUsage {
+        let output = tokens / 10
+        return LocalTokenUsage(totalTokens: tokens, inputTokens: tokens - output, cachedInputTokens: 0,
+                               cacheWriteInputTokens: 0, outputTokens: output, reasoningOutputTokens: 0,
+                               apiEquivalentCostUSD: cost)
     }
 }
 

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="design_doc_mode" content="mockup">
+  <title>Codex Meter · 月度用量设计</title>
+  <!--
+  Design context: existing SwiftUI colors, 420px panel, 20px cards and rounded system type.
+  Scope: remove the approximate sign, extend activity overview, add a separate monthly card.
+  Confirmed configuration: visibility, 3/6/12 months including current month, card ordering.
+  Main panel is shown at its scrolled usage section; other existing cards are not redesigned.
+  All values are sample data. Source code and application settings are not modified.
+  -->
+  <link rel="stylesheet" href="monthly-usage.css">
+</head>
+<body>
+  <div class="review-toolbar">
+    <div><span class="review-title">Codex Meter</span><span class="review-divider"></span><span>月度用量设计</span></div>
+    <div class="review-controls"><span class="sample-tag">示例数据</span><button class="review-theme" id="theme-toggle" aria-label="切换深色外观">深色预览</button></div>
+  </div>
+  <main class="workspace">
+    <section class="preview-column">
+      <div class="board-label"><span>主面板 · 用量区域</span><span>420 px</span></div>
+      <div class="app-shell" data-screen-label="主面板 · 月度用量">
+        <header class="app-header">
+          <img src="CodexIcon.png" alt="Codex" width="36" height="36">
+          <div class="identity"><div class="identity-name">Codex Meter <span class="plan">PRO</span></div><div class="email">demo•••@gmail.com <span class="eye"></span></div></div>
+          <button class="icon-button refresh-button" aria-label="刷新示例" title="刷新示例">↻</button>
+        </header>
+        <div class="card-stack" id="card-stack">
+          <section class="card activity-card" data-section="activity" id="activity-card">
+            <div class="section-heading"><h2><span class="section-dot"></span>今日明细</h2><span class="muted">统计截至当前时刻</span></div>
+            <div class="today-grid">
+              <div class="metric today-metric"><div class="metric-title"><span class="metric-icon">↓</span>输入</div><strong>4 亿 2 千万</strong></div>
+              <div class="metric today-metric"><div class="metric-title"><span class="metric-icon">↑</span>输出</div><strong>400 万</strong></div>
+              <div class="metric today-metric"><div class="metric-title"><span class="metric-icon dollar">$</span>API 等效费用</div><strong>$901.08</strong></div>
+            </div>
+            <div class="cache-strip"><span><i></i>缓存输入 <b>3 亿 6 千万</b></span><span class="accent">命中率 86%</span></div>
+            <div class="section-heading activity-heading"><h2><span class="section-dot"></span>活跃度概览</h2><span class="muted">2026 年 9 月</span></div>
+            <div class="overview-grid">
+              <div class="metric overview-metric"><div class="metric-title">昨日 Token</div><strong>1 亿 8 千万</strong></div>
+              <div class="metric overview-metric"><div class="metric-title">近 7 天 Token</div><strong>9 亿 5 千万</strong></div>
+              <div class="metric overview-metric"><div class="metric-title">本月 Token</div><strong>10 亿 2 千万</strong></div>
+              <div class="metric overview-metric"><div class="metric-title">本月 API 等效费用</div><strong>$1,428.36</strong></div>
+            </div>
+          </section>
+          <section class="card monthly-card" data-section="monthly" id="monthly-card">
+            <div class="section-heading"><h2><span class="calendar-icon" aria-hidden="true"></span>月度统计</h2><button class="card-settings" id="open-settings" aria-label="配置月度统计" title="配置月度统计"><span id="range-caption">近 6 个月</span><span class="sliders-icon" aria-hidden="true">☷</span></button></div>
+            <table class="monthly-table">
+              <thead><tr><th scope="col">月份</th><th scope="col">Token</th><th scope="col">API 等效费用</th></tr></thead>
+              <tbody id="month-rows">
+                <tr class="current-month"><th scope="row"><span>本月</span></th><td>10 亿 2 千万</td><td>$1,428.36</td></tr>
+                <tr><th scope="row">8 月</th><td>3 亿 8 千万</td><td>$1,068.20</td></tr>
+                <tr><th scope="row">7 月</th><td>2 亿</td><td>$876.50</td></tr>
+                <tr><th scope="row">6 月</th><td>1 亿</td><td>$640.25</td></tr>
+                <tr><th scope="row">5 月</th><td>6 千万</td><td>$492.65</td></tr>
+                <tr><th scope="row">4 月</th><td>2 千万</td><td>$379.00</td></tr>
+                <tr class="empty-month" hidden><th scope="row">3 月</th><td>—</td><td>—</td></tr>
+                <tr class="empty-month" hidden><th scope="row">2 月</th><td>—</td><td>—</td></tr>
+                <tr class="empty-month" hidden><th scope="row">1 月</th><td>—</td><td>—</td></tr>
+                <tr class="empty-month" hidden><th scope="row">2025 年 12 月</th><td>—</td><td>—</td></tr>
+                <tr class="empty-month" hidden><th scope="row">2025 年 11 月</th><td>—</td><td>—</td></tr>
+                <tr class="empty-month" hidden><th scope="row">2025 年 10 月</th><td>—</td><td>—</td></tr>
+              </tbody>
+            </table>
+            <div class="monthly-footnote"><span class="tiny-info">i</span><span>本月统计截至当前时刻</span></div>
+          </section>
+          <section class="card summary-card" data-section="summary" id="summary-card">
+            <div class="section-heading"><h2><span class="bar-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>使用概览</h2><span class="muted" id="updated-at">更新于 20:16</span></div>
+            <div class="overview-grid summary-grid">
+              <div class="metric summary-metric"><div class="metric-title">累计 Token</div><strong>17 亿 8 千万</strong></div>
+              <div class="metric summary-metric" title="按本机历史用量及标准 API 费率折算，不代表实际账单。"><div class="metric-title">累计 API 等效费用</div><strong>$4,884.96</strong></div>
+              <div class="metric summary-metric"><div class="metric-title">最长连续</div><strong>12 天</strong></div>
+              <div class="metric summary-metric"><div class="metric-title">最长任务</div><strong>2 小时 1 分</strong></div>
+            </div>
+          </section>
+        </div>
+        <footer class="app-footer"><button class="icon-button" id="footer-settings" aria-label="打开显示设置">⚙</button><button class="icon-button" id="reset-preview" aria-label="重置预览" title="重置预览">↺</button></footer>
+      </div>
+    </section>
+    <section class="settings-column">
+      <div class="board-label"><span>设置 · 显示</span><span>可交互预览</span></div>
+      <div class="settings-window" id="settings-window" data-screen-label="设置 · 月度统计配置">
+        <div class="window-titlebar"><span class="traffic-lights"><i></i><i></i><i></i></span><span>Codex Meter 设置</span></div>
+        <div class="settings-body">
+          <nav class="settings-sidebar" aria-label="设置导航"><div class="sidebar-item">通用</div><div class="sidebar-item selected">显示</div><div class="sidebar-item">刷新</div><div class="sidebar-item">关于</div></nav>
+          <div class="settings-content">
+            <h1>显示</h1>
+            <p class="settings-description">调整主面板顺序，并选择显示的数据区域</p>
+            <div class="display-list" id="display-list">
+              <div class="display-row" data-key="activity" draggable="true"><span class="drag-grip" tabindex="0" role="button" aria-label="移动Token 活跃度，按上下箭头调整顺序">⠿</span><div class="display-copy"><h3>Token 活跃度</h3><p>今日明细与本月用量</p></div><label class="toggle"><input type="checkbox" checked data-visibility="activity" aria-label="显示 Token 活跃度"><span></span></label></div>
+              <div class="monthly-setting-group" data-key="monthly" draggable="true">
+                <div class="display-row"><span class="drag-grip" tabindex="0" role="button" aria-label="移动月度统计，按上下箭头调整顺序">⠿</span><div class="display-copy"><h3>月度统计</h3><p>按月查看 Token 和 API 等效费用</p></div><label class="toggle"><input type="checkbox" checked data-visibility="monthly" aria-label="显示月度统计"><span></span></label></div>
+                <div class="month-options" id="month-options"><label id="range-label">显示范围</label><div class="segmented-control" role="group" aria-labelledby="range-label"><button data-months="3" aria-pressed="false">近 3 个月</button><button data-months="6" class="active" aria-pressed="true">近 6 个月</button><button data-months="12" aria-pressed="false">近 12 个月</button></div><p>包含本月，按月份从新到旧排列</p></div>
+              </div>
+              <div class="display-row" data-key="summary" draggable="true"><span class="drag-grip" tabindex="0" role="button" aria-label="移动使用概览，按上下箭头调整顺序">⠿</span><div class="display-copy"><h3>使用概览</h3><p>累计用量、连续天数与最长任务</p></div><label class="toggle"><input type="checkbox" checked data-visibility="summary" aria-label="显示使用概览"><span></span></label></div>
+            </div>
+            <p class="settings-footnote">拖动左侧手柄即可调整卡片顺序</p>
+          </div>
+        </div>
+      </div>
+      <div class="review-note"><strong>本次调整</strong><ol><li>活跃度概览增加本月 Token 与本月 API 费用。</li><li>月度统计独立成卡，可隐藏、调整范围与顺序。</li><li>全部金额直接显示美元数值，保留「等效费用」名称。</li></ol><span>预览为示例数据；额度、热力图与余额卡片延续现有设计。</span></div>
+    </section>
+  </main>
+  <script src="monthly-usage.js"></script>
+</body>
+</html>

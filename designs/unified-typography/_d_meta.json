@@ -1,0 +1,33 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "统一字号设计": {
+      "versions": [
+        {
+          "path": "Unified Typography.html",
+          "createdAt": "2026-09-22T01:28:22.806Z",
+          "status": "changes-requested",
+          "subtitle": "全卡片统一 20 / 13 / 11 pt；原尺寸与深浅色预览已核对",
+          "viewport": {
+            "width": 1040,
+            "height": 1250
+          }
+        },
+        {
+          "path": "Unified Typography v2.html",
+          "createdAt": "2026-09-22T01:41:53.677Z",
+          "status": "approved",
+          "subtitle": "已按用户截图在 SwiftUI 落地全部卡片 16 / 12 / 10 pt，原生渲染验证通过",
+          "viewport": {
+            "width": 1040,
+            "height": 1250
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-22T01:28:22.808Z",
+  "updatedAt": "2026-09-22T02:18:53.239Z"
+}

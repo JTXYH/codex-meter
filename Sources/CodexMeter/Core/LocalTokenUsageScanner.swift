@@ -60,6 +60,10 @@ struct LocalTokenUsage: Codable, Equatable, Sendable {
 struct LocalTokenUsageSnapshot: Equatable, Sendable {
     let today: LocalTokenUsage
     let lifetime: LocalTokenUsage?
+    var todayQuotaUsage: [TodayQuotaUsage] = []
+    var quotaReadings: [LocalQuotaReading] = []
+    var dailyModelUsage: [DailyModelTokenUsage] = []
+    var hourlyModelUsage: [HourlyModelTokenUsage] = []
     var monthlyUsage: [MonthlyTokenUsage] = []
     var dailyUsage: [PeriodTokenUsage] = []
     var hourlyUsage: [PeriodTokenUsage] = []
@@ -75,14 +79,34 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         case lifetime
     }
 
+    private struct ModelDayKey: Hashable {
+        let day: Date
+        let model: String
+    }
+
+    private struct ModelHourKey: Hashable {
+        let hour: Date
+        let model: String
+    }
+
     private struct FileState: Codable {
         var offset: UInt64 = 0
         var remainder = Data()
         var usageByDay: [Date: LocalTokenUsage] = [:]
+        var usageByModelDay: [ModelDayKey: LocalTokenUsage] = [:]
+        // Older checkpoints lack this marker and need one scan for model totals.
+        var hasModelUsage: Bool? = true
+        var usageByModelHour: [ModelHourKey: LocalTokenUsage] = [:]
+        var hasHourlyModelUsage: Bool? = true
+        var modelID: String?
         // Hourly totals, like daily totals, are stored in their own SQLite table.
         var usageByHour: [Date: LocalTokenUsage] = [:]
         // Missing on older checkpoints: reread that log once to recover exact hours.
         var hasHourlyUsage: Bool? = true
+        // Only today's scanner stores quota metadata; older checkpoints lack this field.
+        var hasQuotaReadings: Bool? = true
+        var hasHistoricalQuotaReadings: Bool? = true
+        var quotaReadings: [LocalQuotaReading]? = []
         var pricing = LocalTokenUsageScanner.pricing(for: nil)
         var modificationDate: Date?
         var lastReportedTotalTokens: Int64?
@@ -91,7 +115,10 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         // Never serialize a partial log line: it can contain conversation content.
         enum CodingKeys: String, CodingKey {
             case offset, usageByDay, pricing, modificationDate, lastReportedTotalTokens, creationDate
+            case hasModelUsage, modelID
+            case hasHourlyModelUsage, hasHistoricalQuotaReadings
             case hasHourlyUsage
+            case hasQuotaReadings, quotaReadings
         }
     }
 
@@ -113,6 +140,35 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
             let type: String?
             let info: TokenInfo?
             let model: String?
+            let rateLimits: RateLimits?
+
+            enum CodingKeys: String, CodingKey {
+                case type, info, model
+                case rateLimits = "rate_limits"
+            }
+        }
+
+        struct RateLimits: Decodable {
+            let limitID: String?
+            let primary: QuotaWindow?
+            let secondary: QuotaWindow?
+
+            enum CodingKeys: String, CodingKey {
+                case limitID = "limit_id"
+                case primary, secondary
+            }
+        }
+
+        struct QuotaWindow: Decodable {
+            let usedPercent: Double?
+            let windowMinutes: Int?
+            let resetsAt: Int64?
+
+            enum CodingKeys: String, CodingKey {
+                case usedPercent = "used_percent"
+                case windowMinutes = "window_minutes"
+                case resetsAt = "resets_at"
+            }
         }
 
         struct TokenInfo: Decodable {
@@ -166,6 +222,7 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
     private var retentionCutoff: Date?
     private(set) var storageError: String?
     private var calendar: Calendar
+    private var activeDayStart: Date?
     private let decoder = JSONDecoder()
     private let fractionalDateFormatter: ISO8601DateFormatter
     private let standardDateFormatter: ISO8601DateFormatter
@@ -227,6 +284,7 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         loadCacheIfNeeded()
         bytesReadDuringLastScan = 0
         let dayStart = calendar.startOfDay(for: now)
+        activeDayStart = dayStart
         guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else {
             return LocalTokenUsageSnapshot(today: .zero, lifetime: nil)
         }
@@ -245,15 +303,31 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         var lifetime = LocalTokenUsage.zero
         var usageByMonth: [Date: LocalTokenUsage] = [:]
         var usageByDay: [Date: LocalTokenUsage] = [:]
+        var usageByModelDay: [ModelDayKey: LocalTokenUsage] = [:]
+        var usageByModelHour: [ModelHourKey: LocalTokenUsage] = [:]
         var usageByHour: [Date: LocalTokenUsage] = [:]
+        var quotaReadings: [LocalQuotaReading] = []
         // Stable summation order avoids sub-cent floating point changes after restart.
         for url in fileStates.keys.sorted(by: { $0.path < $1.path }) {
             guard let state = fileStates[url] else { continue }
             today = today.adding(state.usageByDay[dayStart] ?? .zero)
+            quotaReadings.append(contentsOf: state.quotaReadings ?? [])
             if scope == .lifetime {
                 for hour in state.usageByHour.keys.sorted() where hour < dayEnd {
                     guard let usage = state.usageByHour[hour] else { continue }
                     usageByHour[hour] = (usageByHour[hour] ?? .zero).adding(usage)
+                }
+                for key in state.usageByModelDay.keys.sorted(by: {
+                    $0.day == $1.day ? $0.model < $1.model : $0.day < $1.day
+                }) where key.day < dayEnd {
+                    guard let usage = state.usageByModelDay[key] else { continue }
+                    usageByModelDay[key] = (usageByModelDay[key] ?? .zero).adding(usage)
+                }
+                for key in state.usageByModelHour.keys.sorted(by: {
+                    $0.hour == $1.hour ? $0.model < $1.model : $0.hour < $1.hour
+                }) where key.hour < dayEnd {
+                    guard let usage = state.usageByModelHour[key] else { continue }
+                    usageByModelHour[key] = (usageByModelHour[key] ?? .zero).adding(usage)
                 }
             }
             for day in state.usageByDay.keys.sorted() where day < dayEnd {
@@ -269,6 +343,26 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         return LocalTokenUsageSnapshot(
             today: today,
             lifetime: scope == .lifetime && isComplete ? lifetime : nil,
+            todayQuotaUsage: scope == .today
+                ? TodayQuotaUsageBuilder.totals(from: quotaReadings, at: now, calendar: calendar)
+                : [],
+            quotaReadings: quotaReadings.sorted {
+                if $0.date != $1.date { return $0.date < $1.date }
+                if $0.bucketID != $1.bucketID { return $0.bucketID < $1.bucketID }
+                if $0.windowDurationMinutes != $1.windowDurationMinutes {
+                    return $0.windowDurationMinutes < $1.windowDurationMinutes
+                }
+                if $0.resetsAt != $1.resetsAt { return $0.resetsAt < $1.resetsAt }
+                return $0.usedPercent < $1.usedPercent
+            },
+            dailyModelUsage: scope == .lifetime && isComplete
+                ? usageByModelDay.map { DailyModelTokenUsage(day: $0.key.day, model: $0.key.model, usage: $0.value) }
+                    .sorted { $0.day == $1.day ? $0.model < $1.model : $0.day > $1.day }
+                : [],
+            hourlyModelUsage: scope == .lifetime && isComplete
+                ? usageByModelHour.map { HourlyModelTokenUsage(hour: $0.key.hour, model: $0.key.model, usage: $0.value) }
+                    .sorted { $0.hour == $1.hour ? $0.model < $1.model : $0.hour > $1.hour }
+                : [],
             monthlyUsage: scope == .lifetime && isComplete
                 ? usageByMonth.map { MonthlyTokenUsage(month: $0.key, usage: $0.value) }
                     .sorted { $0.month > $1.month }
@@ -346,6 +440,24 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
                         cacheWriteInputTokens: row[5].int, outputTokens: row[6].int,
                         reasoningOutputTokens: row[7].int, apiEquivalentCostUSD: row[8].double)
                 }
+                for row in try database.rows("SELECT path,day,model,total,input,cached,cache_write,output,reasoning,cost FROM daily_model_usage WHERE scope=?", [.text(cacheScope)]) {
+                    guard let path = row[0].string, let model = row[2].string else { continue }
+                    let url = URL(fileURLWithPath: path)
+                    let key = ModelDayKey(day: Date(timeIntervalSinceReferenceDate: row[1].double), model: model)
+                    fileStates[url]?.usageByModelDay[key] = LocalTokenUsage(
+                        totalTokens: row[3].int, inputTokens: row[4].int, cachedInputTokens: row[5].int,
+                        cacheWriteInputTokens: row[6].int, outputTokens: row[7].int,
+                        reasoningOutputTokens: row[8].int, apiEquivalentCostUSD: row[9].double)
+                }
+                for row in try database.rows("SELECT path,hour,model,total,input,cached,cache_write,output,reasoning,cost FROM hourly_model_usage WHERE scope=?", [.text(cacheScope)]) {
+                    guard let path = row[0].string, let model = row[2].string else { continue }
+                    let url = URL(fileURLWithPath: path)
+                    let key = ModelHourKey(hour: Date(timeIntervalSinceReferenceDate: row[1].double), model: model)
+                    fileStates[url]?.usageByModelHour[key] = LocalTokenUsage(
+                        totalTokens: row[3].int, inputTokens: row[4].int, cachedInputTokens: row[5].int,
+                        cacheWriteInputTokens: row[6].int, outputTokens: row[7].int,
+                        reasoningOutputTokens: row[8].int, apiEquivalentCostUSD: row[9].double)
+                }
             }
             hasLoadedCache = true
             if let cacheURL { try? fileManager.removeItem(at: cacheURL) }
@@ -360,6 +472,8 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         checkpoint.offset -= UInt64(state.remainder.count)
         checkpoint.remainder = Data()
         checkpoint.usageByDay = [:]
+        checkpoint.usageByModelDay = [:]
+        checkpoint.usageByModelHour = [:]
         checkpoint.usageByHour = [:]
         let key: [SQLiteStore.Value] = [.text(cacheScope), .text(url.path)]
         try database.execute("INSERT INTO scan_files VALUES(?,?,?) ON CONFLICT(scope,path) DO UPDATE SET state=excluded.state",
@@ -377,6 +491,24 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
             try database.execute("INSERT INTO hourly_usage VALUES(?,?,?,?,?,?,?,?,?,?)", key + [
                 .real(hour.timeIntervalSinceReferenceDate), .integer(usage.totalTokens), .integer(usage.inputTokens),
                 .integer(usage.cachedInputTokens), .integer(usage.cacheWriteInputTokens), .integer(usage.outputTokens),
+                .integer(usage.reasoningOutputTokens), .real(usage.apiEquivalentCostUSD)
+            ])
+        }
+        try database.execute("DELETE FROM daily_model_usage WHERE scope=? AND path=?", key)
+        for (modelDay, usage) in state.usageByModelDay {
+            try database.execute("INSERT INTO daily_model_usage VALUES(?,?,?,?,?,?,?,?,?,?,?)", key + [
+                .real(modelDay.day.timeIntervalSinceReferenceDate), .text(modelDay.model),
+                .integer(usage.totalTokens), .integer(usage.inputTokens), .integer(usage.cachedInputTokens),
+                .integer(usage.cacheWriteInputTokens), .integer(usage.outputTokens),
+                .integer(usage.reasoningOutputTokens), .real(usage.apiEquivalentCostUSD)
+            ])
+        }
+        try database.execute("DELETE FROM hourly_model_usage WHERE scope=? AND path=?", key)
+        for (modelHour, usage) in state.usageByModelHour {
+            try database.execute("INSERT INTO hourly_model_usage VALUES(?,?,?,?,?,?,?,?,?,?,?)", key + [
+                .real(modelHour.hour.timeIntervalSinceReferenceDate), .text(modelHour.model),
+                .integer(usage.totalTokens), .integer(usage.inputTokens), .integer(usage.cachedInputTokens),
+                .integer(usage.cacheWriteInputTokens), .integer(usage.outputTokens),
                 .integer(usage.reasoningOutputTokens), .real(usage.apiEquivalentCostUSD)
             ])
         }
@@ -485,12 +617,28 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
             size == state.offset && modificationDate > $0
         } ?? false
 
-        if state.hasHourlyUsage != true || size < state.offset || wasTouchedWithoutGrowth || state.creationDate != creationDate {
+        if state.hasHourlyUsage != true
+            || (scope == .lifetime && state.hasModelUsage != true)
+            || (scope == .lifetime && state.hasHourlyModelUsage != true)
+            || (scope == .today && state.hasQuotaReadings != true)
+            || (scope == .lifetime && state.hasHistoricalQuotaReadings != true)
+            || size < state.offset || wasTouchedWithoutGrowth || state.creationDate != creationDate {
             state = FileState()
             dirtyFiles.insert(url)
             cacheNeedsSave = true
         }
         state.creationDate = creationDate
+        if let activeDayStart {
+            let retained = (state.quotaReadings ?? []).filter { reading in
+                (scope == .lifetime || calendar.isDate(reading.date, inSameDayAs: activeDayStart))
+                    && (retentionCutoff.map { cutoff in reading.date >= cutoff } ?? true)
+            }
+            if retained.count != state.quotaReadings?.count {
+                state.quotaReadings = retained
+                dirtyFiles.insert(url)
+                cacheNeedsSave = true
+            }
+        }
 
         if size > state.offset || state.modificationDate != modificationDate {
             dirtyFiles.insert(url)
@@ -587,6 +735,7 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         if entry.type == "turn_context" {
             if let model = entry.payload?.model?.trimmingCharacters(in: .whitespacesAndNewlines),
                !model.isEmpty {
+                state.modelID = model
                 state.pricing = Self.pricing(for: model)
             }
             return
@@ -597,17 +746,36 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
               entry.payload?.type == "token_count",
               let timestamp = entry.timestamp,
               let eventDate = fractionalDateFormatter.date(from: timestamp)
-                ?? standardDateFormatter.date(from: timestamp),
-              let tokenUsage = entry.payload?.info?.lastTokenUsage
+                ?? standardDateFormatter.date(from: timestamp)
         else { return }
+
+        if let retentionCutoff, eventDate < retentionCutoff { return }
+        if (scope == .lifetime || activeDayStart.map { calendar.isDate(eventDate, inSameDayAs: $0) } == true),
+           let limits = entry.payload?.rateLimits {
+            let bucketID = limits.limitID.flatMap { $0.isEmpty ? nil : $0 } ?? "codex"
+            for window in [limits.primary, limits.secondary].compactMap({ $0 }) {
+                guard let usedPercent = window.usedPercent,
+                      let duration = window.windowMinutes,
+                      let reset = window.resetsAt,
+                      duration > 0, usedPercent.isFinite, (0...100).contains(usedPercent)
+                else { continue }
+                state.quotaReadings?.append(LocalQuotaReading(
+                    date: eventDate,
+                    bucketID: bucketID,
+                    windowDurationMinutes: duration,
+                    resetsAt: Date(timeIntervalSince1970: TimeInterval(reset)),
+                    usedPercent: usedPercent
+                ))
+            }
+        }
+
+        guard let tokenUsage = entry.payload?.info?.lastTokenUsage else { return }
 
         // Quota updates can repeat the previous request's last_token_usage.
         if let reportedTotal = entry.payload?.info?.totalTokenUsage?.totalTokens {
             guard reportedTotal != state.lastReportedTotalTokens else { return }
             state.lastReportedTotalTokens = reportedTotal
         }
-
-        if let retentionCutoff, eventDate < retentionCutoff { return }
 
         let inputTokens = max(tokenUsage.inputTokens ?? 0, 0)
         let cachedInputTokens = min(
@@ -647,8 +815,16 @@ actor LocalTokenUsageScanner: LocalTokenUsageLoading {
         )
         let day = calendar.startOfDay(for: eventDate)
         state.usageByDay[day, default: .zero] = state.usageByDay[day, default: .zero].adding(usage)
+        if scope == .lifetime {
+            let key = ModelDayKey(day: day, model: state.modelID ?? "")
+            state.usageByModelDay[key, default: .zero] = state.usageByModelDay[key, default: .zero].adding(usage)
+        }
         if let hour = calendar.dateInterval(of: .hour, for: eventDate)?.start {
             state.usageByHour[hour, default: .zero] = state.usageByHour[hour, default: .zero].adding(usage)
+            if scope == .lifetime {
+                let key = ModelHourKey(hour: hour, model: state.modelID ?? "")
+                state.usageByModelHour[key, default: .zero] = state.usageByModelHour[key, default: .zero].adding(usage)
+            }
         }
     }
 

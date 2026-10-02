@@ -16,6 +16,12 @@ Codex Meter 使用 Sparkle 2 进行应用内更新。每个发布包都必须使
 
 备份文件等同于更新签名密码，不得提交到 Git、上传到 Release 或发给他人。
 
+## 安装包清理规则
+
+每次打新包前，先删除 `dist/` 中所有旧产物，包括旧应用、安装包、压缩包、校验文件和 `appcast.xml`。正式发布、本地测试包和临时包均遵守此规则，打包后只保留本次生成的产物。
+
+`scripts/build-app.sh` 会在编译前自动清空 `dist/`，`scripts/package-release.sh` 通过调用该脚本执行同样的清理。`dist/` 仅用于存放可重新生成的打包产物，不要在其中保存其他文件。
+
 ## 发布一个版本
 
 1. 同时递增 `CFBundleShortVersionString` 和 `CFBundleVersion`。

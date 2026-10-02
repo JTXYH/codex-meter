@@ -4,6 +4,24 @@ import Testing
 
 struct CodexAppServerClientTests {
     @Test
+    func prefersTheDesktopCliUnlessTheUserChoseAnExecutable() {
+        let desktop = "/Applications/ChatGPT.app/Contents/Resources/codex"
+        let paths = CodexExecutableLocator.candidatePaths(
+            override: nil, saved: nil,
+            environmentPath: "/Users/example/.local/bin:/usr/local/bin",
+            home: "/Users/example"
+        )
+        #expect(paths.first == desktop)
+        #expect(paths.firstIndex(of: desktop)! < paths.firstIndex(of: "/Users/example/.local/bin/codex")!)
+
+        let chosen = CodexExecutableLocator.candidatePaths(
+            override: "/custom/codex", saved: "/saved/codex",
+            environmentPath: "/usr/local/bin", home: "/Users/example"
+        )
+        #expect(Array(chosen.prefix(3)) == ["/custom/codex", "/saved/codex", desktop])
+    }
+
+    @Test
     func drainsFinalResponsesFromAProcessThatExitsImmediately() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory.appendingPathComponent(

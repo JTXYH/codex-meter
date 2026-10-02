@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Meter · 模型用量卡片设计</title>
+  <style>
+    :root{color-scheme:light;--page:#f2f1ee;--panel:#f7f7f3;--card:#fff;--ink:#202126;--sub:#777981;--faint:#aaaab0;--line:#e7e7e8;--accent:#5763f5;--accent-soft:#eef0ff;--accent-line:#dfe1ff;--track:#f0f0f4;--shadow:rgba(24,26,42,.045)}
+    :root[data-theme="dark"]{color-scheme:dark;--page:#101116;--panel:#191a1e;--card:#24252b;--ink:#f3f3f6;--sub:#adaeb9;--faint:#777986;--line:#3a3b42;--accent:#8692ff;--accent-soft:#343860;--accent-line:#4f5483;--track:#35363d;--shadow:rgba(0,0,0,.28)}
+    *{box-sizing:border-box} body{margin:0;background:var(--page);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+    button{font:inherit;cursor:pointer} button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+    .workspace{max-width:1440px;margin:0 auto;padding:36px 28px 70px}
+    .intro{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:28px}
+    .eyebrow{color:var(--accent);font-size:10px;font-weight:720;letter-spacing:.12em;text-transform:uppercase}
+    h1{font-size:26px;font-weight:640;letter-spacing:-.045em;margin:8px 0 7px}
+    .intro p{color:var(--sub);font-size:12px;line-height:1.6;margin:0;max-width:660px}
+    .tools{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+    .tool-button{height:30px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--sub);font-size:11px}
+    .tool-button:hover{border-color:var(--accent-line);color:var(--accent)}
+    .concepts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+    .concept-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin:0 2px 10px}
+    .concept-head b{font-size:12px;font-weight:640}.concept-head span{color:var(--sub);font-size:10px}
+    .mock-panel{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:24px;box-shadow:0 10px 32px var(--shadow)}
+    .context{height:40px;display:flex;align-items:center;gap:8px;padding:0 14px 12px;color:var(--sub);font-size:10px}
+    .context-dot,.title-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+    .context strong{color:var(--ink);font-size:13px;font-weight:620}.context-spacer{flex:1}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 3px 12px var(--shadow)}
+    .card-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:640;white-space:nowrap}
+    .card-title .title-dot{margin:0 3px}
+    .card-title small{margin-left:auto;color:var(--sub);font-size:10px;font-weight:400}
+    .period{display:flex;height:30px;margin-top:15px;padding:3px;border:1px solid var(--line);border-radius:9px;background:var(--panel);gap:3px}
+    .period button{flex:1;border:0;border-radius:6px;background:transparent;color:var(--sub);font-size:11px}
+    .period button.active{background:var(--card);color:var(--accent);box-shadow:0 1px 4px var(--shadow);font-weight:650}
+    .date-line{display:flex;align-items:center;justify-content:space-between;margin-top:15px;gap:7px}
+    .date-line strong{font-size:11px;font-weight:590}.date-line small{color:var(--faint);font-size:10px}
+    .date-controls{display:flex;align-items:center;gap:4px}
+    .date-controls button{width:23px;height:23px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--sub);font-size:14px;line-height:18px}
+    .date-controls button:hover:not(:disabled){border-color:var(--accent-line);color:var(--accent)}.date-controls button:disabled{opacity:.38;cursor:default}
+    .summary{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+    .summary label{display:block;color:var(--sub);font-size:10px;margin-bottom:5px}.summary strong{font-size:23px;line-height:1.12;font-weight:570;letter-spacing:-.045em;font-variant-numeric:tabular-nums}.summary .cost{font-size:14px;letter-spacing:-.02em}.summary .right{text-align:right}
+    .rows{margin-top:2px}.row{border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}
+    .model-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:640;letter-spacing:-.015em}.model-name i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:7px;vertical-align:1px}.row:nth-child(2) .model-name i{opacity:.66}.row:nth-child(3) .model-name i{opacity:.4}
+    .mono{font-variant-numeric:tabular-nums}.muted{color:var(--sub)}
+    .a .row{padding:13px 0 12px}.a .row-main,.b .row-main,.c .row-main{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.a .row-main strong{font-size:15px;font-weight:570;letter-spacing:-.025em}
+    .a .row-meta{display:flex;align-items:center;gap:10px;margin-top:7px;color:var(--sub);font-size:10px;white-space:nowrap}.a .row-meta em{margin-left:auto;color:var(--accent);font-style:normal}
+    .b .summary{border-bottom:0;padding-bottom:0}.b .row-list{border:1px solid var(--accent-line);border-radius:12px;overflow:hidden;margin-top:15px}.b .row{padding:11px 12px}.b .row-main strong{font-size:11px;color:var(--accent);font-weight:600}.b .row-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:9px}.b .row-metrics span{display:block;color:var(--faint);font-size:9px;margin-bottom:3px}.b .row-metrics b{font-size:11px;font-weight:550;white-space:nowrap}
+    .c .summary{padding-bottom:13px}.c .row{padding:12px 0}.c .row-main strong{font-size:13px;font-weight:600}.c .bar{height:5px;margin-top:9px;border-radius:99px;background:var(--track);overflow:hidden}.c .bar span{display:block;height:100%;border-radius:99px;background:var(--accent)}.c .row:nth-child(2) .bar span{opacity:.7}.c .row:nth-child(3) .bar span{opacity:.48}.c .row-meta{display:flex;justify-content:space-between;gap:5px;margin-top:7px;color:var(--sub);font-size:9.5px;white-space:nowrap}
+    .footnote{margin:11px 2px 0;color:var(--faint);font-size:10px;line-height:1.45}
+    @media(max-width:1180px){.concepts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:800px){.workspace{padding:22px 14px 50px}.intro{align-items:flex-start;flex-direction:column;gap:12px}.concepts{grid-template-columns:1fr}.concept{max-width:440px;margin:0 auto;width:100%}}
+  </style>
+</head>
+<body>
+  <main class="workspace" data-screen-label="模型用量卡片设计对比">
+    <div class="intro"><div><div class="eyebrow">Codex Meter · UI exploration</div><h1>模型用量，三种排版</h1><p>沿用现有 420 px 菜单栏面板的颜色、边框与文字层级。示例数据用于比较排版；日／月／年与左右日期按钮可交互。</p></div><div class="tools"><button class="tool-button" id="theme" type="button">切换深色</button></div></div>
+    <div class="concepts">
+      <section class="concept a"><div class="concept-head"><b>01 · 层级列表</b><span>推荐 · 读数最快</span></div><div class="mock-panel"><div class="context"><span class="context-dot"></span><strong>Codex Meter</strong><span class="context-spacer"></span>今日明细 ↓</div><div class="card"><div class="card-title"><span class="title-dot"></span>模型用量<small>本机日志</small></div><div class="period"></div><div class="date-line"><strong class="date-label"></strong><div class="date-controls"><button type="button" data-step="-1" aria-label="上一周期">‹</button><button type="button" data-step="1" aria-label="下一周期">›</button></div></div><div class="summary"></div><div class="rows"></div></div></div><p class="footnote">总量优先；每个模型的输入、输出和费用集中在一行副信息。</p></section>
+      <section class="concept b"><div class="concept-head"><b>02 · 三列明细</b><span>更适合逐项比较</span></div><div class="mock-panel"><div class="context"><span class="context-dot"></span><strong>Codex Meter</strong><span class="context-spacer"></span>今日明细 ↓</div><div class="card"><div class="card-title"><span class="title-dot"></span>模型用量<small>本机日志</small></div><div class="period"></div><div class="date-line"><strong class="date-label"></strong><div class="date-controls"><button type="button" data-step="-1" aria-label="上一周期">‹</button><button type="button" data-step="1" aria-label="下一周期">›</button></div></div><div class="summary"></div><div class="rows row-list"></div></div></div><p class="footnote">模型总量仍可见；输入、输出、费用固定成三列。</p></section>
+      <section class="concept c"><div class="concept-head"><b>03 · 占比条</b><span>更适合看模型结构</span></div><div class="mock-panel"><div class="context"><span class="context-dot"></span><strong>Codex Meter</strong><span class="context-spacer"></span>今日明细 ↓</div><div class="card"><div class="card-title"><span class="title-dot"></span>模型用量<small>本机日志</small></div><div class="period"></div><div class="date-line"><strong class="date-label"></strong><div class="date-controls"><button type="button" data-step="-1" aria-label="上一周期">‹</button><button type="button" data-step="1" aria-label="下一周期">›</button></div></div><div class="summary"></div><div class="rows"></div></div></div><p class="footnote">细条提示每个模型的份额；数字仍是视觉主角。</p></section>
+    </div>
+  </main>
+  <script>
+    const base = {
+      day: { rows:[['gpt-6-sol',784000,158000,3.29],['gpt-6-astra',311000,56000,2.13],['gpt-6-luna',173000,12000,.61]] },
+      month: { rows:[['gpt-6-sol',16420000,3110000,82.11],['gpt-6-astra',8120000,1490000,42.18],['gpt-6-luna',2790000,230000,7.43]] },
+      year: { rows:[['gpt-6-sol',296000000,56000000,1557.30],['gpt-6-astra',131000000,24000000,525.40],['gpt-6-luna',42600000,3700000,101.60]] }
+    };
+    let period='day', offset=0;
+    const anchor = new Date(2026,8,25);
+    const zh = new Intl.DateTimeFormat('zh-CN',{year:'numeric',month:'long',day:'numeric'});
+    const num = value => { const n=Math.round(value); if(n>=100000000){const yi=Math.floor(n/100000000),wan=Math.round((n%100000000)/10000);return yi+'亿'+(wan?wan+'万':'')} if(n>=10000){const wan=n/10000;return (wan<1000?Math.round(wan*10)/10:Math.round(wan))+'万'} return n.toLocaleString('zh-CN') };
+    const money = value => '$'+value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    function dateLabel(){ const d=new Date(anchor);if(period==='day'){d.setDate(d.getDate()+offset);return offset===0?'今天 · '+zh.format(d).replace(/^2026年/,''):zh.format(d)} if(period==='month'){d.setMonth(d.getMonth()+offset);return d.getFullYear()+'年'+(d.getMonth()+1)+'月'} return (d.getFullYear()+offset)+'年'; }
+    function rows(){const factor=offset===0?1:Math.max(.36,1+offset*.16);return base[period].rows.map(([name,input,output,cost])=>({name,input:Math.round(input*factor),output:Math.round(output*factor),cost:cost*factor}));}
+    function render(){const list=rows(),total=list.reduce((sum,row)=>sum+row.input+row.output,0),cost=list.reduce((sum,row)=>sum+row.cost,0);document.querySelectorAll('.concept').forEach(concept=>{
+      concept.querySelector('.period').innerHTML=['day','month','year'].map((p,i)=>`<button type="button" data-period="${p}" class="${period===p?'active':''}" aria-pressed="${period===p}">${['日','月','年'][i]}</button>`).join('');
+      concept.querySelector('.date-label').textContent=dateLabel();concept.querySelector('[data-step="1"]').disabled=offset===0;
+      concept.querySelector('.summary').innerHTML=`<div><label>总 Token</label><strong class="mono">${num(total)}</strong></div><div class="right"><label>API 等效费用</label><strong class="cost mono">${money(cost)}</strong></div>`;
+      concept.querySelector('.rows').innerHTML=list.map(row=>{const modelTotal=row.input+row.output,share=100*modelTotal/total,head=`<div class="row-main"><span class="model-name"><i></i>${row.name}</span><strong class="mono">${num(modelTotal)}</strong></div>`;if(concept.classList.contains('a'))return `<div class="row">${head}<div class="row-meta"><span>输入 ${num(row.input)}</span><span>输出 ${num(row.output)}</span><em>等效 ${money(row.cost)}</em></div></div>`;if(concept.classList.contains('b'))return `<div class="row">${head}<div class="row-metrics"><div><span>输入</span><b class="mono">${num(row.input)}</b></div><div><span>输出</span><b class="mono">${num(row.output)}</b></div><div><span>等效费用</span><b class="mono">${money(row.cost)}</b></div></div></div>`;return `<div class="row">${head}<div class="bar"><span style="width:${share}%"></span></div><div class="row-meta"><span>输入 ${num(row.input)}</span><span>输出 ${num(row.output)}</span><span>${money(row.cost)}</span></div></div>`}).join('');
+    });}
+    document.addEventListener('click',event=>{const p=event.target.closest('[data-period]');if(p){period=p.dataset.period;offset=0;render();return}const step=event.target.closest('[data-step]');if(step){offset=Math.min(0,Math.max(-5,offset+Number(step.dataset.step)));render();return}if(event.target.id==='theme'){const dark=document.documentElement.dataset.theme!=='dark';document.documentElement.dataset.theme=dark?'dark':'light';event.target.textContent=dark?'切换浅色':'切换深色'}});
+    render();
+  </script>
+</body>
+</html>

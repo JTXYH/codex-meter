@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Meter · 今日明细第四块</title>
+  <!--
+    Design context: the current 420 px macOS Today Details panel and the user's
+    screenshot of its three existing metric tiles. This mock adds one matching
+    fourth tile, arranged in a two-column grid at the panel's actual width.
+    Percentage is the main value and the daily count is a small supporting line.
+    No other content is added to the card. Sample values are illustrative.
+  -->
+  <style>
+    :root { color-scheme: light; --accent:#5763f5; --soft:#eef0ff; --panel:#fafaf8; --card:#fff; --text:#202126; --muted:#777982; --border:#e6e6e9; --tile-line:#dfe1ff; --shadow:rgba(23,25,40,.045); }
+    :root[data-theme="dark"] { color-scheme: dark; --accent:#8692ff; --soft:#363a65; --panel:#191a1e; --card:#25262c; --text:#f3f3f6; --muted:#aaaab4; --border:#3b3c43; --tile-line:#505583; --shadow:rgba(0,0,0,.3); }
+    * { box-sizing:border-box; }
+    body { min-height:100vh; margin:0; background:#f0f0ee; color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif; -webkit-font-smoothing:antialiased; }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; height:55px; padding:0 18px; border-bottom:1px solid var(--border); background:var(--card); }
+    .toolbar-title { display:flex; align-items:center; gap:10px; white-space:nowrap; font-size:12px; font-weight:640; }
+    .toolbar-title i { width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--soft); }
+    .toolbar-controls { display:flex; gap:6px; }
+    button { height:27px; padding:0 9px; border:1px solid var(--border); border-radius:7px; background:var(--card); color:var(--muted); font:inherit; font-size:10px; cursor:pointer; }
+    button:hover,button[aria-pressed="true"] { border-color:var(--tile-line); background:var(--soft); color:var(--accent); }
+    button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+    main { display:flex; justify-content:center; padding:53px 15px 80px; }
+    .panel { width:min(420px,100%); padding:14px; background:var(--panel); }
+    .today-card { padding:15px; border:1px solid var(--border); border-radius:19px; background:var(--card); box-shadow:0 3px 13px var(--shadow); }
+    .card-header { display:flex; align-items:center; justify-content:space-between; gap:6px; height:20px; }
+    .card-header h1 { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:650; letter-spacing:-.15px; }
+    .heading-dot { width:7px; height:7px; margin:0 3px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--soft); }
+    .card-header > span { color:var(--muted); font-size:10px; white-space:nowrap; }
+    .metric-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:14px; }
+    .metric { display:flex; flex-direction:column; min-width:0; min-height:80px; padding:10px; border:1px solid var(--tile-line); border-radius:13px; background:var(--card); }
+    .metric-label { display:flex; align-items:center; gap:5px; min-width:0; white-space:nowrap; font-size:10px; font-weight:560; }
+    .metric-icon { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; flex:0 0 18px; border-radius:6px; background:var(--soft); color:var(--accent); }
+    .metric-icon svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+    .metric-icon.percent { font-size:11px; font-weight:520; }
+    .metric-value { margin-top:8px; color:var(--text); font-size:19px; line-height:22px; font-weight:510; letter-spacing:-.45px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .metric-support { margin-top:2px; color:var(--muted); font-size:10px; line-height:12px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .metric-support strong { margin-left:4px; color:var(--text); font-weight:560; }
+    .cache-strip { display:flex; align-items:center; justify-content:space-between; gap:6px; height:31px; padding:0 10px; margin-top:9px; border:1px solid var(--tile-line); border-radius:10px; background:var(--card); font-size:10px; }
+    .cache-left { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+    .cache-left i { width:6px; height:6px; border-radius:50%; background:var(--accent); }
+    .cache-left strong { font-weight:560; }
+    .cache-hit { color:var(--accent); font-weight:570; white-space:nowrap; }
+    @media (max-width:430px) { .toolbar { padding:0 13px; } main { padding-top:26px; } .card-header > span { font-size:9px; } .metric-value { font-size:17px; } }
+  </style>
+</head>
+<body>
+  <header class="toolbar"><div class="toolbar-title"><i aria-hidden="true"></i><span>今日明细 · 同款第四块</span></div><div class="toolbar-controls"><button id="sample" type="button" aria-pressed="false">小数值</button><button id="theme" type="button" aria-pressed="false">深色</button></div></header>
+  <main data-screen-label="今日明细第四块"><div class="panel"><section class="today-card" aria-label="今日明细">
+    <header class="card-header"><h1><span class="heading-dot" aria-hidden="true"></span>今日明细</h1><span>统计截至当前时刻</span></header>
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-label"><span class="metric-icon"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2v13m0 0-5-5m5 5 5-5"></path></svg></span>输入</div><strong class="metric-value" id="input">1亿5千万</strong></div>
+      <div class="metric"><div class="metric-label"><span class="metric-icon"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 16V3m0 0L4 8m5-5 5 5"></path></svg></span>输出</div><strong class="metric-value" id="output">59.5万</strong></div>
+      <div class="metric"><div class="metric-label"><span class="metric-icon"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M13.2 5.2c-.9-.9-2.4-1.3-4-1.3-2.3 0-3.9 1.1-3.9 2.9 0 1.6 1.6 2.2 3.8 2.6 2.4.4 3.9 1.1 3.9 2.8 0 1.8-1.7 3-4.1 3-1.8 0-3.3-.5-4.3-1.5M9.1 2v14"></path></svg></span>API 等效费用</div><strong class="metric-value" id="cost">$100.20</strong></div>
+      <div class="metric" title="根据今日日志中的额度变化估算，其他设备用量也可能计入。"><div class="metric-label"><span class="metric-icon percent" aria-hidden="true">%</span>额度消耗</div><strong class="metric-value" id="percent">0.5%</strong><div class="metric-support">今日用量 <strong id="count">150,595,000</strong></div></div>
+    </div>
+    <div class="cache-strip"><span class="cache-left"><i aria-hidden="true"></i>缓存输入 <strong id="cache">1亿4千万</strong></span><span class="cache-hit" id="hit">命中率 97%</span></div>
+  </section></div></main>
+  <script>
+    const samples = { large:{ input:'1亿5千万',output:'59.5万',cost:'$100.20',percent:'0.5%',count:'150,595,000',cache:'1亿4千万',hit:'命中率 97%' }, small:{ input:'10万',output:'2.1万',cost:'$0.52',percent:'0.5%',count:'121,200',cache:'7万',hit:'命中率 70%' } };
+    const sampleButton = document.getElementById('sample');
+    sampleButton.addEventListener('click', () => { const small = sampleButton.getAttribute('aria-pressed') !== 'true'; sampleButton.setAttribute('aria-pressed', String(small)); sampleButton.textContent = small ? '大数值' : '小数值'; for (const [key,value] of Object.entries(small ? samples.small : samples.large)) document.getElementById(key).textContent = value; });
+    const themeButton = document.getElementById('theme');
+    themeButton.addEventListener('click', () => { const dark = themeButton.getAttribute('aria-pressed') !== 'true'; themeButton.setAttribute('aria-pressed', String(dark)); themeButton.textContent = dark ? '浅色' : '深色'; document.documentElement.dataset.theme = dark ? 'dark' : 'light'; });
+  </script>
+</body>
+</html>

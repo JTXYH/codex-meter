@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import CodexMeter
 
@@ -125,6 +126,48 @@ struct UsageStoreTests {
     }
 
     @Test @MainActor
+    func keepsLocalCardsAvailableWhenTheFirstQuotaRequestFails() async throws {
+        let suiteName = "CodexMeterTests.RemoteFallback.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let day = Calendar.current.startOfDay(for: Date())
+        let local = LocalTokenUsage(
+            totalTokens: 120, inputTokens: 100, cachedInputTokens: 0,
+            cacheWriteInputTokens: 0, outputTokens: 20, reasoningOutputTokens: 0,
+            apiEquivalentCostUSD: 0.01
+        )
+        let localLoader = FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
+            today: local, lifetime: local,
+            dailyUsage: [PeriodTokenUsage(start: day, usage: local)]
+        ))
+        let store = UsageStore(
+            loader: SequencedUsageLoader(results: [
+                .failure(CodexMeterError.server("rate limit request failed")),
+                .success(snapshot(windows: [])),
+            ]),
+            localUsageLoader: localLoader,
+            lifetimeUsageLoader: localLoader,
+            settings: AppSettings(defaults: defaults)
+        )
+        await store.refreshLifetimeUsage()
+        await store.refresh()
+        #expect(!store.hasLoadedRemoteSnapshot)
+        #expect(store.snapshot != nil)
+        #expect(store.dashboardSnapshot?.dailyUsage.map(\.tokens) == [120])
+        #expect(store.localTodayTokens == 120)
+        #expect(store.refreshErrorMessage != nil)
+
+        await store.refresh()
+        #expect(store.hasLoadedRemoteSnapshot)
+        #expect(store.refreshErrorMessage == nil)
+        #expect(store.dashboardSnapshot == store.snapshot)
+    }
+
+    @Test @MainActor
     func publishesTodayWithoutWaitingForLifetimeUsage() async throws {
         let suiteName = "CodexMeterTests.LocalUsage.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -159,6 +202,133 @@ struct UsageStoreTests {
         // Observe the published completion without imposing machine-speed timing thresholds.
         while !store.hasLoadedLocalLifetimeUsage { await Task.yield() }
         #expect(store.localLifetimeUsage == lifetime)
+    }
+
+    @Test @MainActor
+    func publishesTodayTokenAndQuotaSummary() async throws {
+        let suiteName = "CodexMeterTests.TodayQuota.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        let originalAppearance = NSApplication.shared.appearance
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let reset = Date().addingTimeInterval(3 * 60 * 60)
+        let weeklyReset = Date().addingTimeInterval(5 * 24 * 60 * 60)
+        func windows(_ fiveHourUsed: Double, _ weeklyUsed: Double) -> [RateLimitWindow] {
+            [
+                RateLimitWindow(id: "five-hour", bucketID: "codex", bucketName: "Codex",
+                                kind: .primary, usedPercent: fiveHourUsed,
+                                windowDurationMinutes: 300, resetsAt: reset),
+                RateLimitWindow(id: "weekly", bucketID: "codex", bucketName: "Codex",
+                                kind: .secondary, usedPercent: weeklyUsed,
+                                windowDurationMinutes: 10_080, resetsAt: weeklyReset),
+            ]
+        }
+        let tokens = LocalTokenUsage(
+            totalTokens: 121_200, inputTokens: 100_000, cachedInputTokens: 70_000,
+            cacheWriteInputTokens: 0, outputTokens: 21_200, reasoningOutputTokens: 8_000,
+            apiEquivalentCostUSD: 0.52
+        )
+        let localLoader = FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
+            today: tokens,
+            lifetime: nil,
+            todayQuotaUsage: [
+                TodayQuotaUsage(bucketID: "codex", windowDurationMinutes: 300, usedPercentagePoints: 0.5),
+                TodayQuotaUsage(bucketID: "codex", windowDurationMinutes: 10_080, usedPercentagePoints: 0.1),
+            ]
+        ))
+        let settings = AppSettings(defaults: defaults)
+        let store = UsageStore(
+            loader: SequencedUsageLoader(results: [.success(snapshot(windows: windows(10.5, 20.1)))]),
+            localUsageLoader: localLoader,
+            lifetimeUsageLoader: FixedLocalUsageLoader(),
+            settings: settings
+        )
+
+        await store.refresh()
+        #expect(store.localTodayTokens == 121_200)
+        #expect(store.localTodayQuotaPercent == 0.5)
+        #expect(TodayQuotaUsageL10n.title(.simplifiedChinese) == "额度消耗")
+        #expect(TodayQuotaUsageL10n.summary(
+            tokens: store.localTodayTokens,
+            percent: store.localTodayQuotaPercent,
+            language: .simplifiedChinese
+        ) == "0.5%")
+        let weeklyOnlyStore = UsageStore(
+            loader: SequencedUsageLoader(results: [.success(snapshot(windows: [windows(10.5, 20.1)[1]]))]),
+            localUsageLoader: localLoader,
+            lifetimeUsageLoader: FixedLocalUsageLoader(),
+            settings: settings
+        )
+        await weeklyOnlyStore.refresh()
+        #expect(weeklyOnlyStore.localTodayQuotaPercent == 0.1)
+
+        if let path = ProcessInfo.processInfo.environment["CODEX_METER_TODAY_QUOTA_SNAPSHOT"] {
+            settings.language = .simplifiedChinese
+            settings.appearance = .light
+            let currentSnapshot = try #require(store.snapshot)
+            let renderer = ImageRenderer(content:
+                TokenActivityCard(snapshot: currentSnapshot)
+                    .frame(width: 392)
+                    .padding(14)
+                    .background(Color.meterPanel)
+                    .foregroundStyle(Color.meterPrimary)
+                    .environmentObject(settings)
+                    .environmentObject(store)
+                    .environment(\.colorScheme, .light)
+            )
+            renderer.scale = 2
+            let image = try #require(renderer.nsImage)
+            let tiff = try #require(image.tiffRepresentation)
+            let bitmap = try #require(NSBitmapImageRep(data: tiff))
+            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+        }
+    }
+
+    @Test @MainActor
+    func quotaSummaryUsesTheSelectedStatisticsPeriod() async throws {
+        let suiteName = "CodexMeterTests.PeriodQuota.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let calendar = Calendar.current
+        let firstDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 24)))
+        let secondDay = try #require(calendar.date(byAdding: .day, value: 1, to: firstDay))
+        let sunday = try #require(calendar.date(byAdding: .day, value: 3, to: firstDay))
+        let monday = try #require(calendar.date(byAdding: .day, value: 4, to: firstDay))
+        let reset = try #require(calendar.date(byAdding: .day, value: 6, to: firstDay))
+        let readings = [
+            (firstDay.addingTimeInterval(8 * 3_600), 30.0),
+            (firstDay.addingTimeInterval(23 * 3_600), 32.0),
+            (secondDay.addingTimeInterval(9 * 3_600), 33.0),
+            (secondDay.addingTimeInterval(10 * 3_600), 40.0),
+            (secondDay.addingTimeInterval(11 * 3_600), 49.0),
+            (sunday.addingTimeInterval(23 * 3_600), 60.0),
+            (monday, 80.0),
+        ].map { time, used in
+            LocalQuotaReading(date: time, bucketID: "codex", windowDurationMinutes: 10_080,
+                              resetsAt: reset, usedPercent: used)
+        }
+        let window = RateLimitWindow(id: "weekly", bucketID: "codex", bucketName: "Codex",
+                                     kind: .primary, usedPercent: 49,
+                                     windowDurationMinutes: 10_080, resetsAt: reset)
+        let store = UsageStore(
+            loader: SequencedUsageLoader(results: [.success(snapshot(windows: [window]))]),
+            localUsageLoader: FixedLocalUsageLoader(),
+            lifetimeUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
+                today: .zero, lifetime: .zero, quotaReadings: readings
+            )),
+            settings: AppSettings(defaults: defaults)
+        )
+        await store.refreshLifetimeUsage()
+        await store.refresh()
+        #expect(store.quotaPercent(for: .day, containing: firstDay) == 2)
+        #expect(store.quotaPercent(for: .day, containing: secondDay) == 17)
+        #expect(store.quotaPercent(for: .hour, containing: secondDay.addingTimeInterval(10 * 3_600)) == 7)
+        #expect(store.quotaPercent(for: .week, containing: sunday) == 60)
+        #expect(store.quotaPercent(for: .week, containing: monday) == 20)
     }
 
     private func snapshot(

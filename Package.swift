@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .executable(name: "CodexMeter", targets: ["CodexMeter"]),
+        .executable(name: "CodexMeterWatcher", targets: ["CodexMeterWatcher"]),
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.2"),
@@ -30,6 +31,10 @@ let package = Package(
                     "-Xlinker", "@executable_path/../Frameworks",
                 ]),
             ]
+        ),
+        .executableTarget(
+            name: "CodexMeterWatcher",
+            path: "Sources/CodexMeterWatcher"
         ),
         .testTarget(
             name: "CodexMeterTests",

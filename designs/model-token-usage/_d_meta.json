@@ -1,0 +1,32 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "模型用量卡片": {
+      "versions": [
+        {
+          "path": "Model Token Usage Concepts.html",
+          "createdAt": "2026-09-25T04:19:57.874Z",
+          "status": "needs-review",
+          "subtitle": "三种卡片排版；日月年、日期与深色模式可交互；示例数据",
+          "viewport": {
+            "width": 1440,
+            "height": 950
+          }
+        }
+      ]
+    },
+    "模型用量卡片设计": {
+      "versions": [
+        {
+          "path": "Model Token Usage Concepts.html",
+          "createdAt": "2026-09-25T04:32:43.792Z",
+          "status": "needs-review"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-25T04:19:57.875Z",
+  "updatedAt": "2026-09-25T04:32:43.793Z"
+}

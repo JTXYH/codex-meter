@@ -3,7 +3,17 @@ import Foundation
 
 @MainActor
 final class UsageStore: ObservableObject {
-    static let shared = UsageStore()
+    static let shared: UsageStore = {
+#if DEBUG
+        if ProcessInfo.processInfo.environment["CODEX_METER_DEMO"] == "1" {
+            return UsageStore(
+                loader: DebugDemoUsageLoader(),
+                localUsageLoader: DebugDemoLocalTokenUsageLoader()
+            )
+        }
+#endif
+        return UsageStore()
+    }()
 
     enum State: Equatable {
         case idle
@@ -13,14 +23,20 @@ final class UsageStore: ObservableObject {
     }
 
     @Published private(set) var snapshot: CodexUsageSnapshot?
+    @Published private(set) var hasLoadedRemoteSnapshot = false
     @Published private(set) var state: State = .idle
     @Published private(set) var isRefreshing = false
     @Published private(set) var localTodayUsage = LocalTokenUsage.zero
     @Published private(set) var localLifetimeUsage: LocalTokenUsage?
     @Published private(set) var localMonthlyUsage: [MonthlyTokenUsage] = []
+    @Published private(set) var localDailyModelUsage: [DailyModelTokenUsage] = []
+    @Published private(set) var localHourlyModelUsage: [HourlyModelTokenUsage] = []
     @Published private(set) var localDailyUsage: [PeriodTokenUsage] = []
     @Published private(set) var localHourlyUsage: [PeriodTokenUsage] = []
     @Published private(set) var localStatisticsHour: Date?
+    @Published private(set) var localTodayQuotaUsage: [TodayQuotaUsage] = []
+    @Published private(set) var localTodayQuotaReadings: [LocalQuotaReading] = []
+    @Published private(set) var localHistoricalQuotaReadings: [LocalQuotaReading] = []
     @Published private(set) var hasLoadedLocalTodayUsage = false
     @Published private(set) var hasLoadedLocalLifetimeUsage = false
 
@@ -108,6 +124,8 @@ final class UsageStore: ObservableObject {
         defer { isRefreshingLocalUsage = false }
         let usage = await localUsageLoader.usage(at: now)
         if localTodayUsage != usage.today { localTodayUsage = usage.today }
+        if localTodayQuotaUsage != usage.todayQuotaUsage { localTodayQuotaUsage = usage.todayQuotaUsage }
+        if localTodayQuotaReadings != usage.quotaReadings { localTodayQuotaReadings = usage.quotaReadings }
         if !hasLoadedLocalTodayUsage { hasLoadedLocalTodayUsage = true }
     }
 
@@ -118,6 +136,9 @@ final class UsageStore: ObservableObject {
         let usage = await lifetimeUsageLoader.usage(at: now)
         if localLifetimeUsage != usage.lifetime { localLifetimeUsage = usage.lifetime }
         if localMonthlyUsage != usage.monthlyUsage { localMonthlyUsage = usage.monthlyUsage }
+        if localDailyModelUsage != usage.dailyModelUsage { localDailyModelUsage = usage.dailyModelUsage }
+        if localHourlyModelUsage != usage.hourlyModelUsage { localHourlyModelUsage = usage.hourlyModelUsage }
+        if localHistoricalQuotaReadings != usage.quotaReadings { localHistoricalQuotaReadings = usage.quotaReadings }
         if localDailyUsage != usage.dailyUsage { localDailyUsage = usage.dailyUsage }
         if localHourlyUsage != usage.hourlyUsage { localHourlyUsage = usage.hourlyUsage }
         // Advance the visible time windows even when no new token records arrive.
@@ -130,14 +151,31 @@ final class UsageStore: ObservableObject {
         MonthlyUsageBuilder.months(from: localMonthlyUsage, count: count, endingAt: date)
     }
 
+    func modelUsage(_ period: UsagePeriod, containing date: Date) -> [ModelTokenUsage] {
+        if period == .hour {
+            return ModelUsageBuilder.models(from: localHourlyModelUsage, containing: date)
+        }
+        return ModelUsageBuilder.models(from: localDailyModelUsage, period: period, containing: date)
+    }
+
     func periodUsage(_ period: UsagePeriod, count: Int, at date: Date = Date()) -> [PeriodTokenUsage] {
         let records: [PeriodTokenUsage]
         switch period {
         case .hour: records = localHourlyUsage
-        case .day: records = localDailyUsage
+        case .day, .week: records = localDailyUsage
         case .month, .year: records = localMonthlyUsage.map { PeriodTokenUsage(start: $0.month, usage: $0.usage) }
         }
         return PeriodUsageBuilder.periods(from: records, period: period, count: count, endingAt: date)
+    }
+
+    func statisticsUsage(_ period: UsagePeriod, count: Int, at date: Date = Date()) -> [PeriodTokenUsage] {
+        // Today's details have their own section; daily statistics start yesterday.
+        // Calendar arithmetic preserves the day boundary across daylight-saving changes.
+        if period == .day {
+            guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date) else { return [] }
+            return periodUsage(period, count: count, at: yesterday)
+        }
+        return periodUsage(period, count: count, at: date)
     }
 
     var localCurrentMonthUsage: LocalTokenUsage? {
@@ -146,6 +184,59 @@ final class UsageStore: ObservableObject {
 
     var localTodayTokens: Int64 {
         localTodayUsage.totalTokens
+    }
+
+    var localTodayQuotaPercent: Double? {
+        guard hasLoadedLocalTodayUsage, localTodayTokens > 0 else { return nil }
+        return quotaPercent(for: .day, containing: Date())
+    }
+
+    func quotaPercent(for period: UsagePeriod, containing date: Date) -> Double? {
+        guard let snapshot,
+              let window = snapshot.quotaCardPrimaryWindow,
+              let duration = window.windowDurationMinutes,
+              let resetsAt = window.resetsAt,
+              let interval = period.interval(containing: date)
+        else { return nil }
+        if localHistoricalQuotaReadings.isEmpty && localTodayQuotaReadings.isEmpty {
+            guard period == .day, Calendar.current.isDateInToday(date) else { return nil }
+            return localTodayQuotaUsage.first {
+                $0.bucketID == window.bucketID && $0.windowDurationMinutes == duration
+            }?.usedPercentagePoints
+        }
+        var readings = localHistoricalQuotaReadings + localTodayQuotaReadings
+        if snapshot.fetchedAt <= Date() {
+            readings.append(LocalQuotaReading(
+                date: snapshot.fetchedAt,
+                bucketID: window.bucketID,
+                windowDurationMinutes: duration,
+                resetsAt: resetsAt,
+                usedPercent: window.usedPercent
+            ))
+        }
+        return QuotaUsageBuilder.percentagePoints(
+            from: readings,
+            bucketID: window.bucketID,
+            windowDurationMinutes: duration,
+            in: interval
+        )
+    }
+
+    var dashboardSnapshot: CodexUsageSnapshot? {
+        guard let snapshot else { return nil }
+        guard !hasLoadedRemoteSnapshot else { return snapshot }
+        let dailyUsage = localDailyUsage.compactMap { record -> DailyTokenUsage? in
+            guard let usage = record.usage else { return nil }
+            return DailyTokenUsage(date: record.start, tokens: usage.totalTokens)
+        }
+        .sorted { $0.date < $1.date }
+        return CodexUsageSnapshot(
+            fetchedAt: snapshot.fetchedAt,
+            account: snapshot.account,
+            rateLimitBuckets: snapshot.rateLimitBuckets,
+            usageSummary: snapshot.usageSummary,
+            dailyUsage: dailyUsage
+        )
     }
 
     func refresh() async {
@@ -162,8 +253,18 @@ final class UsageStore: ObservableObject {
 
         do {
             snapshot = try await loader.fetchSnapshot()
+            hasLoadedRemoteSnapshot = true
             state = .loaded
         } catch {
+            if snapshot == nil {
+                snapshot = CodexUsageSnapshot(
+                    fetchedAt: Date(),
+                    account: nil,
+                    rateLimitBuckets: [],
+                    usageSummary: nil,
+                    dailyUsage: []
+                )
+            }
             if let codexError = error as? CodexMeterError {
                 state = .failed(L10n.errorMessage(for: codexError, language: settings.language))
             } else {

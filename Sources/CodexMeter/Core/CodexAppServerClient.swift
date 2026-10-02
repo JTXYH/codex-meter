@@ -55,32 +55,12 @@ final class CodexAppServerClient: CodexUsageLoading {
 enum CodexExecutableLocator {
     static func locate(override: String? = nil) throws -> URL {
         let fileManager = FileManager.default
-        var candidates: [String] = []
-
-        if let override, !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            candidates.append((override as NSString).expandingTildeInPath)
-        }
-
-        if let saved = SQLitePreferences.shared.string(forKey: "codexExecutablePath"), !saved.isEmpty {
-            candidates.append((saved as NSString).expandingTildeInPath)
-        }
-
-        let environmentPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
-        candidates.append(contentsOf: environmentPath
-            .split(separator: ":")
-            .map { String($0) + "/codex" })
-
-        let home = fileManager.homeDirectoryForCurrentUser.path
-        candidates.append(contentsOf: [
-            "\(home)/.local/bin/codex",
-            "\(home)/.npm-global/bin/codex",
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-            "/Applications/Codex.app/Contents/Resources/codex",
-            "/Applications/Codex.app/Contents/MacOS/codex",
-            "/Applications/ChatGPT.app/Contents/Resources/codex",
-        ])
-
+        let candidates = candidatePaths(
+            override: override,
+            saved: SQLitePreferences.shared.string(forKey: "codexExecutablePath"),
+            environmentPath: ProcessInfo.processInfo.environment["PATH"] ?? "",
+            home: fileManager.homeDirectoryForCurrentUser.path
+        )
         var seen = Set<String>()
         for path in candidates where seen.insert(path).inserted {
             if fileManager.isExecutableFile(atPath: path) {
@@ -88,6 +68,31 @@ enum CodexExecutableLocator {
             }
         }
         throw CodexMeterError.codexNotFound
+    }
+
+    static func candidatePaths(
+        override: String?, saved: String?, environmentPath: String, home: String
+    ) -> [String] {
+        var candidates: [String] = []
+        for path in [override, saved].compactMap({ $0 }) where !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            candidates.append((path as NSString).expandingTildeInPath)
+        }
+        // Follow the desktop app's bundled CLI before older standalone installs.
+        candidates.append(contentsOf: [
+            "/Applications/ChatGPT.app/Contents/Resources/codex",
+            "/Applications/Codex.app/Contents/Resources/codex",
+        ])
+        candidates.append(contentsOf: environmentPath
+            .split(separator: ":")
+            .map { String($0) + "/codex" })
+        candidates.append(contentsOf: [
+            "\(home)/.local/bin/codex",
+            "\(home)/.npm-global/bin/codex",
+            "/opt/homebrew/bin/codex",
+            "/usr/local/bin/codex",
+            "/Applications/Codex.app/Contents/MacOS/codex",
+        ])
+        return candidates
     }
 }
 

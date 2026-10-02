@@ -22,6 +22,9 @@ enum L10n {
         case displayHint
         case launchAtLogin
         case launchAtLoginHint
+        case followCodexApp
+        case followCodexAppHint
+        case followCodexAppApprovalHint
         case showQuotaCard
         case showQuotaCardHint
         case showTokenActivityCard
@@ -343,6 +346,9 @@ enum L10n {
         case .displayHint: "拖动调整主面板顺序，并选择显示的数据区域"
         case .launchAtLogin: "登录时启动"
         case .launchAtLoginHint: "登录这台 Mac 后自动启动 Codex Meter"
+        case .followCodexApp: "随 Codex 启停"
+        case .followCodexAppHint: "Codex 桌面应用打开时启动，退出时关闭；开启后会关闭“登录时启动”"
+        case .followCodexAppApprovalHint: "请在系统设置的登录项中允许 Codex Meter 后台运行"
         case .showQuotaCard: "显示额度概览"
         case .showQuotaCardHint: "显示 5 小时和周额度区域"
         case .showTokenActivityCard: "显示 Token 活跃度"
@@ -441,6 +447,9 @@ enum L10n {
         case .displayHint: "拖曳調整主面板順序，並選擇顯示的資料區域"
         case .launchAtLogin: "登入時啟動"
         case .launchAtLoginHint: "登入這台 Mac 後自動啟動 Codex Meter"
+        case .followCodexApp: "隨 Codex 啟停"
+        case .followCodexAppHint: "Codex 桌面應用程式開啟時啟動，結束時關閉；開啟後會關閉「登入時啟動」"
+        case .followCodexAppApprovalHint: "請在系統設定的登入項目中允許 Codex Meter 在背景執行"
         case .showQuotaCard: "顯示額度概覽"
         case .showQuotaCardHint: "顯示 5 小時和週額度區域"
         case .showTokenActivityCard: "顯示 Token 活躍度"
@@ -539,6 +548,9 @@ enum L10n {
         case .displayHint: "Drag to reorder main-panel sections and choose which ones appear"
         case .launchAtLogin: "Launch at login"
         case .launchAtLoginHint: "Open Codex Meter automatically when you log in to this Mac"
+        case .followCodexApp: "Follow Codex app"
+        case .followCodexAppHint: "Open with the Codex desktop app and quit when it closes; turns off Launch at login"
+        case .followCodexAppApprovalHint: "Allow Codex Meter to run in the background in System Settings → Login Items"
         case .showQuotaCard: "Show quota overview"
         case .showQuotaCardHint: "Show the 5-hour and weekly quota section"
         case .showTokenActivityCard: "Show token activity"
@@ -637,6 +649,9 @@ enum L10n {
         case .displayHint: "ドラッグしてメインパネルの順序を変更し、表示する項目を選択します"
         case .launchAtLogin: "ログイン時に起動"
         case .launchAtLoginHint: "この Mac へのログイン時に Codex Meter を自動起動します"
+        case .followCodexApp: "Codex と連動して起動・終了"
+        case .followCodexAppHint: "Codex デスクトップアプリの起動時に開き、終了時に閉じます。ログイン時の起動はオフになります"
+        case .followCodexAppApprovalHint: "システム設定のログイン項目で Codex Meter のバックグラウンド実行を許可してください"
         case .showQuotaCard: "割り当て概要を表示"
         case .showQuotaCardHint: "5 時間と週間の割り当て領域を表示します"
         case .showTokenActivityCard: "Token アクティビティを表示"
@@ -735,6 +750,9 @@ enum L10n {
         case .displayHint: "드래그하여 메인 패널 순서를 바꾸고 표시할 영역을 선택합니다"
         case .launchAtLogin: "로그인 시 실행"
         case .launchAtLoginHint: "이 Mac에 로그인하면 Codex Meter를 자동으로 실행합니다"
+        case .followCodexApp: "Codex 실행 상태에 맞춰 실행"
+        case .followCodexAppHint: "Codex 데스크톱 앱이 열리면 실행하고 종료되면 닫습니다. 로그인 시 실행은 꺼집니다"
+        case .followCodexAppApprovalHint: "시스템 설정의 로그인 항목에서 Codex Meter의 백그라운드 실행을 허용하세요"
         case .showQuotaCard: "할당량 개요 표시"
         case .showQuotaCardHint: "5시간 및 주간 할당량 영역을 표시합니다"
         case .showTokenActivityCard: "Token 활동 표시"
@@ -833,6 +851,9 @@ enum L10n {
         case .displayHint: "Arrastra para ordenar el panel principal y elige qué secciones mostrar"
         case .launchAtLogin: "Abrir al iniciar sesión"
         case .launchAtLoginHint: "Abre Codex Meter automáticamente al iniciar sesión en este Mac"
+        case .followCodexApp: "Seguir a la app Codex"
+        case .followCodexAppHint: "Abre con Codex y se cierra al salir; desactiva Abrir al iniciar sesión"
+        case .followCodexAppApprovalHint: "Permite que Codex Meter se ejecute en segundo plano en Ajustes del Sistema → Ítems de inicio"
         case .showQuotaCard: "Mostrar resumen de cuota"
         case .showQuotaCardHint: "Muestra las cuotas de 5 horas y semanal"
         case .showTokenActivityCard: "Mostrar actividad de tokens"

@@ -1,0 +1,23 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "每日每月每年用量统计": {
+      "versions": [
+        {
+          "path": "Usage Statistics.html",
+          "createdAt": "2026-09-22T13:38:09.002Z",
+          "status": "approved",
+          "subtitle": "用户确认按此实现；已接入 SwiftUI 日/月/年统计",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-22T13:38:09.002Z",
+  "updatedAt": "2026-09-23T02:34:16.981201Z"
+}

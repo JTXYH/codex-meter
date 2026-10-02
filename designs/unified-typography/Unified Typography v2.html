@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Codex Meter · 字号调整</title>
+  <!-- Design context: current SwiftUI cards and DesignSystem.swift. Scope: typography only.
+       One proposal, seven existing cards. Demo data. CSS px approximate macOS logical points.
+       Adjustable regular system typography, defaults: value 16, title 12, supporting text 10.
+       The two columns unfold one scrolling panel for review; they are not a new app layout. -->
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas:#eeefed; --ink:#252729; --muted:#757a7e; --rule:#d8dbd8;
+      --panel-top:#fbfbf9; --panel:#f6f6f3; --card:#fff;
+      --primary:rgba(0,0,0,.88); --secondary:rgba(0,0,0,.53); --tertiary:rgba(0,0,0,.44);
+      --accent:#5763f5; --accent-soft:#aca1ff; --cyan:#4094fa;
+      --border:rgba(0,0,0,.075); --track:rgba(0,0,0,.07); --control:rgba(0,0,0,.045);
+      --tile-border:rgba(87,99,245,.18); --accent-bg:rgba(87,99,245,.09); --shadow:rgba(0,0,0,.035);
+      --font-value:16px; --font-title:12px; --font-text:10px;
+    }
+    [data-theme="dark"] {
+      color-scheme:dark;
+      --canvas:#191b20; --ink:#eceef4; --muted:#959aa6; --rule:#353944;
+      --panel-top:#1f2024; --panel:#16171b; --card:#24252a;
+      --primary:rgba(255,255,255,.92); --secondary:rgba(255,255,255,.62); --tertiary:rgba(255,255,255,.50);
+      --accent:#788cff; --accent-soft:#a89eff; --cyan:#57abff;
+      --border:rgba(255,255,255,.10); --track:rgba(255,255,255,.105); --control:rgba(255,255,255,.085);
+      --tile-border:rgba(120,140,255,.22); --accent-bg:rgba(120,140,255,.10); --shadow:rgba(0,0,0,.15);
+    }
+    * {box-sizing:border-box}
+    body {margin:0; background:var(--canvas); color:var(--ink); font-family:-apple-system,"SF Pro Text","PingFang SC",sans-serif; font-weight:400; -webkit-font-smoothing:antialiased}
+    button {font:inherit; color:inherit; cursor:pointer; border:0; padding:0; background:none}
+    button:focus-visible {outline:2px solid var(--accent); outline-offset:3px}
+    button:hover {filter:brightness(.96)}
+    h1,h2,h3,p {margin:0; font-weight:400}
+    .workspace {width:920px; max-width:calc(100% - 48px); margin:0 auto; padding:24px 0}
+    .review-header {display:flex; justify-content:space-between; align-items:center; gap:24px; margin-bottom:16px}
+    .eyebrow {font-size:11px; letter-spacing:1.8px; color:var(--muted); margin-bottom:5px}
+    h1 {font-size:22px; line-height:1.4; letter-spacing:-.5px}
+    .draft {display:inline-flex; margin-left:10px; padding:3px 7px; font-size:10px; letter-spacing:0; vertical-align:middle; color:var(--accent); border:1px solid var(--tile-border); border-radius:5px}
+    .review-controls {display:flex; align-items:center; gap:7px; flex-wrap:wrap; justify-content:flex-end}
+    .review-controls button {font-size:11px; padding:8px 10px; border-radius:7px; border:1px solid var(--rule); white-space:nowrap}
+    .review-controls button[aria-pressed="true"] {background:var(--card); border-color:var(--accent); color:var(--accent)}
+    .intro {display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); font-size:12px; margin-bottom:20px}
+    .intro .muted {color:var(--muted); font-size:11px}
+    .role-key {display:flex; gap:20px; align-items:baseline}
+    .role-key span {white-space:nowrap; display:flex; align-items:baseline; gap:6px}
+    .role-key b {font-size:17px; font-weight:400; font-variant-numeric:tabular-nums}
+    .stage {display:grid; grid-template-columns:420px 420px; gap:40px; justify-content:center; align-items:start}
+    .column-label {display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:10px; font-size:11px; color:var(--muted)}
+    .column-label strong {font-weight:400; color:var(--ink)}
+    .panel {width:420px; background:linear-gradient(135deg,var(--panel-top),var(--panel)); border-radius:20px; overflow:hidden; box-shadow:0 0 0 1px var(--border),0 8px 32px rgba(0,0,0,.045); color:var(--primary); font-size:var(--font-text); line-height:16px}
+    .panel :is(h2,h3,.title) {font-size:var(--font-title); line-height:1.5; font-weight:400}
+    .panel :is(.label,.meta,.copy,.caption,.text) {font-size:var(--font-text); line-height:1.5; font-weight:400}
+    .panel .value {font-size:var(--font-value); line-height:1.4; font-weight:400; font-variant-numeric:tabular-nums; letter-spacing:-.3px; white-space:nowrap}
+    .label,.meta,.caption {color:var(--secondary)}
+    .caption {color:var(--tertiary)}
+    .app-header {height:76px; padding:16px 18px 12px; display:flex; gap:11px; align-items:center; border-bottom:1px solid var(--border)}
+    .app-logo {width:36px; height:36px; object-fit:contain}
+    .app-ident {flex:1; min-width:0}
+    .brand-row {display:flex; align-items:center; gap:7px}
+    .plan {font-size:var(--font-text); line-height:16px; color:var(--accent); background:var(--accent-bg); padding:1px 6px; border-radius:10px}
+    .account {display:flex; gap:5px; align-items:center; margin-top:2px}
+    .small-icon {width:12px; height:12px; stroke:currentColor; stroke-width:1.5; fill:none; flex-shrink:0}
+    .icon {width:16px; height:16px; stroke:currentColor; stroke-width:1.5; fill:none; flex-shrink:0}
+    .icon-control {width:28px; height:28px; border-radius:50%; background:var(--control); display:grid; place-items:center}
+    .stack {padding:14px; display:flex; flex-direction:column; gap:12px}
+    .card {position:relative; padding:16px; background:var(--card); border:1px solid var(--border); border-radius:20px; box-shadow:0 3px 12px var(--shadow); flex-shrink:0; font-size:var(--font-text); scroll-margin-top:225px}
+    .card-top {display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:13px}
+    .title-wrap {display:flex; gap:8px; align-items:center; min-width:0}
+    .title-wrap>.icon {color:var(--accent)}
+    .section-dot {width:14px; height:14px; background:var(--accent-bg); display:grid; place-items:center; border-radius:50%; flex-shrink:0}
+    .section-dot::after {content:""; width:6px; height:6px; border-radius:50%; background:var(--accent)}
+    .status-dot {width:7px; height:7px; border-radius:50%; background:#1bab76; flex-shrink:0}
+    .quota {display:flex; align-items:center; gap:18px; padding-top:25px; padding-bottom:25px}
+    .quota-ring {width:128px; height:128px; position:relative; flex-shrink:0}
+    .quota-ring svg {width:128px; height:128px; transform:rotate(-90deg)}
+    .ring-track {fill:none; stroke:var(--track); stroke-width:13}
+    .ring-progress {fill:none; stroke:url(#ring-gradient); stroke-width:13; stroke-linecap:round; stroke-dasharray:260 362}
+    .ring-copy {position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px}
+    .quota-info {flex:1; min-width:0}
+    .quota-heading {display:flex; justify-content:space-between; align-items:center; margin-bottom:8px}
+    .quota-heading h2 {margin-top:2px}
+    .quota-balance {display:flex; justify-content:space-between; align-items:baseline}
+    .progress {height:6px; border-radius:10px; background:var(--track); overflow:hidden; margin:4px 0 6px}
+    .progress::before {content:""; display:block; width:72%; height:100%; background:linear-gradient(90deg,var(--accent-soft),var(--accent)); border-radius:inherit}
+    .weekly {margin-top:11px; font-variant-numeric:tabular-nums}
+    .weekly span {color:var(--primary)}
+    .metric-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px}
+    .metric-grid.three {grid-template-columns:repeat(3,minmax(0,1fr))}
+    .metric {min-width:0; padding:10px; border:1px solid var(--tile-border); border-radius:14px; display:flex; flex-direction:column; gap:8px}
+    .metric .value {white-space:normal; overflow-wrap:anywhere}
+    .metric .label {display:flex; gap:4px; align-items:center; min-height:16px}
+    .metric .mini-icon {width:18px; height:18px; border-radius:6px; display:grid; place-items:center; color:var(--accent); background:var(--accent-bg); flex-shrink:0}
+    .metric .mini-icon svg {width:10px; height:10px}
+    .three .metric .label {min-height:32px; align-items:center}
+    .three .label-text {line-height:16px}
+    .cache-row {margin-top:10px; padding:7px 10px; border-radius:10px; border:1px solid var(--tile-border); display:flex; align-items:center; gap:7px; font-variant-numeric:tabular-nums}
+    .cache-dot {width:6px; height:6px; border-radius:50%; background:var(--accent)}
+    .cache-row .hit {margin-left:auto; color:var(--accent)}
+    .range-wrap {position:relative}
+    .monthly .card-top {margin-bottom:0}
+    .range-trigger {display:flex; align-items:center; gap:6px; height:26px; border-radius:7px; padding:0 8px; background:var(--control); color:var(--secondary); font-size:var(--font-text)}
+    .range-trigger[aria-expanded="true"] {color:var(--accent); background:var(--accent-bg)}
+    .range-menu {position:absolute; right:0; top:33px; width:146px; padding:5px; background:var(--card); border:1px solid var(--border); border-radius:12px; z-index:5; box-shadow:0 8px 25px rgba(0,0,0,.13)}
+    .range-menu[hidden] {display:none}
+    .range-menu button {width:100%; height:33px; text-align:left; padding:0 10px; display:flex; align-items:center; justify-content:space-between; font-size:var(--font-text); border-radius:7px}
+    .range-menu button:hover {background:var(--control)}
+    .range-menu button[aria-selected="true"] {color:var(--accent); background:var(--accent-bg)}
+    .range-menu button[aria-selected="true"]::after {content:"✓"}
+    .month-tabs {display:flex; gap:5px; overflow-x:auto; padding:4px; border-radius:10px; background:var(--control); margin-top:17px; scrollbar-width:none}
+    .month-tabs button {height:30px; min-width:54px; flex:1 0 0; font-size:var(--font-text); color:var(--secondary); border-radius:7px; white-space:nowrap}
+    .month-tabs button[aria-selected="true"] {color:var(--accent); background:var(--card); box-shadow:0 1px 3px var(--shadow)}
+    .month-heading {display:flex; gap:7px; align-items:center; margin-top:21px}
+    .month-heading::before {content:""; width:5px; height:5px; background:var(--accent); border-radius:50%}
+    .month-metrics {display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:15px}
+    .month-metrics .value {margin-top:8px}
+    .chart {display:flex; align-items:flex-end; gap:10px; height:82px; padding-top:16px; border-top:1px solid var(--border); margin-top:22px}
+    .chart button {height:65px; flex:1; min-width:0; display:flex; align-items:flex-end; padding:0 7px}
+    .chart button span {display:block; width:100%; min-height:2px; background:var(--accent); opacity:.17; border-radius:4px 4px 0 0}
+    .chart button[aria-pressed="true"] span {opacity:.65}
+    .monthly-caption {display:flex; gap:5px; align-items:center; margin-top:23px}
+    .heatmap-hint {display:flex; align-items:center; gap:5px; margin-bottom:13px; min-height:16px}
+    .heatmap {display:flex; gap:8px}
+    .weekdays {display:grid; grid-template-rows:repeat(7,14px); gap:5px; width:12px; flex-shrink:0; text-align:center}
+    .heat-cells {display:grid; grid-template-rows:repeat(7,14px); grid-auto-flow:column; grid-auto-columns:14px; gap:5px; width:100%; justify-content:space-between}
+    .heat-cell {width:14px; height:14px; border-radius:3.5px; border:1px solid var(--border); background:var(--track)}
+    .heat-cell[data-level="1"] {background:color-mix(in srgb,var(--accent) 22%,var(--card))}
+    .heat-cell[data-level="2"] {background:color-mix(in srgb,var(--accent) 46%,var(--card))}
+    .heat-cell[data-level="3"] {background:color-mix(in srgb,var(--accent) 72%,var(--card))}
+    .heat-cell[data-level="4"] {background:var(--accent)}
+    .heat-cell:hover {outline:1px solid var(--accent); outline-offset:2px}
+    .heatmap-bottom {display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:13px}
+    .legend {display:flex; gap:4px; align-items:center}
+    .legend i {width:10px; height:10px; border-radius:2.5px; background:var(--accent); display:block}
+    .credits {display:flex; align-items:center; gap:9px; min-height:74px; border-color:var(--tile-border)}
+    .credits>.icon {color:var(--accent); width:20px}
+    .credits .value {margin-left:auto; color:var(--accent)}
+    .app-footer {height:49px; display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--card); border-top:1px solid var(--border)}
+    .footer-control {display:grid; place-items:center; width:38px; height:32px; background:var(--control); border-radius:10px}
+    .first-footer {display:none}
+    .continuation {height:34px; display:flex; align-items:center; justify-content:space-between; padding:0 17px; color:var(--secondary); border-bottom:1px solid var(--border)}
+    .type-note {margin:26px 2px 0; padding-top:17px; border-top:1px solid var(--rule); color:var(--ink)}
+    .type-note h3 {font-size:12px; margin-bottom:13px}
+    .type-row {display:grid; grid-template-columns:44px 100px 1fr; gap:10px; font-size:11px; line-height:20px; padding:6px 0; color:var(--muted); align-items:baseline}
+    .type-row .sample {color:var(--ink); font-variant-numeric:tabular-nums}
+    .type-row .number {font-size:20px}
+    .type-row .name {font-size:13px}
+    .type-row .detail {font-size:11px}
+    .type-row strong {font-weight:400; color:var(--ink)}
+    .type-note>p {font-size:11px; color:var(--muted); line-height:1.8; margin-top:12px}
+    .page-footer {display:flex; justify-content:space-between; gap:16px; margin-top:16px; font-size:10px; color:var(--muted)}
+    [data-markers="true"] .panel .value {background:rgba(228,162,58,.13); outline:1px solid rgba(228,162,58,.38); border-radius:3px}
+    [data-markers="true"] .panel :is(h2,h3,.title) {background:rgba(87,99,245,.10); outline:1px solid rgba(87,99,245,.3); border-radius:3px}
+    [data-mode="live"] .stage {grid-template-columns:420px}
+    [data-mode="live"] .second-column,[data-mode="live"] .type-note {display:none}
+    [data-mode="live"] .primary-panel {height:700px; display:flex; flex-direction:column}
+    [data-mode="live"] .app-header,[data-mode="live"] .app-footer {flex-shrink:0}
+    [data-mode="live"] #primary-stack {flex:1; overflow-y:auto; scrollbar-width:none; min-height:0}
+    [data-mode="live"] .first-footer {display:flex}
+    .type-editor {position:sticky; top:8px; z-index:20; background:var(--card); color:var(--primary); padding:14px 16px; border:1px solid var(--border); border-radius:14px; margin:0 auto 20px; box-shadow:0 5px 20px var(--shadow); font-size:12px}
+    .type-editor[hidden] {display:none}
+    .editor-top {display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px}
+    .editor-heading {display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+    .editor-heading h2 {font-size:13px}
+    .type-editor select {font:inherit; max-width:165px; color:var(--primary); background:var(--control); border:1px solid var(--border); border-radius:7px; padding:6px 8px}
+    .editor-toggle-close {color:var(--secondary); font-size:11px; padding:4px}
+    .font-controls {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px}
+    .font-control {min-width:0}
+    .control-caption {display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:8px}
+    .control-caption label {font-size:11px; white-space:nowrap}
+    .number-wrap {display:flex; align-items:center; gap:3px; color:var(--secondary); font-size:10px}
+    .font-control input[type="number"] {width:48px; font:inherit; font-size:12px; font-variant-numeric:tabular-nums; color:var(--primary); border:1px solid var(--border); border-radius:5px; background:var(--panel); padding:4px 3px; text-align:center; appearance:textfield}
+    .font-control input[type="number"]::-webkit-inner-spin-button {appearance:none}
+    .font-control input[type="range"] {width:100%; height:18px; margin:0; accent-color:var(--accent); cursor:pointer}
+    .font-control input:focus-visible,.type-editor select:focus-visible {outline:2px solid var(--accent); outline-offset:2px}
+    .editor-bottom {display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding-top:10px; border-top:1px solid var(--border)}
+    .editor-status {font-size:10px; color:var(--secondary); line-height:1.5}
+    .editor-actions {display:flex; gap:7px; flex-shrink:0}
+    .editor-actions button {font-size:11px; padding:6px 8px; border-radius:6px; background:var(--control); white-space:nowrap}
+    .editor-actions .apply-all {color:var(--accent); background:var(--accent-bg)}
+    .editor-actions button:disabled {opacity:.4; cursor:default}
+    [data-editor-open="true"] .card.is-editing {border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+    [data-editor-open="true"] .card h2 {cursor:pointer}
+    [data-editor-open="true"] .card h2:hover {color:var(--accent)}
+    .settings-summary {font-variant-numeric:tabular-nums}
+    @media(max-width:930px) {.type-editor {max-width:480px} .font-controls {gap:12px} .editor-bottom {gap:8px} .editor-status {max-width:170px}}
+    @media(max-width:480px) {.type-editor {padding:12px} .font-controls {gap:10px} .number-wrap {gap:2px} .font-control input[type="number"] {width:39px} .editor-status {max-width:125px} .control-caption {gap:3px}}
+    @media(max-width:930px) {.stage {gap:24px; grid-template-columns:420px} .review-header {align-items:flex-start} .intro {align-items:flex-start; flex-direction:column; gap:10px} .review-controls {max-width:200px} .type-note {margin-bottom:12px}}
+    @media(max-width:480px) {.workspace {max-width:none; width:452px; padding:20px 16px} .review-header {gap:10px} h1 {font-size:21px} .draft {display:none} .review-controls {max-width:150px} .role-key {gap:15px} .page-footer {flex-direction:column; gap:6px}}
+    @media(prefers-reduced-motion:no-preference) {button {transition:background .12s,color .12s}}
+  </style>
+</head>
+<body data-theme="light" data-mode="live" data-markers="false" data-editor-open="true">
+<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+  <symbol id="i-calendar" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M6 2v4m8-4v4M3 8h14M6 11h2m2 0h2m2 0h1M6 14h2m2 0h2"></path></symbol>
+  <symbol id="i-chart" viewBox="0 0 20 20"><path d="M3 3v14h15M6 13V9m4 4V5m4 8V7"></path></symbol>
+  <symbol id="i-credit" viewBox="0 0 20 20"><rect x="2" y="4" width="16" height="12" rx="2.5"></rect><path d="M2 8h16M5 12h4"></path></symbol>
+  <symbol id="i-refresh" viewBox="0 0 20 20"><path d="M15 7a6 6 0 1 0 .2 6M15 3v4h-4"></path></symbol>
+  <symbol id="i-eye" viewBox="0 0 20 20"><path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5Z"></path><circle cx="10" cy="10" r="2"></circle></symbol>
+  <symbol id="i-down" viewBox="0 0 20 20"><path d="M10 3v14m-5-5 5 5 5-5"></path></symbol>
+  <symbol id="i-up" viewBox="0 0 20 20"><path d="M10 17V3M5 8l5-5 5 5"></path></symbol>
+  <symbol id="i-dollar" viewBox="0 0 20 20"><path d="M14 5c-1-2-8-2-8 2s8 2 8 6-7 4-8 2M10 1v18"></path></symbol>
+  <symbol id="i-chevron" viewBox="0 0 20 20"><path d="m5 8 5 5 5-5"></path></symbol>
+  <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"></circle><path d="M10 9v5m0-9v1"></path></symbol>
+  <symbol id="i-cursor" viewBox="0 0 20 20"><path d="m5 2 1 15 4-5 6-1-11-9Z"></path></symbol>
+  <symbol id="i-power" viewBox="0 0 20 20"><path d="M10 2v8M5.5 4.5a7 7 0 1 0 9 0"></path></symbol>
+  <symbol id="i-gear" viewBox="0 0 20 20"><path d="m8 2-1 2-2 1-2 0-1 3 2 2-1 3 2 2 3-1 2 2 3-1 0-3 2-2-1-3-3 0-1-3Z"></path><circle cx="9" cy="9" r="3"></circle></symbol>
+</defs></svg>
+<main class="workspace">
+  <header class="review-header">
+    <div><p class="eyebrow">CODEX METER / TYPOGRAPHY</p><h1>调整到舒服的字号<span class="draft">设计稿 02</span></h1></div>
+    <div class="review-controls" aria-label="设计预览选项">
+      <button type="button" id="editor-toggle" aria-expanded="true" aria-controls="type-editor" aria-pressed="true">字号调整</button>
+      <button type="button" id="mode-toggle" aria-pressed="true">展开全部卡片</button>
+      <button type="button" id="marker-toggle" aria-pressed="false">字号标注</button>
+      <button type="button" id="theme-toggle" aria-pressed="false">深色</button>
+    </div>
+  </header>
+  <div class="intro"><div class="role-key"><span><b data-global-size="value">16</b> 主要数值</span><span><b data-global-size="title">12</b> 标题</span><span><b data-global-size="text">10</b> 标签 / 说明</span></div><span class="muted" id="global-description">全局基准 · 系统字体 · Regular</span></div>
+  <section class="type-editor" id="type-editor" aria-labelledby="editor-title">
+    <div class="editor-top"><div class="editor-heading"><h2 id="editor-title">字号调整</h2><select id="font-scope" aria-label="调整范围"><option value="all">全部卡片</option><option value="quota-card">当前额度</option><option value="today-card">今日明细</option><option value="activity-card" selected>活跃度概览</option><option value="monthly-card">月度统计</option><option value="heatmap-card">近 120 天用量</option><option value="summary-card">使用概览</option><option value="credits-card">Credits 余额</option></select></div><button type="button" class="editor-toggle-close" id="editor-close">收起</button></div>
+    <div class="font-controls">
+      <div class="font-control"><div class="control-caption"><label for="font-value">数值</label><span class="number-wrap"><input type="number" id="font-value-number" aria-label="数值字号数值" min="10" max="24" step="0.5" value="16"><span>pt</span></span></div><input type="range" id="font-value" aria-label="数值字号" min="10" max="24" step="0.5" value="16"></div>
+      <div class="font-control"><div class="control-caption"><label for="font-title">标题</label><span class="number-wrap"><input type="number" id="font-title-number" aria-label="标题字号数值" min="9" max="18" step="0.5" value="12"><span>pt</span></span></div><input type="range" id="font-title" aria-label="标题字号" min="9" max="18" step="0.5" value="12"></div>
+      <div class="font-control"><div class="control-caption"><label for="font-text">标签 / 说明</label><span class="number-wrap"><input type="number" id="font-text-number" aria-label="说明字号数值" min="8" max="14" step="0.5" value="10"><span>pt</span></span></div><input type="range" id="font-text" aria-label="说明字号" min="8" max="14" step="0.5" value="10"></div>
+    </div>
+    <div class="editor-bottom"><p class="editor-status" id="editor-status" role="status">实时预览 · 自动记住调整</p><div class="editor-actions"><button type="button" id="font-reset">恢复默认</button><button type="button" class="apply-all" id="font-apply-all">应用到全部卡片</button></div></div>
+  </section>
+  <div class="stage" data-screen-label="统一字号主面板">
+    <section class="column first-column">
+      <div class="column-label"><strong id="first-label">原尺寸 / 420 × 700 pt</strong><span>420 pt · 100%</span></div>
+      <div class="panel primary-panel">
+        <header class="app-header"><img class="app-logo" src="CodexIcon.png" alt="Codex"><div class="app-ident"><div class="brand-row"><p class="title">Codex Meter</p><span class="plan">PLUS</span></div><p class="account meta">de••••@example.com <svg class="small-icon" aria-hidden="true"><use href="#i-eye"></use></svg></p></div><span class="icon-control" aria-label="刷新图标"><svg class="icon"><use href="#i-refresh"></use></svg></span></header>
+        <div class="stack" id="primary-stack">
+          <article class="card quota" id="quota-card" aria-label="当前额度">
+            <div class="quota-ring"><svg viewBox="0 0 128 128" aria-hidden="true"><defs><linearGradient id="ring-gradient"><stop offset="0%" stop-color="var(--cyan)"></stop><stop offset="55%" stop-color="var(--accent)"></stop><stop offset="100%" stop-color="var(--accent-soft)"></stop></linearGradient></defs><circle class="ring-track" cx="64" cy="64" r="57.5"></circle><circle class="ring-progress" cx="64" cy="64" r="57.5"></circle></svg><div class="ring-copy"><p class="value">72%</p><p class="meta">额度充足</p></div></div>
+            <div class="quota-info"><div class="quota-heading"><div><p class="meta">当前周期</p><h2>5 小时额度</h2></div><i class="status-dot" aria-hidden="true"></i></div><div class="quota-balance"><span class="label">剩余额度</span><span class="value">72%</span></div><div class="progress"></div><p class="meta">2 小时 18 分后 · 19:42</p><p class="weekly meta">本周剩余 <span>63%</span> · 9/26 重置</p></div>
+          </article>
+          <article class="card" id="today-card" aria-labelledby="today-title">
+            <div class="card-top"><div class="title-wrap"><i class="section-dot" aria-hidden="true"></i><h2 id="today-title">今日明细</h2></div><span class="meta">统计截至当前时刻</span></div>
+            <div class="metric-grid three">
+              <div class="metric"><p class="label"><span class="mini-icon"><svg class="small-icon"><use href="#i-down"></use></svg></span><span class="label-text">输入</span></p><p class="value">309.6万</p></div>
+              <div class="metric"><p class="label"><span class="mini-icon"><svg class="small-icon"><use href="#i-up"></use></svg></span><span class="label-text">输出</span></p><p class="value">18.4万</p></div>
+              <div class="metric"><p class="label"><span class="mini-icon"><svg class="small-icon"><use href="#i-dollar"></use></svg></span><span class="label-text">API 等效费用</span></p><p class="value">$8.25</p></div>
+            </div>
+            <div class="cache-row text"><i class="cache-dot" aria-hidden="true"></i><span class="label">缓存输入</span><span>260万</span><span class="hit">命中率 84%</span></div>
+          </article>
+          <article class="card" id="activity-card" aria-labelledby="activity-title">
+            <div class="card-top"><div class="title-wrap"><i class="section-dot" aria-hidden="true"></i><h2 id="activity-title">活跃度概览</h2></div></div>
+            <div class="metric-grid"><div class="metric"><p class="label">昨日</p><p class="value">52.9万</p></div><div class="metric"><p class="label">近 7 天</p><p class="value">2千万</p></div><div class="metric"><p class="label">本月 Token</p><p class="value">3千6百万</p></div><div class="metric"><p class="label">本月 API 等效费用</p><p class="value">$87.77</p></div></div>
+          </article>
+        </div>
+        <footer class="app-footer first-footer"><span class="footer-control" aria-label="设置图标"><svg class="icon"><use href="#i-gear"></use></svg></span><span class="footer-control" aria-label="退出图标"><svg class="icon"><use href="#i-power"></use></svg></span></footer>
+      </div>
+      <aside class="type-note" aria-label="字号规范">
+        <h3>所有卡片，共用三档字号</h3>
+        <div class="type-row"><span class="sample number" data-global-size="value">16</span><strong>主要数值</strong><span>Token、金额、百分比、时长</span></div>
+        <div class="type-row"><span class="sample name" data-global-size="title">12</span><strong>卡片标题</strong><span>今日明细、月度统计、使用概览…</span></div>
+        <div class="type-row"><span class="sample detail" data-global-size="text">10</span><strong>标签与说明</strong><span>指标名、月份、更新时间、辅助信息</span></div>
+        <p>数值与单位同字号；数字使用等宽数字特性。<br>本图将同一滚动面板展开为两列，卡片保持原宽。</p>
+      </aside>
+    </section>
+    <section class="column second-column">
+      <div class="column-label"><strong>02 / 月度与历史统计</strong><span>向下滚动的内容</span></div>
+      <div class="panel secondary-panel">
+        <div class="stack" id="secondary-stack">
+          <article class="card monthly" id="monthly-card" aria-labelledby="monthly-title">
+            <div class="card-top"><div class="title-wrap"><svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg><h2 id="monthly-title">月度统计</h2></div><div class="range-wrap"><button type="button" class="range-trigger" id="range-trigger" aria-haspopup="listbox" aria-expanded="false"><span id="range-label">近 6 个月</span><svg class="small-icon" aria-hidden="true"><use href="#i-chevron"></use></svg></button><div class="range-menu" id="range-menu" role="listbox" aria-label="显示范围" hidden><button type="button" role="option" data-range="3" aria-selected="false">近 3 个月</button><button type="button" role="option" data-range="6" aria-selected="true">近 6 个月</button><button type="button" role="option" data-range="12" aria-selected="false">近 12 个月</button></div></div></div>
+            <div class="month-tabs" id="month-tabs" role="tablist" aria-label="选择月份"></div>
+            <h3 class="month-heading" id="month-heading">本月用量</h3>
+            <div class="month-metrics"><div><p class="label">Token</p><p class="value" id="month-tokens">3千6百万</p></div><div><p class="label">API 等效费用</p><p class="value" id="month-cost">$87.77</p></div></div>
+            <div class="chart" id="month-chart" aria-label="月度 Token 用量图"></div>
+            <p class="monthly-caption caption"><svg class="small-icon" aria-hidden="true"><use href="#i-info"></use></svg><span id="month-caption">本月统计截至当前时刻</span></p>
+          </article>
+          <article class="card" id="heatmap-card" aria-labelledby="heatmap-title">
+            <div class="card-top"><div class="title-wrap"><svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg><h2 id="heatmap-title">近 120 天用量</h2></div><span class="meta">连续使用 18 天</span></div>
+            <p class="heatmap-hint meta"><svg class="small-icon" aria-hidden="true"><use href="#i-cursor"></use></svg><span id="heatmap-detail">鼠标移到方格上查看当天用量</span></p>
+            <div class="heatmap"><div class="weekdays meta" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="heat-cells" id="heat-cells" aria-label="用量热力图"></div></div>
+            <div class="heatmap-bottom meta"><span>合计 1.2亿 Token</span><div class="legend"><span>少</span><i style="opacity:.22"></i><i style="opacity:.46"></i><i style="opacity:.72"></i><i></i><span>多</span></div></div>
+          </article>
+          <article class="card" id="summary-card" aria-labelledby="summary-title">
+            <div class="card-top"><div class="title-wrap"><svg class="icon" aria-hidden="true"><use href="#i-chart"></use></svg><h2 id="summary-title">使用概览</h2></div><span class="meta">更新于 17:24</span></div>
+            <div class="metric-grid"><div class="metric"><p class="label">累计 Token</p><p class="value">1.3亿</p></div><div class="metric"><p class="label">累计 API 等效费用</p><p class="value">$307.20</p></div><div class="metric"><p class="label">最长连续</p><p class="value">31 天</p></div><div class="metric"><p class="label">最长任务</p><p class="value">2 小时 10 分</p></div></div>
+          </article>
+          <article class="card credits" id="credits-card" aria-labelledby="credits-title"><svg class="icon" aria-hidden="true"><use href="#i-credit"></use></svg><h2 id="credits-title">Credits 余额</h2><p class="value">1,905</p></article>
+        </div>
+        <footer class="app-footer"><span class="footer-control" aria-label="设置图标"><svg class="icon"><use href="#i-gear"></use></svg></span><span class="footer-control" aria-label="退出图标"><svg class="icon"><use href="#i-power"></use></svg></span></footer>
+      </div>
+    </section>
+  </div>
+  <footer class="page-footer"><span>设计预览 · 演示数据 · 尚未应用到程序</span><span class="settings-summary" id="settings-summary">16 / 12 / 10 pt · v02</span></footer>
+</main>
+<script>
+  const body = document.body;
+  const modeToggle = document.getElementById('mode-toggle');
+  const markerToggle = document.getElementById('marker-toggle');
+  const themeToggle = document.getElementById('theme-toggle');
+  const secondaryCards = ['monthly-card','heatmap-card','summary-card','credits-card'].map(id => document.getElementById(id));
+  secondaryCards.forEach(card => document.getElementById('primary-stack').appendChild(card));
+  modeToggle.addEventListener('click', () => {
+    const live = body.dataset.mode !== 'live';
+    body.dataset.mode = live ? 'live' : 'overview';
+    secondaryCards.forEach(card => document.getElementById(live ? 'primary-stack' : 'secondary-stack').appendChild(card));
+    modeToggle.setAttribute('aria-pressed', String(live));
+    modeToggle.textContent = live ? '展开全部卡片' : '原尺寸预览';
+    document.getElementById('first-label').textContent = live ? '原尺寸 / 420 × 700 pt' : '01 / 额度与近期用量';
+  });
+  markerToggle.addEventListener('click', () => {
+    const marked = body.dataset.markers !== 'true';
+    body.dataset.markers = String(marked);
+    markerToggle.setAttribute('aria-pressed', String(marked));
+    markerToggle.textContent = marked ? '关闭标注' : '字号标注';
+    markerToggle.title = marked ? '橙色：主要数值；紫色：标题；其余：标签和说明。字号由调整面板控制。' : '';
+  });
+  themeToggle.addEventListener('click', () => {
+    const dark = body.dataset.theme !== 'dark';
+    body.dataset.theme = dark ? 'dark' : 'light';
+    themeToggle.setAttribute('aria-pressed', String(dark));
+    themeToggle.textContent = dark ? '浅色' : '深色';
+  });
+  const demoMonths = [
+    {label:'本月',tokens:'3千6百万',cost:'$87.77',height:65},
+    {label:'8 月',tokens:'3千万',cost:'$73.14',height:54},
+    {label:'7 月',tokens:'2千4百万',cost:'$58.51',height:43},
+    {label:'6 月',tokens:'1千8百万',cost:'$43.89',height:33},
+    {label:'5 月',tokens:'1千2百万',cost:'$29.26',height:22},
+    {label:'4 月',tokens:'600万',cost:'$14.63',height:11},
+    {label:'3 月',tokens:'暂无',cost:'暂无',height:2},
+    {label:'2 月',tokens:'暂无',cost:'暂无',height:2},
+    {label:'1 月',tokens:'暂无',cost:'暂无',height:2},
+    {label:'2025/12',tokens:'暂无',cost:'暂无',height:2},
+    {label:'2025/11',tokens:'暂无',cost:'暂无',height:2},
+    {label:'2025/10',tokens:'暂无',cost:'暂无',height:2}
+  ];
+  let range = 6;
+  let selectedMonth = 0;
+  const rangeTrigger = document.getElementById('range-trigger');
+  const rangeMenu = document.getElementById('range-menu');
+  function closeRange() {rangeMenu.hidden = true; rangeTrigger.setAttribute('aria-expanded','false');}
+  function selectMonth(index, scroll = true) {
+    selectedMonth = index;
+    const month = demoMonths[index];
+    document.getElementById('month-heading').textContent = month.label + '用量';
+    document.getElementById('month-tokens').textContent = month.tokens;
+    document.getElementById('month-cost').textContent = month.cost;
+    document.getElementById('month-caption').textContent = index === 0 ? '本月统计截至当前时刻' : index < 6 ? '该月统计已完成' : '该月没有本机用量记录';
+    document.querySelectorAll('[data-month-tab]').forEach(button => button.setAttribute('aria-selected',String(Number(button.dataset.monthTab) === index)));
+    document.querySelectorAll('[data-month-bar]').forEach(button => button.setAttribute('aria-pressed',String(Number(button.dataset.monthBar) === index)));
+    const tab = document.querySelector('[data-month-tab="' + index + '"]');
+    if (scroll && tab) tab.scrollIntoView({block:'nearest',inline:'nearest'});
+  }
+  function renderMonths() {
+    const tabs = document.getElementById('month-tabs');
+    const chart = document.getElementById('month-chart');
+    tabs.replaceChildren(); chart.replaceChildren();
+    demoMonths.slice(0,range).forEach((month,index) => {
+      const tab = document.createElement('button');
+      tab.type = 'button'; tab.textContent = month.label; tab.dataset.monthTab = index; tab.setAttribute('role','tab');
+      tab.addEventListener('click',() => selectMonth(index));
+      tab.addEventListener('keydown',event => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+          event.preventDefault(); const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + range) % range;
+          selectMonth(next); tabs.children[next].focus();
+        }
+      });
+      tabs.appendChild(tab);
+      const bar = document.createElement('button');
+      bar.type = 'button'; bar.dataset.monthBar = index; bar.setAttribute('aria-label',month.label + '：' + month.tokens + ' Token');
+      bar.title = month.label + ' · ' + month.tokens + ' Token · ' + month.cost;
+      if (range === 12) bar.style.padding = '0 1px';
+      const fill = document.createElement('span'); fill.style.height = month.height + 'px'; bar.appendChild(fill);
+      bar.addEventListener('click',() => selectMonth(index)); chart.appendChild(bar);
+    });
+    selectMonth(selectedMonth < range ? selectedMonth : 0,false);
+  }
+  rangeTrigger.addEventListener('click',() => {
+    const opening = rangeMenu.hidden;
+    rangeMenu.hidden = !opening; rangeTrigger.setAttribute('aria-expanded',String(opening));
+  });
+  rangeMenu.querySelectorAll('[data-range]').forEach(button => button.addEventListener('click',() => {
+    range = Number(button.dataset.range);
+    document.getElementById('range-label').textContent = '近 ' + range + ' 个月';
+    rangeMenu.querySelectorAll('[data-range]').forEach(option => option.setAttribute('aria-selected',String(Number(option.dataset.range) === range)));
+    renderMonths(); closeRange(); rangeTrigger.focus();
+  }));
+  document.addEventListener('click',event => {if (!event.target.closest('.range-wrap')) closeRange();});
+  document.addEventListener('keydown',event => {if (event.key === 'Escape' && !rangeMenu.hidden) {closeRange();rangeTrigger.focus();}});
+  document.getElementById('primary-stack').addEventListener('scroll',closeRange);
+  const heatCells = document.getElementById('heat-cells');
+  for (let i = 0; i < 126; i++) {
+    const cell = document.createElement('span'); cell.className = 'heat-cell';
+    if (i < 1 || i > 120) {cell.style.visibility='hidden';heatCells.appendChild(cell);continue;}
+    const day = i - 1;
+    cell.dataset.level = day % 11 === 0 ? 0 : ((day * 7 + Math.floor(day / 7)) % 4) + 1;
+    const date = new Date(Date.UTC(2026,4,26 + day));
+    const description = (date.getUTCMonth() + 1) + '月' + date.getUTCDate() + '日 / ' + (Number(cell.dataset.level) * 28.3).toFixed(1) + '万 Token';
+    cell.title = description;
+    cell.addEventListener('mouseenter',() => document.getElementById('heatmap-detail').textContent = description);
+    cell.addEventListener('mouseleave',() => document.getElementById('heatmap-detail').textContent = '鼠标移到方格上查看当天用量');
+    heatCells.appendChild(cell);
+  }
+  renderMonths();
+
+  // This editor changes preview typography only; it never writes app preferences.
+  const fontDefaults = {value:16,title:12,text:10};
+  const fontLimits = {value:[10,24],title:[9,18],text:[8,14]};
+  const fontRoles = Object.keys(fontDefaults);
+  const fontCards = [...document.querySelectorAll('.card')];
+  const cardIds = new Set(fontCards.map(card => card.id));
+  const fontStorageKey = 'codex-meter.typography.v2';
+  const scopeSelect = document.getElementById('font-scope');
+  const editor = document.getElementById('type-editor');
+  const editorToggle = document.getElementById('editor-toggle');
+  const editorStatus = document.getElementById('editor-status');
+  let fontState = {global:{...fontDefaults},overrides:{},scope:'activity-card'};
+  function normalizedFont(role,value) {
+    const [min,max] = fontLimits[role];
+    return Math.max(min,Math.min(max,Math.round(value * 2) / 2));
+  }
+  function validFont(role,value) {
+    return typeof value === 'number' && Number.isFinite(value) && value >= fontLimits[role][0] && value <= fontLimits[role][1];
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(fontStorageKey));
+    if (saved && typeof saved === 'object') {
+      for (const role of fontRoles) if (validFont(role,saved.global?.[role])) fontState.global[role] = normalizedFont(role,saved.global[role]);
+      for (const id of cardIds) {
+        for (const role of fontRoles) {
+          if (validFont(role,saved.overrides?.[id]?.[role])) {
+            fontState.overrides[id] ??= {};
+            fontState.overrides[id][role] = normalizedFont(role,saved.overrides[id][role]);
+          }
+        }
+      }
+      if (saved.scope === 'all' || cardIds.has(saved.scope)) fontState.scope = saved.scope;
+    }
+  } catch { /* A fresh, usable editor is also available without browser storage. */ }
+  scopeSelect.value = fontState.scope;
+  function selectedFonts() {
+    return {...fontState.global,...(fontState.scope === 'all' ? {} : fontState.overrides[fontState.scope])};
+  }
+  function saveFonts() {
+    try {
+      localStorage.setItem(fontStorageKey,JSON.stringify(fontState));
+      editorStatus.textContent = '实时预览 · 已记住调整';
+    } catch {
+      editorStatus.textContent = '实时预览 · 当前浏览器无法保存';
+    }
+  }
+  function cleanOverrides() {
+    for (const id of Object.keys(fontState.overrides)) {
+      for (const role of fontRoles) if (fontState.overrides[id][role] === fontState.global[role]) delete fontState.overrides[id][role];
+      if (!Object.keys(fontState.overrides[id]).length) delete fontState.overrides[id];
+    }
+  }
+  function renderFonts() {
+    for (const role of fontRoles) {
+      document.documentElement.style.setProperty('--font-' + role,fontState.global[role] + 'px');
+      document.querySelectorAll('[data-global-size="' + role + '"]').forEach(node => node.textContent = fontState.global[role]);
+    }
+    for (const card of fontCards) {
+      for (const role of fontRoles) {
+        const custom = fontState.overrides[card.id]?.[role];
+        if (custom === undefined) card.style.removeProperty('--font-' + role);
+        else card.style.setProperty('--font-' + role,custom + 'px');
+      }
+      card.classList.toggle('is-editing',card.id === fontState.scope);
+    }
+    const sizes = selectedFonts();
+    for (const role of fontRoles) {
+      document.getElementById('font-' + role).value = sizes[role];
+      document.getElementById('font-' + role + '-number').value = sizes[role];
+    }
+    document.getElementById('font-apply-all').disabled = fontState.scope === 'all';
+    const customized = Object.keys(fontState.overrides).length;
+    document.getElementById('global-description').textContent = customized ? '全局基准 · ' + customized + ' 个模块单独调整' : '全局基准 · 系统字体 · Regular';
+    document.getElementById('settings-summary').textContent = fontRoles.map(role => fontState.global[role]).join(' / ') + ' pt · v02';
+  }
+  function changeFont(role,value) {
+    const size = normalizedFont(role,value);
+    if (fontState.scope === 'all') {
+      fontState.global[role] = size;
+      // A global change deliberately brings that text role back into alignment.
+      for (const override of Object.values(fontState.overrides)) delete override[role];
+    } else {
+      fontState.overrides[fontState.scope] ??= {};
+      fontState.overrides[fontState.scope][role] = size;
+    }
+    cleanOverrides(); renderFonts(); saveFonts();
+  }
+  function setEditorOpen(open) {
+    editor.hidden = !open;
+    body.dataset.editorOpen = String(open);
+    editorToggle.setAttribute('aria-expanded',String(open));
+    editorToggle.setAttribute('aria-pressed',String(open));
+  }
+  function locateFontCard() {
+    if (fontState.scope === 'all') return;
+    const card = document.getElementById(fontState.scope);
+    if (body.dataset.mode === 'live') {
+      const stack = document.getElementById('primary-stack');
+      stack.scrollTop += card.getBoundingClientRect().top - stack.getBoundingClientRect().top - 14;
+    } else {
+      card.scrollIntoView({block:'start'});
+    }
+  }
+  function selectFontScope(scope) {
+    fontState.scope = scope;
+    scopeSelect.value = scope;
+    renderFonts(); saveFonts(); locateFontCard();
+  }
+  scopeSelect.addEventListener('change',() => selectFontScope(scopeSelect.value));
+  editorToggle.addEventListener('click',() => setEditorOpen(editor.hidden));
+  document.getElementById('editor-close').addEventListener('click',() => {setEditorOpen(false);editorToggle.focus();});
+  for (const role of fontRoles) {
+    const slider = document.getElementById('font-' + role);
+    const number = document.getElementById('font-' + role + '-number');
+    slider.addEventListener('input',() => changeFont(role,Number(slider.value)));
+    number.addEventListener('input',() => {
+      if (number.value !== '' && validFont(role,Number(number.value))) changeFont(role,Number(number.value));
+    });
+    function commitNumber() {
+      if (number.value === '' || !Number.isFinite(Number(number.value))) renderFonts();
+      else changeFont(role,Number(number.value));
+    }
+    number.addEventListener('change',commitNumber);
+    number.addEventListener('blur',commitNumber);
+    number.addEventListener('keydown',event => {if (event.key === 'Enter') {event.preventDefault();commitNumber();}});
+  }
+  document.getElementById('font-reset').addEventListener('click',() => {
+    if (fontState.scope === 'all') {fontState.global = {...fontDefaults};fontState.overrides = {};}
+    else fontState.overrides[fontState.scope] = {...fontDefaults};
+    cleanOverrides(); renderFonts(); saveFonts();
+  });
+  document.getElementById('font-apply-all').addEventListener('click',() => {
+    fontState.global = selectedFonts();
+    fontState.overrides = {};
+    fontState.scope = 'all';
+    scopeSelect.value = 'all';
+    renderFonts(); saveFonts();
+    editorStatus.textContent = '已将这组字号应用到全部卡片';
+  });
+  fontCards.forEach(card => {
+    const title = card.querySelector('h2');
+    if (!title) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = title.textContent;
+    button.setAttribute('aria-label','调整' + title.textContent + '字号');
+    button.title = '调整这块的字号';
+    title.replaceChildren(button);
+    button.addEventListener('click',() => {setEditorOpen(true);selectFontScope(card.id);});
+  });
+  renderFonts();
+  requestAnimationFrame(locateFontCard);
+</script>
+</body>
+</html>

@@ -6,6 +6,9 @@ private let debugPanelSnapshotWidth: CGFloat = 420
 
 struct DebugDemoUsageLoader: CodexUsageLoading {
     func fetchSnapshot() async throws -> CodexUsageSnapshot {
+        if ProcessInfo.processInfo.environment["CODEX_METER_DEMO_REMOTE_FAILURE"] == "1" {
+            throw CodexMeterError.server("failed to fetch codex rate limits: error sending request for url (https://chatgpt.com/backend-api/wham/usage)")
+        }
         let now = Date()
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
@@ -98,65 +101,68 @@ struct DebugDemoUsageLoader: CodexUsageLoading {
 
 struct DebugDemoLocalTokenUsageLoader: LocalTokenUsageLoading {
     func usage(at now: Date) async -> LocalTokenUsageSnapshot {
-        let today = LocalTokenUsage(
-            totalTokens: 3_280_000,
-            inputTokens: 3_096_000,
-            cachedInputTokens: 2_600_000,
-            cacheWriteInputTokens: 0,
-            outputTokens: 184_000,
-            reasoningOutputTokens: 96_000,
-            apiEquivalentCostUSD: 8.25
-        )
         let calendar = Calendar.current
-        let currentMonth = calendar.dateInterval(of: .month, for: now)!.start
-        let monthly = (0..<6).map { offset in
-            let factor = Int64(6 - offset)
-            return MonthlyTokenUsage(
-                month: calendar.date(byAdding: .month, value: -offset, to: currentMonth)!,
-                usage: LocalTokenUsage(
-                    totalTokens: 6_000_000 * factor, inputTokens: 5_600_000 * factor,
-                    cachedInputTokens: 4_200_000 * factor, cacheWriteInputTokens: 0,
-                    outputTokens: 400_000 * factor, reasoningOutputTokens: 200_000 * factor,
-                    apiEquivalentCostUSD: 14.628571 * Double(factor)
-                )
+        let today = calendar.startOfDay(for: now)
+        let samples: [(String, LocalTokenUsage)] = [
+            ("gpt-6-sol", LocalTokenUsage(
+                totalTokens: 1_850_000, inputTokens: 1_745_000,
+                cachedInputTokens: 1_500_000, cacheWriteInputTokens: 0,
+                outputTokens: 105_000, reasoningOutputTokens: 55_000,
+                apiEquivalentCostUSD: 4.10
+            )),
+            ("gpt-6-astra", LocalTokenUsage(
+                totalTokens: 950_000, inputTokens: 900_000,
+                cachedInputTokens: 750_000, cacheWriteInputTokens: 0,
+                outputTokens: 50_000, reasoningOutputTokens: 26_000,
+                apiEquivalentCostUSD: 2.85
+            )),
+            ("gpt-6-luna", LocalTokenUsage(
+                totalTokens: 480_000, inputTokens: 451_000,
+                cachedInputTokens: 350_000, cacheWriteInputTokens: 0,
+                outputTokens: 29_000, reasoningOutputTokens: 15_000,
+                apiEquivalentCostUSD: 1.30
+            )),
+        ]
+        // Every visible local total is derived from the same synthetic model events.
+        let models: [DailyModelTokenUsage] = (0..<180).flatMap { offset in
+            let factor = offset == 0 ? 1 : Double((offset * 7) % 10 + 4) / 10
+            let day = calendar.date(byAdding: .day, value: -offset, to: today)!
+            return samples.map { model, usage in
+                DailyModelTokenUsage(day: day, model: model, usage: LocalTokenUsage(
+                    totalTokens: Int64(Double(usage.totalTokens) * factor),
+                    inputTokens: Int64(Double(usage.inputTokens) * factor),
+                    cachedInputTokens: Int64(Double(usage.cachedInputTokens) * factor),
+                    cacheWriteInputTokens: 0,
+                    outputTokens: Int64(Double(usage.outputTokens) * factor),
+                    reasoningOutputTokens: Int64(Double(usage.reasoningOutputTokens) * factor),
+                    apiEquivalentCostUSD: usage.apiEquivalentCostUSD * factor
+                ))
+            }
+        }
+        let daily = Dictionary(grouping: models, by: \.day).map { day, rows in
+            PeriodTokenUsage(start: day, usage: rows.reduce(.zero) { $0.adding($1.usage) })
+        }.sorted { $0.start > $1.start }
+        let monthly = PeriodUsageBuilder.periods(
+            from: daily, period: .month, count: 6, endingAt: now, calendar: calendar
+        ).map { MonthlyTokenUsage(month: $0.start, usage: $0.usage) }
+        let quotaReadings = (0..<180).map { offset in
+            let day = calendar.date(byAdding: .day, value: -offset, to: today)!
+            let readingDate = offset == 0 ? now.addingTimeInterval(-60) : day.addingTimeInterval(12 * 60 * 60)
+            return LocalQuotaReading(
+                date: readingDate, bucketID: "codex", windowDurationMinutes: 300,
+                resetsAt: offset == 0 ? now.addingTimeInterval(2 * 60 * 60 + 18 * 60)
+                    : readingDate.addingTimeInterval(60 * 60),
+                usedPercent: offset == 0 ? 28 : Double((offset * 7) % 10 + 8)
             )
         }
         return LocalTokenUsageSnapshot(
-            today: today,
-            lifetime: LocalTokenUsage(
-                totalTokens: 128_640_000,
-                inputTokens: 120_000_000,
-                cachedInputTokens: 96_000_000,
-                cacheWriteInputTokens: 0,
-                outputTokens: 8_640_000,
-                reasoningOutputTokens: 4_320_000,
-                apiEquivalentCostUSD: 307.20
-            ),
+            today: daily.first?.usage ?? .zero,
+            lifetime: daily.reduce(.zero) { $0.adding($1.usage ?? .zero) },
+            todayQuotaUsage: TodayQuotaUsageBuilder.totals(from: quotaReadings, at: now),
+            quotaReadings: quotaReadings,
+            dailyModelUsage: models,
             monthlyUsage: monthly,
-            dailyUsage: (0..<30).map { offset in
-                let factor = Double((offset * 7) % 10 + 4) / 10
-                return PeriodTokenUsage(
-                    start: calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: now))!,
-                    usage: offset == 0 ? today : LocalTokenUsage(
-                        totalTokens: Int64(3_280_000 * factor), inputTokens: Int64(3_096_000 * factor),
-                        cachedInputTokens: Int64(2_600_000 * factor), cacheWriteInputTokens: 0,
-                        outputTokens: Int64(184_000 * factor), reasoningOutputTokens: Int64(96_000 * factor),
-                        apiEquivalentCostUSD: 8.25 * factor
-                    )
-                )
-            },
-            hourlyUsage: (0..<24).map { offset in
-                let factor = Double((offset * 7) % 10 + 4) / 10
-                return PeriodTokenUsage(
-                    start: calendar.date(byAdding: .hour, value: -offset, to: calendar.dateInterval(of: .hour, for: now)!.start)!,
-                    usage: LocalTokenUsage(
-                        totalTokens: Int64(328_000 * factor), inputTokens: Int64(309_600 * factor),
-                        cachedInputTokens: Int64(260_000 * factor), cacheWriteInputTokens: 0,
-                        outputTokens: Int64(18_400 * factor), reasoningOutputTokens: Int64(9_600 * factor),
-                        apiEquivalentCostUSD: 0.825 * factor
-                    )
-                )
-            }
+            dailyUsage: daily
         )
     }
 }
@@ -181,7 +187,7 @@ private struct DebugMeterPanelSnapshotView: View {
 
                 Divider().overlay(Color.meterBorder)
 
-                if let snapshot = store.snapshot {
+                if let snapshot = store.dashboardSnapshot {
                     DashboardCardStack(snapshot: snapshot)
                         .padding(14)
                 }
@@ -307,6 +313,12 @@ struct DebugPreviewHost: View {
             language: .traditionalChinese,
             filename: "/tmp/CodexMeter-preview-zh-Hant-light.png"
         )
+        exportStatisticsSnapshot(filename: "/tmp/CodexMeter-statistics-en-dark.png")
+        exportSettingsSnapshot(
+            appearance: .light,
+            language: .english,
+            filename: "/tmp/CodexMeter-settings-en-light.png"
+        )
         exportSettingsSnapshot(
             appearance: .dark,
             language: .traditionalChinese,
@@ -359,18 +371,44 @@ struct DebugPreviewHost: View {
         let previewBackgrounds = makeDebugBackgroundStore(
             includeImages: includeBackgroundImages
         )
-        // Let the full card stack choose its height so snapshot constraints do
-        // not shrink text. Hosting also captures the horizontal month scroller.
-        let hosting = NSHostingView(
-            rootView: DebugMeterPanelSnapshotView()
+        writeSnapshot(
+            DebugMeterPanelSnapshotView()
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(previewBackgrounds)
-                .environment(\.colorScheme, colorScheme)
-        )
-        hosting.setFrameSize(NSSize(
+                .environment(\.colorScheme, colorScheme),
             width: debugPanelSnapshotWidth,
-            height: hosting.fittingSize.height
+            filename: filename
+        )
+    }
+
+    private func exportStatisticsSnapshot(filename: String) {
+        let originalPeriod = settings.usageStatisticsPeriod
+        defer { settings.usageStatisticsPeriod = originalPeriod }
+        settings.language = .english
+        settings.appearance = .dark
+        settings.usageStatisticsPeriod = .week
+        writeSnapshot(
+            MonthlyUsageCard()
+                .padding(14)
+                .background(Color.meterPanel)
+                .meterTypography()
+                .environmentObject(store)
+                .environmentObject(settings)
+                .environment(\.colorScheme, .dark),
+            width: debugPanelSnapshotWidth,
+            filename: filename
+        )
+    }
+
+    private func writeSnapshot<Content: View>(
+        _ content: Content, width: CGFloat, height: CGFloat? = nil, filename: String
+    ) {
+        // Native hosting captures scroll views and controls, including full-height cards.
+        let hosting = NSHostingView(rootView: content)
+        hosting.setFrameSize(NSSize(
+            width: width,
+            height: height ?? hosting.fittingSize.height
         ))
         let window = NSWindow(
             contentRect: hosting.frame,
@@ -403,25 +441,17 @@ struct DebugPreviewHost: View {
             includeProfile: showBackgroundsInitially,
             includeImages: includeBackgroundImages
         )
-        let renderer = ImageRenderer(
-            content: SettingsPanelView(showBackgroundsInitially: showBackgroundsInitially)
+        writeSnapshot(
+            SettingsPanelView(showBackgroundsInitially: showBackgroundsInitially)
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(UpdateController.shared)
                 .environmentObject(previewBackgrounds)
-                .environment(\.colorScheme, colorScheme)
-                .frame(width: 760, height: 516, alignment: .top)
+                .environment(\.colorScheme, colorScheme),
+            width: 760,
+            height: 552,
+            filename: filename
         )
-        renderer.proposedSize = ProposedViewSize(width: 760, height: 516)
-        renderer.scale = 2
-
-        guard let image = renderer.nsImage,
-              let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:])
-        else { return }
-
-        try? png.write(to: URL(fileURLWithPath: filename), options: .atomic)
     }
 
     private func makeDebugBackgroundStore(

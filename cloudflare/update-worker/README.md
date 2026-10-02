@@ -2,7 +2,7 @@
 
 This Worker reads the latest public GitHub Release for `JTXYH/codex-meter`, selects the macOS ZIP asset, and returns a small update manifest to the app. Release metadata is cached at the Cloudflare edge; release binaries remain on GitHub.
 
-> Legacy compatibility: Codex Meter 1.3.0 continues to use the signed Sparkle appcast introduced in 1.2.0. Keep this Worker available only for older app versions that still request the JSON update manifest.
+> Legacy compatibility: Codex Meter 1.7.0 uses the signed Sparkle appcast introduced in 1.2.0. The current release is documented in the [main README](../../README.en.md) and [release notes](../../docs/releases/v1.7.0.md). Keep this Worker available only for older app versions that still request the JSON update manifest.
 
 ## Endpoints
 

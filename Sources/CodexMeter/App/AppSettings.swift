@@ -191,21 +191,24 @@ final class AppSettings: ObservableObject {
     @Published var launchAtLogin: Bool {
         didSet {
             guard !isRestoringLaunchAtLogin else { return }
-
-            do {
-                try launchAtLoginManager.setEnabled(launchAtLogin)
-                defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
-                launchAtLoginErrorDescription = nil
-            } catch {
-                launchAtLoginErrorDescription = error.localizedDescription
-                isRestoringLaunchAtLogin = true
-                launchAtLogin = oldValue
-                isRestoringLaunchAtLogin = false
-            }
+            applyStartupChange(.login, enabled: launchAtLogin, previousValue: oldValue)
         }
     }
 
     @Published private(set) var launchAtLoginErrorDescription: String?
+
+    @Published var followCodexApp: Bool {
+        didSet {
+            guard !isRestoringFollowCodexApp else { return }
+            applyStartupChange(.codex, enabled: followCodexApp, previousValue: oldValue)
+        }
+    }
+
+    @Published private(set) var followCodexAppErrorDescription: String?
+
+    var followCodexAppRequiresApproval: Bool {
+        followCodexApp && codexLifecycleManager.requiresApproval
+    }
 
     @Published var showQuotaCard: Bool {
         didSet { defaults.set(showQuotaCard, forKey: Keys.showQuotaCard) }
@@ -232,7 +235,10 @@ final class AppSettings: ObservableObject {
     }
 
     @Published var usageStatisticsPeriod: UsagePeriod {
-        didSet { defaults.set(usageStatisticsPeriod.rawValue, forKey: Keys.usageStatisticsPeriod) }
+        didSet {
+            if usageStatisticsPeriod == .hour { usageStatisticsPeriod = .day }
+            defaults.set(usageStatisticsPeriod.rawValue, forKey: Keys.usageStatisticsPeriod)
+        }
     }
 
     @Published var usageStatisticsDayCount: Int {
@@ -240,6 +246,14 @@ final class AppSettings: ObservableObject {
             let sanitized = UsagePeriod.day.sanitizedRange(usageStatisticsDayCount)
             if sanitized != usageStatisticsDayCount { usageStatisticsDayCount = sanitized }
             defaults.set(sanitized, forKey: Keys.usageStatisticsDayCount)
+        }
+    }
+
+    @Published var usageStatisticsWeekCount: Int {
+        didSet {
+            let sanitized = UsagePeriod.week.sanitizedRange(usageStatisticsWeekCount)
+            if sanitized != usageStatisticsWeekCount { usageStatisticsWeekCount = sanitized }
+            defaults.set(sanitized, forKey: Keys.usageStatisticsWeekCount)
         }
     }
 
@@ -263,6 +277,7 @@ final class AppSettings: ObservableObject {
         switch period {
         case .hour: usageStatisticsHourCount
         case .day: usageStatisticsDayCount
+        case .week: usageStatisticsWeekCount
         case .month: monthlyUsageMonthCount
         case .year: usageStatisticsYearCount
         }
@@ -272,6 +287,7 @@ final class AppSettings: ObservableObject {
         switch period {
         case .hour: usageStatisticsHourCount = count
         case .day: usageStatisticsDayCount = count
+        case .week: usageStatisticsWeekCount = count
         case .month: monthlyUsageMonthCount = count
         case .year: usageStatisticsYearCount = count
         }
@@ -323,15 +339,91 @@ final class AppSettings: ObservableObject {
 
     private let defaults: any PreferencesStore
     private let launchAtLoginManager: any LaunchAtLoginManaging
+    private let codexLifecycleManager: any CodexLifecycleManaging
     private var isRestoringLaunchAtLogin = false
+    private var isRestoringFollowCodexApp = false
+
+    private enum StartupService {
+        case login, codex
+
+        var other: StartupService { self == .login ? .codex : .login }
+    }
+
+    private func applyStartupChange(_ service: StartupService, enabled: Bool, previousValue: Bool) {
+        let other = service.other
+        let shouldDisableOther = enabled && (other == .login ? launchAtLogin : followCodexApp)
+        if shouldDisableOther {
+            do {
+                // Never register the new mode while the competing service is enabled.
+                try setStartupService(other, enabled: false)
+                setStartupValue(other, enabled: false)
+                setStartupError(other, message: nil)
+            } catch {
+                setStartupValue(service, enabled: previousValue)
+                setStartupError(service, message: error.localizedDescription)
+                return
+            }
+        }
+
+        do {
+            try setStartupService(service, enabled: enabled)
+            defaults.set(enabled, forKey: service == .login ? Keys.launchAtLogin : Keys.followCodexApp)
+            setStartupError(service, message: nil)
+        } catch {
+            setStartupValue(service, enabled: previousValue)
+            var message = error.localizedDescription
+            if shouldDisableOther {
+                do {
+                    try setStartupService(other, enabled: true)
+                    setStartupValue(other, enabled: true)
+                } catch {
+                    // Keep the successfully disabled mode off when restoration fails.
+                    setStartupError(other, message: error.localizedDescription)
+                    message += " Could not restore the previous startup setting: \(error.localizedDescription)"
+                }
+            }
+            setStartupError(service, message: message)
+        }
+    }
+
+    private func setStartupService(_ service: StartupService, enabled: Bool) throws {
+        switch service {
+        case .login: try launchAtLoginManager.setEnabled(enabled)
+        case .codex: try codexLifecycleManager.setEnabled(enabled)
+        }
+    }
+
+    private func setStartupValue(_ service: StartupService, enabled: Bool) {
+        switch service {
+        case .login:
+            isRestoringLaunchAtLogin = true
+            launchAtLogin = enabled
+            isRestoringLaunchAtLogin = false
+            defaults.set(enabled, forKey: Keys.launchAtLogin)
+        case .codex:
+            isRestoringFollowCodexApp = true
+            followCodexApp = enabled
+            isRestoringFollowCodexApp = false
+            defaults.set(enabled, forKey: Keys.followCodexApp)
+        }
+    }
+
+    private func setStartupError(_ service: StartupService, message: String?) {
+        switch service {
+        case .login: launchAtLoginErrorDescription = message
+        case .codex: followCodexAppErrorDescription = message
+        }
+    }
 
     init(
         defaults: any PreferencesStore = SQLitePreferences.shared,
         preferredLanguages: [String] = Locale.preferredLanguages,
-        launchAtLoginManager: any LaunchAtLoginManaging = SystemLaunchAtLoginManager()
+        launchAtLoginManager: any LaunchAtLoginManaging = SystemLaunchAtLoginManager(),
+        codexLifecycleManager: any CodexLifecycleManaging = SystemCodexLifecycleManager()
     ) {
         self.defaults = defaults
         self.launchAtLoginManager = launchAtLoginManager
+        self.codexLifecycleManager = codexLifecycleManager
         fontSettings = (defaults.object(forKey: Keys.fontSettings) as? Data)
             .flatMap { try? JSONDecoder().decode(MeterFontSettings.self, from: $0) }?
             .sanitized ?? MeterFontSettings()
@@ -344,7 +436,11 @@ final class AppSettings: ObservableObject {
         language = defaults.string(forKey: Keys.language)
             .flatMap(AppLanguage.init(rawValue:))
             ?? AppLanguage.systemDefault(from: preferredLanguages)
-        launchAtLogin = (defaults.object(forKey: Keys.launchAtLogin) as? NSNumber)?.boolValue ?? true
+        let storedFollowCodexApp = (defaults.object(forKey: Keys.followCodexApp) as? NSNumber)?.boolValue ?? false
+        launchAtLogin = storedFollowCodexApp
+            ? false
+            : (defaults.object(forKey: Keys.launchAtLogin) as? NSNumber)?.boolValue ?? true
+        followCodexApp = storedFollowCodexApp
         showQuotaCard = (defaults.object(forKey: Keys.showQuotaCard) as? NSNumber)?.boolValue ?? true
         showTokenActivityCard = (
             defaults.object(forKey: Keys.showTokenActivityCard) as? NSNumber
@@ -356,12 +452,16 @@ final class AppSettings: ObservableObject {
             (defaults.object(forKey: Keys.monthlyUsageMonthCount) as? NSNumber)?.intValue ?? 6
         )
         usageStatisticsPeriod = defaults.string(forKey: Keys.usageStatisticsPeriod)
-            .flatMap(UsagePeriod.init(rawValue:)) ?? .month
+            .flatMap(UsagePeriod.init(rawValue:))
+            .map { $0 == .hour ? .day : $0 } ?? .month
         usageStatisticsHourCount = UsagePeriod.hour.sanitizedRange(
             (defaults.object(forKey: Keys.usageStatisticsHourCount) as? NSNumber)?.intValue ?? 24
         )
         usageStatisticsDayCount = UsagePeriod.day.sanitizedRange(
             (defaults.object(forKey: Keys.usageStatisticsDayCount) as? NSNumber)?.intValue ?? 7
+        )
+        usageStatisticsWeekCount = UsagePeriod.week.sanitizedRange(
+            (defaults.object(forKey: Keys.usageStatisticsWeekCount) as? NSNumber)?.intValue ?? UsagePeriod.week.defaultRange
         )
         usageStatisticsYearCount = UsagePeriod.year.sanitizedRange(
             (defaults.object(forKey: Keys.usageStatisticsYearCount) as? NSNumber)?.intValue ?? 3
@@ -398,6 +498,7 @@ final class AppSettings: ObservableObject {
 
         defaults.set(language.rawValue, forKey: Keys.language)
         defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+        defaults.set(followCodexApp, forKey: Keys.followCodexApp)
         defaults.set(showQuotaCard, forKey: Keys.showQuotaCard)
         defaults.set(showTokenActivityCard, forKey: Keys.showTokenActivityCard)
         defaults.set(showActivityOverviewCard, forKey: Keys.showActivityOverviewCard)
@@ -406,6 +507,7 @@ final class AppSettings: ObservableObject {
         defaults.set(usageStatisticsPeriod.rawValue, forKey: Keys.usageStatisticsPeriod)
         defaults.set(usageStatisticsHourCount, forKey: Keys.usageStatisticsHourCount)
         defaults.set(usageStatisticsDayCount, forKey: Keys.usageStatisticsDayCount)
+        defaults.set(usageStatisticsWeekCount, forKey: Keys.usageStatisticsWeekCount)
         defaults.set(usageStatisticsYearCount, forKey: Keys.usageStatisticsYearCount)
         defaults.set(showUsageHeatmapCard, forKey: Keys.showUsageHeatmapCard)
         defaults.set(showUsageSummaryCard, forKey: Keys.showUsageSummaryCard)
@@ -415,6 +517,11 @@ final class AppSettings: ObservableObject {
             try launchAtLoginManager.setEnabled(launchAtLogin)
         } catch {
             launchAtLoginErrorDescription = error.localizedDescription
+        }
+        do {
+            try codexLifecycleManager.setEnabled(followCodexApp)
+        } catch {
+            followCodexAppErrorDescription = error.localizedDescription
         }
         applyAppearance()
     }
@@ -518,6 +625,7 @@ final class AppSettings: ObservableObject {
         static let appearance = "appAppearance"
         static let language = "appLanguage"
         static let launchAtLogin = "launchAtLogin"
+        static let followCodexApp = "followCodexApp"
         static let showQuotaCard = "showQuotaCard"
         static let showTokenActivityCard = "showTokenActivityCard"
         static let showActivityOverviewCard = "showActivityOverviewCard"
@@ -526,6 +634,7 @@ final class AppSettings: ObservableObject {
         static let usageStatisticsPeriod = "usageStatisticsPeriod"
         static let usageStatisticsHourCount = "usageStatisticsHourCount"
         static let usageStatisticsDayCount = "usageStatisticsDayCount"
+        static let usageStatisticsWeekCount = "usageStatisticsWeekCount"
         static let usageStatisticsYearCount = "usageStatisticsYearCount"
         static let showUsageHeatmapCard = "showUsageHeatmapCard"
         static let showUsageSummaryCard = "showUsageSummaryCard"

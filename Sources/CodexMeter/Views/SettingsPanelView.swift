@@ -172,6 +172,22 @@ struct SettingsPanelView: View {
             SettingsDivider()
 
             SettingsRow(
+                icon: "arrow.triangle.2.circlepath",
+                title: L10n.text(.followCodexApp, language: settings.language),
+                detail: followCodexAppDetail
+            ) {
+                Toggle(
+                    L10n.text(.followCodexApp, language: settings.language),
+                    isOn: $settings.followCodexApp
+                )
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+
+            SettingsDivider()
+
+            SettingsRow(
                 icon: "circle.lefthalf.filled",
                 title: L10n.text(.appearance, language: settings.language),
                 detail: L10n.text(.appearanceHint, language: settings.language)
@@ -289,7 +305,7 @@ struct SettingsPanelView: View {
                 visibilityRowContent(section, isOn: $settings.showMonthlyUsageCard)
                 VStack(alignment: .leading, spacing: 7) {
                     Picker(UsageStatisticsL10n.text(.period, language: settings.language), selection: $settings.usageStatisticsPeriod) {
-                        ForEach(UsagePeriod.allCases) { period in
+                        ForEach(UsagePeriod.statisticsPeriods) { period in
                             Text(UsageStatisticsL10n.period(period, language: settings.language)).tag(period)
                         }
                     }
@@ -359,6 +375,17 @@ struct SettingsPanelView: View {
         let hint = L10n.text(.launchAtLoginHint, language: settings.language)
         guard let error = settings.launchAtLoginErrorDescription else { return hint }
         return "\(hint) · \(error)"
+    }
+
+    private var followCodexAppDetail: String {
+        let hint = L10n.text(.followCodexAppHint, language: settings.language)
+        if let error = settings.followCodexAppErrorDescription {
+            return "\(hint) · \(error)"
+        }
+        if settings.followCodexAppRequiresApproval {
+            return L10n.text(.followCodexAppApprovalHint, language: settings.language)
+        }
+        return hint
     }
 
     private var refreshSettings: some View {

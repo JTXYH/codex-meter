@@ -1,0 +1,73 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "今日 Token 对应额度": {
+      "versions": [
+        {
+          "path": "Today Token Quota Concepts.html",
+          "createdAt": "2026-09-24T07:57:39.881Z",
+          "status": "changes-requested",
+          "subtitle": "三种 420 px 面板布局对比；可切换深色和大数值",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          }
+        },
+        {
+          "path": "Today Quota v2.html",
+          "createdAt": "2026-09-24T08:28:23.017Z",
+          "status": "changes-requested",
+          "subtitle": "数字排版探索：双数对照、上下分层、百分比聚焦",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          }
+        },
+        {
+          "path": "Today Quota Block v3.html",
+          "createdAt": "2026-09-24T08:39:52.742Z",
+          "status": "changes-requested",
+          "subtitle": "保留现有今日明细，比较新增额度区块的三种数字排版",
+          "viewport": {
+            "width": 1500,
+            "height": 760
+          }
+        },
+        {
+          "path": "Today Quota Tile v4.html",
+          "createdAt": "2026-09-24T08:45:04.202Z",
+          "status": "changes-requested",
+          "subtitle": "依照现有三块指标新增第四块，两行两列，百分比为主数字",
+          "viewport": {
+            "width": 420,
+            "height": 400
+          }
+        },
+        {
+          "path": "Today Quota Tiles v5.html",
+          "createdAt": "2026-09-24T08:52:13.710Z",
+          "status": "changes-requested",
+          "subtitle": "今日用量和额度消耗分别为同款指标块；原有三块保持一行",
+          "viewport": {
+            "width": 420,
+            "height": 400
+          }
+        },
+        {
+          "path": "Today Quota Tile v6.html",
+          "createdAt": "2026-09-24T08:54:27.859Z",
+          "status": "needs-review",
+          "subtitle": "今日用量留在额度消耗块下方，并与输入输出共用中文数字缩写",
+          "viewport": {
+            "width": 420,
+            "height": 400
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-24T07:57:39.882Z",
+  "updatedAt": "2026-09-24T08:54:27.860Z"
+}

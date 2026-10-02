@@ -33,7 +33,9 @@ struct SQLiteStorageTests {
         let settings = AppSettings(defaults: preferences, launchAtLoginManager: NoLoginChanges())
         #expect(!settings.showTokenActivityCard)
         #expect(!settings.showActivityOverviewCard)
-        #expect(Array(settings.dashboardSectionOrder.prefix(4)) == [.monthlyUsage, .tokenActivity, .activityOverview, .quota])
+        #expect(Array(settings.dashboardSectionOrder.prefix(5)) == [
+            .monthlyUsage, .tokenActivity, .activityOverview, .quota, .usageHeatmap,
+        ])
         settings.showActivityOverviewCard = true
         settings.moveDashboardSections(fromOffsets: IndexSet(integer: 2), toOffset: 0)
         let backgrounds = QuotaBackgroundStore(defaults: preferences, storageDirectory: images)
@@ -116,7 +118,7 @@ struct SQLiteStorageTests {
         try database.execute("DROP TABLE hourly_usage")
         try database.execute("PRAGMA user_version=1")
         let upgraded = try SQLiteStore(url: f.databaseURL)
-        #expect(try upgraded.rows("PRAGMA user_version").first?.first?.int == 2)
+        #expect(try upgraded.rows("PRAGMA user_version").first?.first?.int == 3)
         #expect(try upgraded.data(namespace: "test", key: "preference") == Data("keep".utf8))
         let scanner = f.scanner(upgraded)
         let rebuilt = await scanner.usage(at: f.now)
@@ -124,6 +126,7 @@ struct SQLiteStorageTests {
         #expect(await scanner.bytesReadDuringLastScan == fileBytes)
         #expect(rebuilt.hourlyUsage.map { $0.usage?.totalTokens } == [0, 5_500, 1_100])
         #expect(rebuilt.dailyUsage.map { $0.usage?.totalTokens } == [5_500, 1_100])
+        #expect(rebuilt.dailyModelUsage.map { $0.usage.totalTokens } == [5_500, 1_100])
         #expect(rebuilt.lifetime?.totalTokens == 6_600)
         let restored = f.scanner(try SQLiteStore(url: f.databaseURL))
         #expect(await restored.usage(at: f.now) == rebuilt)
@@ -150,6 +153,7 @@ struct SQLiteStorageTests {
         #expect(cleaned.monthlyUsage.count == 1)
         #expect(cleaned.dailyUsage.count == 1)
         #expect(cleaned.dailyUsage[0].usage?.totalTokens == 110_000)
+        #expect(cleaned.dailyModelUsage.map(\.usage.totalTokens) == [110_000])
         #expect(cleaned.hourlyUsage.count == 1)
         #expect(cleaned.hourlyUsage[0].usage?.totalTokens == 110_000)
         let restarted = f.scanner(try SQLiteStore(url: f.databaseURL))
@@ -171,6 +175,7 @@ struct SQLiteStorageTests {
         #expect(next.today.totalTokens == 1_100)
         #expect(next.lifetime?.totalTokens == 1_100)
         #expect(next.hourlyUsage.map { $0.usage?.totalTokens } == [1_100])
+        #expect(next.dailyModelUsage.map(\.usage.totalTokens) == [1_100])
         #expect(abs(next.today.apiEquivalentCostUSD - 0.015) < 1e-10)
         #expect(await f.scanner(try SQLiteStore(url: f.databaseURL)).usage(at: f.now) == next)
         #expect(try database.rows("PRAGMA integrity_check").first?.first?.string == "ok")
@@ -196,6 +201,7 @@ struct SQLiteStorageTests {
         #expect(await today.usage(at: f.now).today == .zero)
         #expect(try database.storageInfo().dailyRows == 0)
         #expect(try database.rows("SELECT COUNT(*) FROM hourly_usage").first?.first?.int == 0)
+        #expect(try database.rows("SELECT COUNT(*) FROM daily_model_usage").first?.first?.int == 0)
     }
 
     @Test

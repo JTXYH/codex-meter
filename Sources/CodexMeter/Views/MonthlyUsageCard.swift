@@ -10,7 +10,7 @@ struct MonthlyUsageCard: View {
 
     private var period: UsagePeriod { settings.usageStatisticsPeriod }
     private var range: Int { settings.usageStatisticsRange(for: period) }
-    private var records: [PeriodTokenUsage] { store.periodUsage(period, count: range) }
+    private var records: [PeriodTokenUsage] { store.statisticsUsage(period, count: range) }
     private var selected: PeriodTokenUsage? {
         records.first(where: { $0.start == selectedDates[period] }) ?? records.first
     }
@@ -24,6 +24,7 @@ struct MonthlyUsageCard: View {
                 dateTabs.padding(.top, 12)
 
                 if let selected {
+                    let quotaPercent = store.quotaPercent(for: period, containing: selected.start)
                     HStack(spacing: 7) {
                         Circle().fill(Color.meterAccent).frame(width: 5, height: 5)
                         Text(L10n.monthUsageTitle(label(selected), language: settings.language))
@@ -39,14 +40,34 @@ struct MonthlyUsageCard: View {
                     }
                     .padding(.top, 20)
 
-                    HStack(alignment: .top, spacing: 18) {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(minimum: 0), spacing: 10), count: 3),
+                        alignment: .leading,
+                        spacing: 0
+                    ) {
                         selectedMetric(title: "Token", value: formattedTokens(selected.usage))
                         selectedMetric(title: L10n.text(.apiEquivalentCost, language: settings.language),
                                        value: formattedCost(selected.usage))
+                        selectedMetric(
+                            title: TodayQuotaUsageL10n.title(settings.language),
+                            value: TodayQuotaUsageL10n.summary(
+                                tokens: isLoaded ? (selected.usage?.totalTokens ?? 0) : nil,
+                                percent: quotaPercent,
+                                language: settings.language
+                            )
+                        )
+                        .help(quotaPercent == nil
+                              ? TodayQuotaUsageL10n.unavailable(settings.language)
+                              : TodayQuotaUsageL10n.explanation(settings.language))
                     }
                     .padding(.top, 15)
 
-                    usageChart.padding(.top, 22)
+                    Rectangle().fill(Color.meterBorder).frame(height: 1).padding(.top, 22)
+                    ModelUsageRows(
+                        rows: store.modelUsage(period, containing: selected.start),
+                        isLoaded: isLoaded
+                    )
+                    .padding(.top, 17)
                     HStack(spacing: 5) {
                         Image(systemName: "info.circle")
                         Text(isLoaded ? UsageStatisticsL10n.footer(selected, period: period, language: settings.language)
@@ -83,7 +104,7 @@ struct MonthlyUsageCard: View {
     private var heading: some View {
         HStack {
             HStack(spacing: 8) {
-                Image(systemName: period == .hour ? "clock" : "calendar")
+                Image(systemName: "calendar")
                     .font(.meter(size: 13))
                     .foregroundStyle(Color.meterAccent)
                 Text(L10n.text(.monthlyUsage, language: settings.language))
@@ -120,7 +141,7 @@ struct MonthlyUsageCard: View {
 
     private var periodControl: some View {
         HStack(spacing: 4) {
-            ForEach(UsagePeriod.allCases) { option in
+            ForEach(UsagePeriod.statisticsPeriods) { option in
                 Button { settings.usageStatisticsPeriod = option } label: {
                     Text(UsageStatisticsL10n.period(option, language: settings.language))
                         .meterText(.detail)
@@ -148,7 +169,7 @@ struct MonthlyUsageCard: View {
         let values = records
         let selectedDate = selectedDates[period] ?? values.first?.start
         return GeometryReader { geometry in
-            let visibleCount = CGFloat(max(1, min(values.count, period == .day ? 7 : 6)))
+            let visibleCount = CGFloat(max(1, min(values.count, period == .day ? 7 : period == .week ? 4 : 6)))
             let tabWidth = (geometry.size.width - 3 * (visibleCount - 1)) / visibleCount
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -200,78 +221,6 @@ struct MonthlyUsageCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-    }
-
-    private var usageChart: some View {
-        let values = records
-        let selectedDate = selectedDates[period] ?? values.first?.start
-        let peak = values.compactMap { $0.usage?.totalTokens }.max() ?? 0
-        return VStack(spacing: 16) {
-            Rectangle().fill(Color.meterBorder).frame(height: 1)
-            HStack(alignment: .bottom, spacing: values.count > 14 ? 3 : 8) {
-                ForEach(values) { record in
-                    let tokens = record.usage?.totalTokens ?? 0
-                    let fraction = peak > 0 ? min(max(Double(tokens) / Double(peak), 0), 1) : 0
-                    Button { select(record) } label: {
-                        VStack(spacing: 7) {
-                            VStack(spacing: 0) {
-                                Spacer(minLength: 0)
-                                if record.usage == nil {
-                                    RoundedRectangle(cornerRadius: 1)
-                                        .stroke(Color.meterTertiary.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
-                                        .frame(height: 2)
-                                } else {
-                                    UnevenRoundedRectangle(topLeadingRadius: 4, topTrailingRadius: 4)
-                                        .fill(Color.meterAccent.opacity(selectedDate == record.start ? 0.65 : 0.17))
-                                        .frame(height: max(2, 65 * fraction))
-                                }
-                            }
-                            .padding(.horizontal, values.count > 14 ? 1 : 5)
-                            .frame(height: 65)
-                            Text(values.count <= 7 ? label(record, compact: true) : " ")
-                                .meterText(.detail)
-                                .foregroundStyle(selectedDate == record.start ? Color.meterAccent : Color.meterTertiary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.5)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(UsageStatisticsL10n.dateCaption(record.start, period: period, language: settings.language))
-                    .accessibilityValue("\(formattedTokens(record.usage)) Token · \(formattedCost(record.usage))")
-                    .accessibilityAddTraits(selectedDate == record.start ? .isSelected : [])
-                    .help(hoverDescription(record))
-                }
-            }
-            .overlay(alignment: .bottom) {
-                if values.count > 7 {
-                    // Sparse axis labels span several bars so 24 hours remain readable.
-                    GeometryReader { geometry in
-                        let spacing: CGFloat = values.count > 14 ? 3 : 8
-                        let barWidth = (geometry.size.width - spacing * CGFloat(values.count - 1)) / CGFloat(values.count)
-                        ForEach(Array(values.enumerated()), id: \.element.id) { index, record in
-                            if index == 0 || index == values.count - 1
-                                || index.isMultiple(of: Int(ceil(Double(values.count) / 6))) {
-                                let first = index == 0
-                                let last = index == values.count - 1
-                                Text(label(record, compact: true))
-                                    .meterText(.detail)
-                                    .foregroundStyle(selectedDate == record.start ? Color.meterAccent : Color.meterTertiary)
-                                    .lineLimit(1)
-                                    .frame(width: 60, alignment: first ? .leading : last ? .trailing : .center)
-                                    .position(x: first ? 30 : last ? geometry.size.width - 30
-                                              : (CGFloat(index) + 0.5) * barWidth + CGFloat(index) * spacing,
-                                              y: geometry.size.height / 2)
-                            }
-                        }
-                    }
-                    .frame(height: 16)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                }
-            }
-        }
     }
 
     private func select(_ record: PeriodTokenUsage) {

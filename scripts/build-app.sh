@@ -6,16 +6,30 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_CONFIGURATION="${1:-release}"
 BUILD_ARCHITECTURE_ARGS=()
-APP_DIR="$PROJECT_DIR/dist/CodexMeter.app"
+SWIFT_SANDBOX_ARGS=()
+if [[ "${CODEX_METER_DISABLE_SWIFTPM_SANDBOX:-0}" == "1" ]]; then
+    SWIFT_SANDBOX_ARGS=(--disable-sandbox)
+fi
+DIST_DIR="$PROJECT_DIR/dist"
+APP_DIR="$DIST_DIR/CodexMeter.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
+HELPERS_DIR="$CONTENTS_DIR/Helpers"
+LAUNCH_AGENTS_DIR="$CONTENTS_DIR/Library/LaunchAgents"
 TEMP_ROOT="${TMPDIR:-/tmp}"
 TEMP_ROOT="${TEMP_ROOT%/}"
-BUILD_SCRATCH_DIR="$(mktemp -d "$TEMP_ROOT/CodexMeter-build.XXXXXX")"
+if [[ "${CODEX_METER_REUSE_SWIFTPM_BUILD:-0}" == "1" ]]; then
+    BUILD_SCRATCH_DIR="$PROJECT_DIR/.build"
+else
+    BUILD_SCRATCH_DIR="$(mktemp -d "$TEMP_ROOT/CodexMeter-build.XXXXXX")"
+fi
 
 cleanup_build_scratch() {
+    if [[ "${CODEX_METER_REUSE_SWIFTPM_BUILD:-0}" == "1" ]]; then
+        return
+    fi
     case "$BUILD_SCRATCH_DIR" in
         "$TEMP_ROOT"/CodexMeter-build.*)
             /bin/rm -rf "$BUILD_SCRATCH_DIR"
@@ -48,29 +62,48 @@ if [[ "$BUILD_CONFIGURATION" == release ]]; then
     BUILD_ARCHITECTURE_ARGS=(--arch arm64 --arch x86_64)
 fi
 
+if [[ -L "$DIST_DIR" ]]; then
+    print -u2 "Refusing to clean a symlinked dist directory: $DIST_DIR"
+    exit 1
+fi
+
+# Both local builds and release packages start without previous artifacts.
+mkdir -p "$DIST_DIR"
+/bin/rm -rf -- "$DIST_DIR"/*(DN)
+
 cd "$PROJECT_DIR"
 swift build \
     --scratch-path "$BUILD_SCRATCH_DIR" \
+    "${SWIFT_SANDBOX_ARGS[@]}" \
     --configuration "$BUILD_CONFIGURATION" \
     "${BUILD_ARCHITECTURE_ARGS[@]}" \
     --product CodexMeter
+swift build \
+    --scratch-path "$BUILD_SCRATCH_DIR" \
+    "${SWIFT_SANDBOX_ARGS[@]}" \
+    --configuration "$BUILD_CONFIGURATION" \
+    "${BUILD_ARCHITECTURE_ARGS[@]}" \
+    --product CodexMeterWatcher
 BIN_DIR="$(
     swift build \
         --scratch-path "$BUILD_SCRATCH_DIR" \
+        "${SWIFT_SANDBOX_ARGS[@]}" \
         --configuration "$BUILD_CONFIGURATION" \
         "${BUILD_ARCHITECTURE_ARGS[@]}" \
         --show-bin-path
 )"
 
-if [[ -d "$APP_DIR" ]]; then
-    /bin/rm -rf "$APP_DIR"
-fi
-
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR" "$HELPERS_DIR" "$LAUNCH_AGENTS_DIR"
 cp "$PROJECT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
+if [[ "${CODE_SIGN_IDENTITY:--}" == "-" ]]; then
+    /usr/libexec/PlistBuddy -c "Add :CodexMeterUsesLocalWatcher bool true" "$CONTENTS_DIR/Info.plist"
+fi
 cp "$PROJECT_DIR/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 cp "$PROJECT_DIR/LICENSE" "$RESOURCES_DIR/LICENSE.txt"
 cp "$BIN_DIR/CodexMeter" "$MACOS_DIR/CodexMeter"
+cp "$BIN_DIR/CodexMeterWatcher" "$HELPERS_DIR/CodexMeterWatcher"
+cp "$PROJECT_DIR/Resources/local.codex-meter.codex-watcher.plist" \
+    "$LAUNCH_AGENTS_DIR/local.codex-meter.codex-watcher.plist"
 if [[ ! -d "$BIN_DIR/Sparkle.framework" ]]; then
     print -u2 "Sparkle.framework was not found in the Swift build output."
     exit 1
@@ -80,9 +113,11 @@ if [[ -d "$BIN_DIR/CodexMeter_CodexMeter.bundle" ]]; then
     cp -R "$BIN_DIR/CodexMeter_CodexMeter.bundle" "$RESOURCES_DIR/"
 fi
 chmod +x "$MACOS_DIR/CodexMeter"
+chmod +x "$HELPERS_DIR/CodexMeterWatcher"
 
 if [[ "$BUILD_CONFIGURATION" == release ]]; then
     /usr/bin/strip -S "$MACOS_DIR/CodexMeter"
+    /usr/bin/strip -S "$HELPERS_DIR/CodexMeterWatcher"
 fi
 
 if command -v codesign >/dev/null 2>&1; then
@@ -107,6 +142,8 @@ if command -v codesign >/dev/null 2>&1; then
         "$SPARKLE_VERSION_DIR/Updater.app"
     codesign --force --sign "$CODE_SIGN_IDENTITY" "${SPARKLE_CODE_SIGN_OPTIONS[@]}" \
         "$SPARKLE_FRAMEWORK"
+    codesign --force --sign "$CODE_SIGN_IDENTITY" "${SPARKLE_CODE_SIGN_OPTIONS[@]}" \
+        "$HELPERS_DIR/CodexMeterWatcher"
     codesign --force --sign "$CODE_SIGN_IDENTITY" "${APP_CODE_SIGN_OPTIONS[@]}" \
         "$APP_DIR"
 fi

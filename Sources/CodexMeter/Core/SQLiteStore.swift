@@ -59,7 +59,7 @@ final class SQLiteStore: @unchecked Sendable {
             try execute("PRAGMA journal_mode = WAL")
             try execute("PRAGMA synchronous = NORMAL")
             let version = try rows("PRAGMA user_version").first?.first?.int ?? 0
-            guard version <= 2 else { throw Failure(message: "This database requires a newer Codex Meter version.") }
+            guard version <= 3 else { throw Failure(message: "This database requires a newer Codex Meter version.") }
             try transaction {
                 try execute("CREATE TABLE IF NOT EXISTS records(namespace TEXT NOT NULL, key TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY(namespace,key))")
                 try execute("CREATE TABLE IF NOT EXISTS scan_files(scope TEXT NOT NULL, path TEXT NOT NULL, state BLOB NOT NULL, PRIMARY KEY(scope,path))")
@@ -81,7 +81,25 @@ final class SQLiteStore: @unchecked Sendable {
                       FOREIGN KEY(scope,path) REFERENCES scan_files(scope,path) ON DELETE CASCADE)
                     """)
                 try execute("CREATE INDEX IF NOT EXISTS hourly_usage_hour ON hourly_usage(hour,scope)")
-                try execute("PRAGMA user_version = 2")
+                try execute("""
+                    CREATE TABLE IF NOT EXISTS daily_model_usage(
+                      scope TEXT NOT NULL, path TEXT NOT NULL, day REAL NOT NULL, model TEXT NOT NULL,
+                      total INTEGER NOT NULL, input INTEGER NOT NULL, cached INTEGER NOT NULL,
+                      cache_write INTEGER NOT NULL, output INTEGER NOT NULL, reasoning INTEGER NOT NULL,
+                      cost REAL NOT NULL, PRIMARY KEY(scope,path,day,model),
+                      FOREIGN KEY(scope,path) REFERENCES scan_files(scope,path) ON DELETE CASCADE)
+                    """)
+                try execute("CREATE INDEX IF NOT EXISTS daily_model_usage_day ON daily_model_usage(day,scope)")
+                try execute("""
+                    CREATE TABLE IF NOT EXISTS hourly_model_usage(
+                      scope TEXT NOT NULL, path TEXT NOT NULL, hour REAL NOT NULL, model TEXT NOT NULL,
+                      total INTEGER NOT NULL, input INTEGER NOT NULL, cached INTEGER NOT NULL,
+                      cache_write INTEGER NOT NULL, output INTEGER NOT NULL, reasoning INTEGER NOT NULL,
+                      cost REAL NOT NULL, PRIMARY KEY(scope,path,hour,model),
+                      FOREIGN KEY(scope,path) REFERENCES scan_files(scope,path) ON DELETE CASCADE)
+                    """)
+                try execute("CREATE INDEX IF NOT EXISTS hourly_model_usage_hour ON hourly_model_usage(hour,scope)")
+                try execute("PRAGMA user_version = 3")
             }
         } catch {
             sqlite3_close(connection)
@@ -216,6 +234,8 @@ final class SQLiteStore: @unchecked Sendable {
                 try setData(Data(String(effective.timeIntervalSinceReferenceDate).utf8), namespace: "metadata", key: "retentionCutoff")
                 try execute("DELETE FROM daily_usage WHERE day < ?", [.real(effective.timeIntervalSinceReferenceDate)])
                 try execute("DELETE FROM hourly_usage WHERE hour < ?", [.real(effective.timeIntervalSinceReferenceDate)])
+                try execute("DELETE FROM daily_model_usage WHERE day < ?", [.real(effective.timeIntervalSinceReferenceDate)])
+                try execute("DELETE FROM hourly_model_usage WHERE hour < ?", [.real(effective.timeIntervalSinceReferenceDate)])
             }
             try execute("PRAGMA wal_checkpoint(TRUNCATE)")
             try execute("VACUUM")

@@ -13,13 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         UpdateController.shared.startIfNeeded()
 
 #if DEBUG
-        let store = ProcessInfo.processInfo.environment["CODEX_METER_DEMO"] == "1"
-            ? UsageStore(
-                loader: DebugDemoUsageLoader(),
-                localUsageLoader: DebugDemoLocalTokenUsageLoader(),
-                settings: AppSettings.shared
-            )
-            : UsageStore.shared
+        let store = UsageStore.shared
         let rootView = DebugPreviewHost(
             store: store,
             settings: AppSettings.shared

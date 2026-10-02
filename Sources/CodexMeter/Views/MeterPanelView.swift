@@ -79,7 +79,7 @@ struct MeterPanelView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     Group {
-                        if let snapshot = store.snapshot {
+                        if let snapshot = store.dashboardSnapshot {
                             DashboardCardStack(snapshot: snapshot)
                         } else {
                             EmptyStateCard(state: store.state) {
