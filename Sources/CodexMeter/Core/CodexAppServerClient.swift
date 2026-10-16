@@ -47,7 +47,28 @@ final class CodexAppServerClient: CodexUsageLoading {
         let timeout = timeout
         return try await Task.detached(priority: .utility) {
             let executable = try CodexExecutableLocator.locate(override: executableOverride)
-            return try AppServerRunner(executable: executable, timeout: timeout).fetchSnapshot()
+            let loginReader = CodexSavedLoginReader()
+            let initialLogin = try? loginReader.read()
+            let result = try AppServerRunner(executable: executable, timeout: timeout).fetchSnapshot()
+            let snapshot = result.snapshot
+            guard let account = snapshot.account, account.type == "chatgpt",
+                  // An email alone cannot identify a workspace. Only fill a
+                  // missing routing ID when the running server confirms file auth.
+                  account.accountID != nil || result.usesFileCredentials,
+                  let login = try? loginReader.read(for: account) else { return snapshot }
+            guard initialLogin?.accountID == login.accountID else {
+                // Recreated or switched file credentials cannot authorize an
+                // inferred workspace. Keep the server's own snapshot usable.
+                return snapshot
+            }
+            return CodexUsageSnapshot(
+                fetchedAt: snapshot.fetchedAt,
+                account: CodexAccount(type: account.type, email: account.email, planType: account.planType,
+                                      accountID: login.accountID),
+                rateLimitBuckets: snapshot.rateLimitBuckets,
+                usageSummary: snapshot.usageSummary, dailyUsage: snapshot.dailyUsage,
+                resetCredits: snapshot.resetCredits
+            )
         }.value
     }
 }
@@ -79,6 +100,8 @@ enum CodexExecutableLocator {
         }
         // Follow the desktop app's bundled CLI before older standalone installs.
         candidates.append(contentsOf: [
+            "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
+            "/Applications/Codex.app/Contents/Resources/codex-cli/bin/codex",
             "/Applications/ChatGPT.app/Contents/Resources/codex",
             "/Applications/Codex.app/Contents/Resources/codex",
         ])
@@ -100,7 +123,12 @@ private struct AppServerRunner {
     let executable: URL
     let timeout: TimeInterval
 
-    func fetchSnapshot() throws -> CodexUsageSnapshot {
+    struct Result {
+        let snapshot: CodexUsageSnapshot
+        let usesFileCredentials: Bool
+    }
+
+    func fetchSnapshot() throws -> Result {
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
@@ -158,10 +186,9 @@ private struct AppServerRunner {
             guard let account = messages[1], let limits = messages[2], let usage = messages[3] else {
                 throw CodexMeterError.invalidResponse("缺少账户、额度或用量响应")
             }
-            return try CodexResponseParser.parse(
-                accountData: account,
-                rateLimitsData: limits,
-                usageData: usage
+            return try Result(
+                snapshot: CodexResponseParser.parse(accountData: account, rateLimitsData: limits, usageData: usage),
+                usesFileCredentials: messages[4].map(CodexResponseParser.usesFileCredentialStore) ?? false
             )
         }
     }
@@ -175,11 +202,14 @@ private struct AppServerRunner {
                     "clientInfo": [
                         "name": "codex_meter",
                         "title": "Codex Meter",
-                        "version": "1.0.0",
+                        "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0.0",
                     ],
                 ],
             ],
             ["method": "initialized", "params": [:]],
+            // Optional metadata must never hold up the account totals. If it
+            // arrives late or is unsupported, workspace inference stays disabled.
+            ["method": "config/read", "id": 4, "params": ["includeLayers": false]],
             ["method": "account/read", "id": 1, "params": ["refreshToken": false]],
             ["method": "account/rateLimits/read", "id": 2],
             ["method": "account/usage/read", "id": 3],

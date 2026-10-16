@@ -2,544 +2,409 @@
 import AppKit
 import SwiftUI
 
-private let debugPanelSnapshotWidth: CGFloat = 420
-
+/// Deterministic, isolated fixtures used only by the explicit demo build.
 struct DebugDemoUsageLoader: CodexUsageLoading {
-    func fetchSnapshot() async throws -> CodexUsageSnapshot {
-        if ProcessInfo.processInfo.environment["CODEX_METER_DEMO_REMOTE_FAILURE"] == "1" {
-            throw CodexMeterError.server("failed to fetch codex rate limits: error sending request for url (https://chatgpt.com/backend-api/wham/usage)")
-        }
-        let now = Date()
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        let today = calendar.startOfDay(for: now)
+    var usesEnvironmentOverrides = true
 
-        let dailyUsage = (0..<120).compactMap { index -> DailyTokenUsage? in
-            guard let date = calendar.date(byAdding: .day, value: index - 119, to: today) else {
-                return nil
-            }
-            let tokens: Int64 = index.isMultiple(of: 11)
-                ? 0
-                : Int64(420_000 + ((index * 97_531) % 3_800_000))
+    func fetchSnapshot() async throws -> CodexUsageSnapshot {
+        if usesEnvironmentOverrides, ProcessInfo.processInfo.environment["CODEX_METER_DEMO_REFRESH_DELAY"] == "1" {
+            try await Task.sleep(for: .seconds(3))
+        }
+        if usesEnvironmentOverrides, ProcessInfo.processInfo.environment["CODEX_METER_DEMO_REMOTE_FAILURE"] == "1" {
+            throw CodexMeterError.server("Unable to fetch account usage")
+        }
+        let now = Date(), calendar = UsageCalendar.calendar
+        let today = calendar.startOfDay(for: now)
+        var dailyUsage = (0..<120).map { index -> DailyTokenUsage in
+            let date = calendar.date(byAdding: .day, value: index - 119, to: today)!
+            let recent: [Int64] = [0, 765_000_000, 945_000_000, 450_000_000, 750_000_000, 810_000_000, 560_000_000, 380_000_000]
+            let age = 119 - index
+            let tokens: Int64 = age < recent.count ? recent[age] : age < 15 ? 551_428_571 : Int64((index * 7 + index / 9) % 4 + 1) * 17_300_000
             return DailyTokenUsage(date: date, tokens: tokens)
         }
-        let peak = dailyUsage.map(\.tokens).max() ?? 0
-
-        let quotaPreview = ProcessInfo.processInfo.environment["CODEX_METER_QUOTA_PREVIEW"]
-        let primaryRemainingPercent: Double = switch quotaPreview {
-        case "low": 16
-        case "exhausted": 0
-        default: 72
+        var excess = max(0, dailyUsage.reduce(Int64(0)) { $0 + $1.tokens } - 12_680_000_000)
+        for index in 0..<100 where excess > 0 {
+            let reduction = min(excess, dailyUsage[index].tokens)
+            dailyUsage[index] = DailyTokenUsage(date: dailyUsage[index].date, tokens: dailyUsage[index].tokens - reduction)
+            excess -= reduction
         }
-        let weeklyRemainingPercent: Double = switch quotaPreview {
-        case "low": 38
-        case "exhausted": 8
-        case "weekly": 38
-        default: 63
-        }
-        let windows: [RateLimitWindow]
-        if quotaPreview == "weekly" {
-            windows = [
-                RateLimitWindow(
-                    id: "codex-primary",
-                    bucketID: "codex",
-                    bucketName: "Codex",
-                    kind: .primary,
-                    usedPercent: 100 - weeklyRemainingPercent,
-                    windowDurationMinutes: 10_080,
-                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60 + 3 * 60 * 60)
-                ),
-            ]
-        } else {
-            windows = [
-                RateLimitWindow(
-                    id: "codex-primary",
-                    bucketID: "codex",
-                    bucketName: "Codex",
-                    kind: .primary,
-                    usedPercent: 100 - primaryRemainingPercent,
-                    windowDurationMinutes: 300,
-                    resetsAt: now.addingTimeInterval(2 * 60 * 60 + 18 * 60)
-                ),
-                RateLimitWindow(
-                    id: "codex-secondary",
-                    bucketID: "codex",
-                    bucketName: "Codex",
-                    kind: .secondary,
-                    usedPercent: 100 - weeklyRemainingPercent,
-                    windowDurationMinutes: 10_080,
-                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60 + 3 * 60 * 60)
-                ),
-            ]
-        }
-
-        let bucket = RateLimitBucket(
-            id: "codex",
-            name: "Codex",
-            planType: "plus",
-            hasCredits: true,
-            unlimitedCredits: false,
-            creditBalance: "1905",
-            windows: windows
-        )
-
+        let preview = usesEnvironmentOverrides ? ProcessInfo.processInfo.environment["CODEX_METER_QUOTA_PREVIEW"] : nil
+        let remaining: Double = preview == "low" ? 16 : preview == "exhausted" ? 0 : 64
+        let primary = RateLimitWindow(id: "codex-primary", bucketID: "codex", bucketName: "Codex", kind: .primary,
+                                      usedPercent: 100 - remaining, windowDurationMinutes: 300,
+                                      resetsAt: Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: now))
+        let secondary = RateLimitWindow(id: "codex-secondary", bucketID: "codex", bucketName: "Codex", kind: .secondary,
+                                        usedPercent: 68, windowDurationMinutes: 10_080,
+                                        resetsAt: Calendar.current.date(byAdding: .day, value: 3, to: Calendar.current.startOfDay(for: now)))
         return CodexUsageSnapshot(
             fetchedAt: now,
-            account: CodexAccount(type: "chatgpt", email: "demo@example.com", planType: "plus"),
-            rateLimitBuckets: [bucket],
-            usageSummary: TokenUsageSummary(
-                lifetimeTokens: 128_640_000,
-                peakDailyTokens: peak,
-                longestRunningTurnSeconds: 7_842,
-                currentStreakDays: 18,
-                longestStreakDays: 31
-            ),
-            dailyUsage: dailyUsage
+            account: CodexAccount(type: "chatgpt", email: "demo@example.com", planType: "pro"),
+            rateLimitBuckets: [RateLimitBucket(id: "codex", name: "Codex", planType: "pro", hasCredits: true,
+                                               unlimitedCredits: false, creditBalance: "0.00",
+                                               windows: preview == "weekly" ? [secondary] : [primary, secondary])],
+            usageSummary: TokenUsageSummary(lifetimeTokens: 13_760_000_000, peakDailyTokens: 1_020_000_000,
+                                             longestRunningTurnSeconds: 8_280, currentStreakDays: 14, longestStreakDays: 28),
+            dailyUsage: dailyUsage,
+            resetCredits: RateLimitResetCredits(availableCount: 2, credits: [
+                RateLimitResetCredit(id: "demo-reset-1", resetType: "codexRateLimits", status: "available",
+                    grantedAt: Date(timeIntervalSince1970: 1_790_707_824), expiresAt: Date(timeIntervalSince1970: 1_793_299_824)),
+                RateLimitResetCredit(id: "demo-reset-2", resetType: "codexRateLimits", status: "available",
+                    grantedAt: Date(timeIntervalSince1970: 1_791_415_344), expiresAt: Date(timeIntervalSince1970: 1_794_007_344)),
+            ])
         )
     }
 }
 
-struct DebugDemoLocalTokenUsageLoader: LocalTokenUsageLoading {
+actor DebugDemoLocalTokenUsageLoader: LocalTokenUsageLoading {
+    private let compact: Bool
+
+    init(compact: Bool = ProcessInfo.processInfo.environment["CODEX_METER_DEMO_LAYOUT"] == "compact") {
+        self.compact = compact
+    }
+
     func usage(at now: Date) async -> LocalTokenUsageSnapshot {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: now)
-        let samples: [(String, LocalTokenUsage)] = [
-            ("gpt-6-sol", LocalTokenUsage(
-                totalTokens: 1_850_000, inputTokens: 1_745_000,
-                cachedInputTokens: 1_500_000, cacheWriteInputTokens: 0,
-                outputTokens: 105_000, reasoningOutputTokens: 55_000,
-                apiEquivalentCostUSD: 4.10
-            )),
-            ("gpt-6-astra", LocalTokenUsage(
-                totalTokens: 950_000, inputTokens: 900_000,
-                cachedInputTokens: 750_000, cacheWriteInputTokens: 0,
-                outputTokens: 50_000, reasoningOutputTokens: 26_000,
-                apiEquivalentCostUSD: 2.85
-            )),
-            ("gpt-6-luna", LocalTokenUsage(
-                totalTokens: 480_000, inputTokens: 451_000,
-                cachedInputTokens: 350_000, cacheWriteInputTokens: 0,
-                outputTokens: 29_000, reasoningOutputTokens: 15_000,
-                apiEquivalentCostUSD: 1.30
-            )),
+        let day = UsageCalendar.calendar.startOfDay(for: now)
+        let samples: [(String, LocalTokenUsage)] = compact ? [
+            ("gpt-6-astra", LocalTokenUsage(totalTokens: 377_130_000, inputTokens: 376_000_000, cachedInputTokens: 365_000_000,
+                cacheWriteInputTokens: 0, outputTokens: 1_130_000, reasoningOutputTokens: 0)),
+            ("codex-auto-review", LocalTokenUsage(totalTokens: 16_744_500, inputTokens: 16_710_000, cachedInputTokens: 16_000_000,
+                cacheWriteInputTokens: 0, outputTokens: 34_500, reasoningOutputTokens: 0))
+        ] : [
+            ("gpt-6-astra", LocalTokenUsage(totalTokens: 28_900_000, inputTokens: 28_800_000, cachedInputTokens: 27_600_000,
+                                           cacheWriteInputTokens: 0, outputTokens: 100_000, reasoningOutputTokens: 0)),
+            ("gpt-6.1-sol", LocalTokenUsage(totalTokens: 2_862_000, inputTokens: 2_830_000, cachedInputTokens: 2_510_000,
+                                             cacheWriteInputTokens: 0, outputTokens: 32_000, reasoningOutputTokens: 0))
         ]
-        // Every visible local total is derived from the same synthetic model events.
-        let models: [DailyModelTokenUsage] = (0..<180).flatMap { offset in
-            let factor = offset == 0 ? 1 : Double((offset * 7) % 10 + 4) / 10
-            let day = calendar.date(byAdding: .day, value: -offset, to: today)!
-            return samples.map { model, usage in
-                DailyModelTokenUsage(day: day, model: model, usage: LocalTokenUsage(
-                    totalTokens: Int64(Double(usage.totalTokens) * factor),
-                    inputTokens: Int64(Double(usage.inputTokens) * factor),
-                    cachedInputTokens: Int64(Double(usage.cachedInputTokens) * factor),
-                    cacheWriteInputTokens: 0,
-                    outputTokens: Int64(Double(usage.outputTokens) * factor),
-                    reasoningOutputTokens: Int64(Double(usage.reasoningOutputTokens) * factor),
-                    apiEquivalentCostUSD: usage.apiEquivalentCostUSD * factor
-                ))
-            }
-        }
-        let daily = Dictionary(grouping: models, by: \.day).map { day, rows in
-            PeriodTokenUsage(start: day, usage: rows.reduce(.zero) { $0.adding($1.usage) })
-        }.sorted { $0.start > $1.start }
-        let monthly = PeriodUsageBuilder.periods(
-            from: daily, period: .month, count: 6, endingAt: now, calendar: calendar
-        ).map { MonthlyTokenUsage(month: $0.start, usage: $0.usage) }
-        let quotaReadings = (0..<180).map { offset in
-            let day = calendar.date(byAdding: .day, value: -offset, to: today)!
-            let readingDate = offset == 0 ? now.addingTimeInterval(-60) : day.addingTimeInterval(12 * 60 * 60)
-            return LocalQuotaReading(
-                date: readingDate, bucketID: "codex", windowDurationMinutes: 300,
-                resetsAt: offset == 0 ? now.addingTimeInterval(2 * 60 * 60 + 18 * 60)
-                    : readingDate.addingTimeInterval(60 * 60),
-                usedPercent: offset == 0 ? 28 : Double((offset * 7) % 10 + 8)
-            )
-        }
-        return LocalTokenUsageSnapshot(
-            today: daily.first?.usage ?? .zero,
-            lifetime: daily.reduce(.zero) { $0.adding($1.usage ?? .zero) },
-            todayQuotaUsage: TodayQuotaUsageBuilder.totals(from: quotaReadings, at: now),
-            quotaReadings: quotaReadings,
-            dailyModelUsage: models,
-            monthlyUsage: monthly,
-            dailyUsage: daily
-        )
+        return LocalTokenUsageSnapshot(today: samples.reduce(.zero) { $0.adding($1.1) }, lifetime: nil,
+                                       dailyModelUsage: samples.map { DailyModelTokenUsage(day: day, model: $0.0, usage: $0.1) })
     }
 }
 
-private struct DebugMeterPanelSnapshotView: View {
-    @EnvironmentObject private var store: UsageStore
-    @EnvironmentObject private var settings: AppSettings
+struct DebugDemoAccountModelLoader: AccountModelUsageLoading {
+    var compact = ProcessInfo.processInfo.environment["CODEX_METER_DEMO_LAYOUT"] == "compact"
 
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [.meterPanelTop, .meterPanel, .meterPanelBottom],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            VStack(spacing: 0) {
-                header
-                    .padding(.horizontal, 18)
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
-
-                Divider().overlay(Color.meterBorder)
-
-                if let snapshot = store.dashboardSnapshot {
-                    DashboardCardStack(snapshot: snapshot)
-                        .padding(14)
-                }
-
-                footer
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.meterFooter)
-                    .overlay(alignment: .top) {
-                        Divider().overlay(Color.meterBorder)
-                    }
-            }
+    func fetchModels(in range: AccountModelDateRange, account: CodexAccount) async throws -> [AccountModelIdentity] {
+        if compact {
+            return [AccountModelIdentity(model: "gpt-6-astra", usageShare: 0.99786246),
+                    AccountModelIdentity(model: "codex-auto-review", usageShare: 0.00003752),
+                    AccountModelIdentity(model: "gpt-6.1-sol", serviceTier: "fast", usageShare: 0.00189891),
+                    AccountModelIdentity(model: "gpt-6-luna", usageShare: 0.00013169),
+                    AccountModelIdentity(model: "gpt-5.6-luna", usageShare: 0.00006942)]
         }
-        .frame(width: debugPanelSnapshotWidth)
-        .foregroundStyle(Color.meterPrimary)
-        .meterTypography()
-    }
-
-    private var header: some View {
-        HStack(spacing: 11) {
-            CodexIconView(size: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 7) {
-                    Text("Codex Meter")
-                        .meterText(.title)
-                    if let plan = store.snapshot?.account?.displayPlan {
-                        Text(plan.uppercased())
-                            .meterText(.detail)
-                            .foregroundStyle(Color.meterAccent)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.meterAccent.opacity(0.11), in: Capsule())
-                    }
-                }
-                if let email = store.snapshot?.account?.email {
-                    HStack(spacing: 4) {
-                        Text(EmailPrivacy.masked(email))
-                        Image(systemName: "eye.fill")
-                            .font(.meter(size: 8.5))
-                    }
-                    .meterText(.detail)
-                    .foregroundStyle(Color.meterSecondary)
-                }
-            }
-            Spacer()
-            Image(systemName: "arrow.clockwise")
-                .font(.meter(size: 13))
-                .frame(width: 28, height: 28)
-                .background(Color.meterControl, in: Circle())
-        }
-    }
-
-    private var footer: some View {
-        HStack {
-            Image(systemName: "gearshape.fill")
-                .frame(width: 38, height: 32)
-                .background(Color.meterControl, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Spacer()
-            Image(systemName: "power")
-                .frame(width: 38, height: 32)
-                .background(Color.meterControl, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        }
+        return [AccountModelIdentity(model: "gpt-6-astra", usageShare: 0.8),
+                AccountModelIdentity(model: "gpt-6.1-sol", serviceTier: "fast", usageShare: 0.15),
+                AccountModelIdentity(model: "gpt-6-luna", usageShare: 0.03),
+                AccountModelIdentity(model: "gpt-5.6-luna", usageShare: 0.01),
+                AccountModelIdentity(model: "codex-auto-review", usageShare: 0.01)]
     }
 }
 
 struct DebugPreviewHost: View {
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: AppSettings
-    @State private var didExportSnapshot = false
-
-    private var shouldExportSnapshots: Bool {
-        ProcessInfo.processInfo.environment["CODEX_METER_DEMO"] == "1"
-    }
+    @State private var didExport = false
 
     var body: some View {
         MeterPanelView()
-            .environmentObject(store)
-            .environmentObject(settings)
-            .onAppear {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                guard shouldExportSnapshots else { return }
-                Task { await store.refresh() }
-                exportMenuBarIconPreview()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    exportStandaloneSettingsSnapshots()
+            .environmentObject(store).environmentObject(settings)
+            .task {
+                guard ProcessInfo.processInfo.environment["CODEX_METER_DEMO"] == "1", !didExport else { return }
+                didExport = true
+                if ProcessInfo.processInfo.environment["CODEX_METER_SNAPSHOT_SCOPE"] == "identity",
+                   let path = ProcessInfo.processInfo.environment["CODEX_METER_SNAPSHOT_DIRECTORY"] {
+                    await exportIdentitySnapshots(to: URL(fileURLWithPath: path, isDirectory: true))
+                    return
+                }
+                settings.language = .simplifiedChinese
+                settings.usageStatisticsPeriod = .day
+                settings.followCodexApp = true
+                if ProcessInfo.processInfo.environment["CODEX_METER_DEMO_LAYOUT"] == "compact" {
+                    settings.showQuotaCard = false
+                    settings.showTokenActivityCard = true
+                    settings.showActivityOverviewCard = false
+                    settings.showMonthlyUsageCard = true
+                    settings.showUsageHeatmapCard = false
+                    settings.showUsageSummaryCard = false
+                    settings.showCreditsBalanceCard = false
+                    settings.showResetCreditsCard = false
+                    settings.dashboardSectionOrder = [.tokenActivity, .monthlyUsage]
+                    settings.usageStatisticsDayCount = 30
+                }
+                await store.refresh()
+                while store.isRefreshing { try? await Task.sleep(nanoseconds: 20_000_000) }
+                await store.refreshLocalUsage()
+                for period in UsagePeriod.statisticsPeriods {
+                    let date = period == .day ? UsageCalendar.calendar.date(byAdding: .day, value: -1, to: Date())! : Date()
+                    await store.loadAccountModels(for: period, containing: date)
+                }
+                if let path = ProcessInfo.processInfo.environment["CODEX_METER_SNAPSHOT_DIRECTORY"] {
+                    await exportSnapshots(to: URL(fileURLWithPath: path, isDirectory: true))
                 }
             }
-            .onChange(of: store.snapshot) { _, snapshot in
-                guard shouldExportSnapshots, snapshot != nil, !didExportSnapshot else { return }
-                didExportSnapshot = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    exportSnapshots()
+    }
+
+    @MainActor private func exportIdentitySnapshots(to directory: URL) async {
+        let originalAppearance = NSApplication.shared.appearance
+        defer { NSApplication.shared.appearance = originalAppearance }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let previewSettings = AppSettings(defaults: SQLitePreferences(database: try SQLiteStore()),
+                preferredLanguages: ["zh-Hans"], launchAtLoginManager: DebugPreviewStartupManager(),
+                codexLifecycleManager: DebugPreviewStartupManager())
+            previewSettings.language = .simplifiedChinese
+            previewSettings.usageStatisticsPeriod = .day
+            previewSettings.usageStatisticsDayCount = 30
+            previewSettings.followCodexApp = true
+            previewSettings.showQuotaCard = true
+            previewSettings.showTokenActivityCard = true
+            previewSettings.showMonthlyUsageCard = true
+            previewSettings.showActivityOverviewCard = false
+            previewSettings.showUsageHeatmapCard = false
+            previewSettings.showUsageSummaryCard = false
+            previewSettings.showCreditsBalanceCard = false
+            previewSettings.showResetCreditsCard = false
+            previewSettings.dashboardSectionOrder = [.quota, .tokenActivity, .monthlyUsage]
+
+            for appearance in [AppAppearance.light, .dark] {
+                previewSettings.appearance = appearance
+                let scheme: ColorScheme = appearance == .dark ? .dark : .light
+                for theme in PanelTheme.allCases {
+                    previewSettings.panelTheme = theme
+                    let suffix = "\(theme.rawValue)-\(appearance.rawValue)"
+                    for scenario in ["ready", "loading", "partial"] {
+                        await writeIdentityScenario(scenario, settings: previewSettings, scheme: scheme,
+                            url: directory.appendingPathComponent("\(scenario == "ready" ? "panel" : scenario)-\(suffix).png"))
+                    }
                 }
             }
-    }
-
-    private func exportSnapshots() {
-        let originalAppearance = settings.appearance
-        let originalLanguage = settings.language
-        defer {
-            settings.appearance = originalAppearance
-            settings.language = originalLanguage
+            previewSettings.panelTheme = .quiet
+            previewSettings.appearance = .light
+            for scenario in ["error", "signedout", "nocodex"] {
+                await writeIdentityScenario(scenario, settings: previewSettings, scheme: .light,
+                    url: directory.appendingPathComponent("state-\(scenario)-quiet-light.png"))
+            }
+            let aboutStore = makeIdentityStore("ready", settings: previewSettings)
+            await aboutStore.refresh()
+            await writeSnapshot(SettingsPanelView(initialSection: .updates)
+                .environmentObject(aboutStore).environmentObject(previewSettings)
+                .environmentObject(UpdateController(previewState: .idle)).environment(\.colorScheme, .light),
+                width: 820, height: 620, url: directory.appendingPathComponent("settings-updates-quiet-light.png"),
+                scheme: .light, settleDelay: .milliseconds(450))
+            aboutStore.stop()
+            try Data("Identity views exported successfully\n".utf8).write(to: directory.appendingPathComponent("complete.txt"))
+        } catch {
+            try? Data("Identity export failed: \(error.localizedDescription)\n".utf8)
+                .write(to: directory.appendingPathComponent("error.txt"))
         }
-
-        exportPanelSnapshot(
-            appearance: .light,
-            language: .simplifiedChinese,
-            filename: "/tmp/CodexMeter-preview-zh-Hans-light.png"
-        )
-        exportPanelSnapshot(
-            appearance: .light,
-            language: .simplifiedChinese,
-            filename: "/tmp/CodexMeter-preview-zh-Hans-light-plain.png",
-            includeBackgroundImages: false
-        )
-        exportPanelSnapshot(
-            appearance: .dark,
-            language: .english,
-            filename: "/tmp/CodexMeter-preview-en-dark.png"
-        )
-        exportPanelSnapshot(
-            appearance: .light,
-            language: .traditionalChinese,
-            filename: "/tmp/CodexMeter-preview-zh-Hant-light.png"
-        )
-        exportStatisticsSnapshot(filename: "/tmp/CodexMeter-statistics-en-dark.png")
-        exportSettingsSnapshot(
-            appearance: .light,
-            language: .english,
-            filename: "/tmp/CodexMeter-settings-en-light.png"
-        )
-        exportSettingsSnapshot(
-            appearance: .dark,
-            language: .traditionalChinese,
-            filename: "/tmp/CodexMeter-settings-zh-Hant-dark.png"
-        )
     }
 
-    private func exportStandaloneSettingsSnapshots() {
-        let originalAppearance = settings.appearance
-        let originalLanguage = settings.language
+    @MainActor private func makeIdentityStore(_ scenario: String, settings: AppSettings) -> UsageStore {
+        UsageStore(loader: DebugScenarioUsageLoader(scenario: scenario, usesEnvironmentOverrides: false),
+            localUsageLoader: DebugIdentityLocalTokenUsageLoader(delayed: scenario == "loading"),
+            settings: settings, modelLoader: DebugDemoAccountModelLoader(compact: true))
+    }
+
+    @MainActor private func writeIdentityScenario(_ scenario: String, settings: AppSettings,
+                                                 scheme: ColorScheme, url: URL) async {
+        let previewStore = makeIdentityStore(scenario, settings: settings)
+        var pendingRefresh: Task<Void, Never>?
         defer {
-            settings.appearance = originalAppearance
-            settings.language = originalLanguage
+            pendingRefresh?.cancel()
+            previewStore.stop()
         }
-
-        exportSettingsSnapshot(
-            appearance: .light,
-            language: .simplifiedChinese,
-            filename: "/tmp/CodexMeter-settings-zh-Hans-light.png"
-        )
-        exportSettingsSnapshot(
-            appearance: .dark,
-            language: .japanese,
-            filename: "/tmp/CodexMeter-settings-ja-dark.png"
-        )
-        exportSettingsSnapshot(
-            appearance: .light,
-            language: .simplifiedChinese,
-            filename: "/tmp/CodexMeter-settings-backgrounds-empty-zh-Hans-light.png",
-            showBackgroundsInitially: true
-        )
-        exportSettingsSnapshot(
-            appearance: .light,
-            language: .simplifiedChinese,
-            filename: "/tmp/CodexMeter-settings-backgrounds-filled-zh-Hans-light.png",
-            showBackgroundsInitially: true,
-            includeBackgroundImages: true
-        )
+        if scenario == "loading" || scenario == "partial" {
+            if scenario == "partial" { await previewStore.refreshLocalUsage() }
+            pendingRefresh = Task { await previewStore.refresh() }
+            await Task.yield()
+        } else {
+            await previewStore.refresh()
+            if scenario == "ready",
+               let yesterday = UsageCalendar.calendar.date(byAdding: .day, value: -1, to: Date()) {
+                await previewStore.loadAccountModels(for: .day, containing: yesterday)
+            }
+        }
+        await writeSnapshot(MeterPanelView().environmentObject(previewStore).environmentObject(settings)
+            .environment(\.colorScheme, scheme), width: 420, height: 700, url: url, scheme: scheme,
+            settleDelay: .milliseconds(450))
+        // End the ten-second fixtures immediately after capture, including their local child task.
+        pendingRefresh?.cancel()
+        previewStore.stop()
+        await pendingRefresh?.value
     }
 
-    private func exportPanelSnapshot(
-        appearance: AppAppearance,
-        language: AppLanguage,
-        filename: String,
-        includeBackgroundImages: Bool = true
-    ) {
-        settings.appearance = appearance
-        settings.language = language
-        let colorScheme: ColorScheme = appearance == .dark ? .dark : .light
-        let previewBackgrounds = makeDebugBackgroundStore(
-            includeImages: includeBackgroundImages
-        )
-        writeSnapshot(
-            DebugMeterPanelSnapshotView()
-                .environmentObject(store)
-                .environmentObject(settings)
-                .environmentObject(previewBackgrounds)
-                .environment(\.colorScheme, colorScheme),
-            width: debugPanelSnapshotWidth,
-            filename: filename
-        )
+    @MainActor private func exportSnapshots(to directory: URL) async {
+        guard let snapshot = store.dashboardSnapshot else { return }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let originalTheme = settings.panelTheme, originalAppearance = settings.appearance
+        defer { settings.panelTheme = originalTheme; settings.appearance = originalAppearance }
+        if ProcessInfo.processInfo.environment["CODEX_METER_SNAPSHOT_SCOPE"] == "preferences" {
+            let futureSnapshot = CodexUsageSnapshot(fetchedAt: snapshot.fetchedAt, account: snapshot.account,
+                rateLimitBuckets: snapshot.rateLimitBuckets.map { bucket in
+                    RateLimitBucket(id: bucket.id, name: bucket.name, planType: bucket.planType,
+                        hasCredits: bucket.hasCredits, unlimitedCredits: bucket.unlimitedCredits,
+                        creditBalance: bucket.creditBalance,
+                        windows: bucket.windows.filter { $0.windowDurationMinutes == 10_080 })
+                }, usageSummary: snapshot.usageSummary, dailyUsage: snapshot.dailyUsage, resetCredits: snapshot.resetCredits)
+            for appearance in [AppAppearance.light, .dark] {
+                settings.appearance = appearance
+                let scheme: ColorScheme = appearance == .dark ? .dark : .light
+                for theme in PanelTheme.allCases {
+                    settings.panelTheme = theme
+                    let suffix = "\(theme.rawValue)-\(appearance.rawValue)"
+                    await writeSnapshot(MeterPanelView().environmentObject(store).environmentObject(settings)
+                        .environment(\.colorScheme, scheme), width: 420, height: 700,
+                        url: directory.appendingPathComponent("panel-\(suffix).png"), scheme: scheme)
+                    for (name, value) in [("today", snapshot), ("future", futureSnapshot)] {
+                        await writeSnapshot(DashboardCard(section: .quota, snapshot: value)
+                            .environmentObject(store).environmentObject(settings).environment(\.meterTheme, theme)
+                            .environment(\.colorScheme, scheme), width: 418,
+                            url: directory.appendingPathComponent("quota-\(name)-\(suffix).png"), scheme: scheme)
+                    }
+                    for section in [SettingsSection.general, .fonts, .refresh, .updates] {
+                        await writeSnapshot(SettingsPanelView(initialSection: section)
+                            .environmentObject(store).environmentObject(settings)
+                            .environmentObject(UpdateController(previewState: .idle))
+                            .environment(\.colorScheme, scheme), width: 820, height: 620,
+                            url: directory.appendingPathComponent("settings-\(section.rawValue)-\(suffix).png"), scheme: scheme)
+                    }
+                    await writeSnapshot(QuotaStatusSettingsView().padding(30).background(Color.meterCard)
+                        .environmentObject(settings).environment(\.meterTheme, theme).environment(\.colorScheme, scheme),
+                        width: 655, url: directory.appendingPathComponent("status-copy-\(suffix).png"), scheme: scheme)
+                }
+            }
+            try? Data("Preferences views exported successfully\n".utf8).write(to: directory.appendingPathComponent("complete.txt"))
+            return
+        }
+        if ProcessInfo.processInfo.environment["CODEX_METER_SNAPSHOT_SCOPE"] == "compact" {
+            for appearance in [AppAppearance.light, .dark] {
+                settings.appearance = appearance
+                let scheme: ColorScheme = appearance == .dark ? .dark : .light
+                for theme in PanelTheme.allCases {
+                    settings.panelTheme = theme
+                    let suffix = "\(theme.rawValue)-\(appearance.rawValue)"
+                    await writeSnapshot(MeterPanelView().environmentObject(store).environmentObject(settings)
+                        .environment(\.colorScheme, scheme), width: 420, height: 700,
+                        url: directory.appendingPathComponent("panel-\(suffix).png"), scheme: scheme)
+                    for section in [DashboardSection.tokenActivity, .monthlyUsage] {
+                        await writeSnapshot(DashboardCard(section: section, snapshot: snapshot)
+                            .environmentObject(store).environmentObject(settings).environment(\.meterTheme, theme)
+                            .environment(\.colorScheme, scheme), width: 418,
+                            url: directory.appendingPathComponent("\(section == .tokenActivity ? "today" : "history")-\(suffix).png"), scheme: scheme)
+                    }
+                }
+            }
+            try? Data("Compact views exported successfully\n".utf8).write(to: directory.appendingPathComponent("complete.txt"))
+            return
+        }
+        let cardNames: [DashboardSection: String] = [.quota: "quota", .tokenActivity: "today", .activityOverview: "overview",
+                                                    .monthlyUsage: "history", .usageHeatmap: "heatmap", .usageSummary: "summary", .creditsBalance: "credits", .resetCredits: "reset-cards"]
+        for appearance in [AppAppearance.light, .dark] {
+            settings.appearance = appearance
+            let scheme: ColorScheme = appearance == .dark ? .dark : .light
+            for theme in PanelTheme.allCases {
+                settings.panelTheme = theme
+                let suffix = "\(theme.rawValue)-\(appearance.rawValue)"
+                await writeSnapshot(MeterPanelView().environmentObject(store).environmentObject(settings)
+                    .environment(\.colorScheme, scheme), width: 420, height: 700,
+                    url: directory.appendingPathComponent("panel-\(suffix).png"), scheme: scheme)
+                for section in DashboardSection.allCases {
+                    await writeSnapshot(DashboardCard(section: section, snapshot: snapshot)
+                        .padding(.top, theme.isInstrument ? 1 : 0)
+                        .overlay(alignment: .top) { if theme.isInstrument { Color.meterBorder.frame(height: 1) } }
+                        .environmentObject(store).environmentObject(settings).environment(\.meterTheme, theme)
+                        .environment(\.colorScheme, scheme), width: 420,
+                        url: directory.appendingPathComponent("card-\(cardNames[section]!)-\(suffix).png"), scheme: scheme)
+                }
+            }
+            settings.panelTheme = .quiet
+            for section in SettingsSection.allCases {
+                settings.appearance = .system
+                let fixture = StorageInfo(bytes: 4_200_000, dailyRows: 120, checkpoints: 18,
+                                          oldest: DateOnlyParser.date(from: "2026-09-01", timeZone: .current), newest: Date())
+                await writeSnapshot(SettingsPanelView(initialSection: section, initialStorageInfo: fixture)
+                    .environmentObject(store).environmentObject(settings).environmentObject(UpdateController(previewState: .idle))
+                    .environment(\.colorScheme, scheme), width: 820, height: 620,
+                    url: directory.appendingPathComponent("settings-\(section.rawValue)-\(appearance.rawValue).png"), scheme: scheme)
+            }
+            for dialog in [SettingsPreviewDialog.language, .cleanup] {
+                let name = dialog == .language ? "language" : "cleanup"
+                let fixture = StorageInfo(bytes: 4_200_000, dailyRows: 120, checkpoints: 18,
+                                          oldest: DateOnlyParser.date(from: "2026-09-01", timeZone: .current), newest: Date())
+                await writeSnapshot(SettingsPanelView(initialSection: dialog == .language ? .general : .data,
+                                                       initialStorageInfo: fixture, previewDialog: dialog)
+                    .environmentObject(store).environmentObject(settings).environmentObject(UpdateController(previewState: .idle))
+                    .environment(\.colorScheme, scheme), width: 820, height: 620,
+                    url: directory.appendingPathComponent("settings-\(name)-\(appearance.rawValue).png"), scheme: scheme)
+            }
+            for scenario in ["loading", "error", "signedout", "nocodex", "stale"] {
+                let scenarioStore = UsageStore(loader: DebugScenarioUsageLoader(scenario: scenario),
+                                               localUsageLoader: DebugDemoLocalTokenUsageLoader(), settings: settings,
+                                               modelLoader: DebugDemoAccountModelLoader())
+                if scenario != "loading" { await scenarioStore.refresh() }
+                if scenario == "stale" { await scenarioStore.refresh() }
+                await writeSnapshot(MeterPanelView().environmentObject(scenarioStore).environmentObject(settings)
+                    .environment(\.colorScheme, scheme), width: 420, height: 700,
+                    url: directory.appendingPathComponent("state-\(scenario)-\(appearance.rawValue).png"), scheme: scheme)
+            }
+        }
+        try? Data("Native views exported successfully\n".utf8).write(to: directory.appendingPathComponent("complete.txt"))
     }
 
-    private func exportStatisticsSnapshot(filename: String) {
-        let originalPeriod = settings.usageStatisticsPeriod
-        defer { settings.usageStatisticsPeriod = originalPeriod }
-        settings.language = .english
-        settings.appearance = .dark
-        settings.usageStatisticsPeriod = .week
-        writeSnapshot(
-            MonthlyUsageCard()
-                .padding(14)
-                .background(Color.meterPanel)
-                .meterTypography()
-                .environmentObject(store)
-                .environmentObject(settings)
-                .environment(\.colorScheme, .dark),
-            width: debugPanelSnapshotWidth,
-            filename: filename
-        )
-    }
-
-    private func writeSnapshot<Content: View>(
-        _ content: Content, width: CGFloat, height: CGFloat? = nil, filename: String
-    ) {
-        // Native hosting captures scroll views and controls, including full-height cards.
-        let hosting = NSHostingView(rootView: content)
-        hosting.setFrameSize(NSSize(
-            width: width,
-            height: height ?? hosting.fittingSize.height
-        ))
-        let window = NSWindow(
-            contentRect: hosting.frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
-        )
+    /// Renders the production SwiftUI views through AppKit, including native controls.
+    @MainActor private func writeSnapshot<Content: View>(_ content: Content, width: CGFloat, height: CGFloat? = nil,
+                                                         url: URL, scheme: ColorScheme,
+                                                         settleDelay: Duration = .milliseconds(80)) async {
+        let hosting = NSHostingView(rootView: content.frame(width: width).fixedSize(horizontal: false, vertical: height == nil))
+        hosting.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+        hosting.setFrameSize(NSSize(width: width, height: height ?? 800))
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = hosting.appearance
         window.contentView = hosting
         defer { window.contentView = nil }
         hosting.layoutSubtreeIfNeeded()
-
+        if height == nil { hosting.setFrameSize(NSSize(width: width, height: hosting.fittingSize.height)) }
+        try? await Task.sleep(for: settleDelay)
+        hosting.layoutSubtreeIfNeeded()
         guard let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
         hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
         guard let png = bitmap.representation(using: .png, properties: [:]) else { return }
-
-        try? png.write(to: URL(fileURLWithPath: filename), options: .atomic)
+        try? png.write(to: url, options: .atomic)
     }
+}
 
-    private func exportSettingsSnapshot(
-        appearance: AppAppearance,
-        language: AppLanguage,
-        filename: String,
-        showBackgroundsInitially: Bool = false,
-        includeBackgroundImages: Bool = false
-    ) {
-        settings.appearance = appearance
-        settings.language = language
-        let colorScheme: ColorScheme = appearance == .dark ? .dark : .light
-        let previewBackgrounds = makeDebugBackgroundStore(
-            includeProfile: showBackgroundsInitially,
-            includeImages: includeBackgroundImages
-        )
-        writeSnapshot(
-            SettingsPanelView(showBackgroundsInitially: showBackgroundsInitially)
-                .environmentObject(store)
-                .environmentObject(settings)
-                .environmentObject(UpdateController.shared)
-                .environmentObject(previewBackgrounds)
-                .environment(\.colorScheme, colorScheme),
-            width: 760,
-            height: 552,
-            filename: filename
-        )
+private actor DebugScenarioUsageLoader: CodexUsageLoading {
+    let scenario: String
+    let usesEnvironmentOverrides: Bool
+    private var requests = 0
+    init(scenario: String, usesEnvironmentOverrides: Bool = true) {
+        self.scenario = scenario
+        self.usesEnvironmentOverrides = usesEnvironmentOverrides
     }
-
-    private func makeDebugBackgroundStore(
-        includeProfile: Bool = true,
-        includeImages: Bool
-    ) -> QuotaBackgroundStore {
-        let identifier = "CodexMeter.DebugBackgrounds.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: identifier) ?? .standard
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent(identifier, isDirectory: true)
-        let backgrounds = QuotaBackgroundStore(
-            defaults: defaults,
-            storageDirectory: directory
-        )
-        guard includeProfile else { return backgrounds }
-
-        let profileID = backgrounds.addProfile(named: "演示背景")
-        guard includeImages else { return backgrounds }
-
-        let image = makeDebugBackgroundImage()
-        for slot in QuotaBackgroundSlot.allCases {
-            try? backgrounds.saveImage(
-                original: image,
-                cropped: image,
-                for: slot,
-                profileID: profileID
-            )
+    func fetchSnapshot() async throws -> CodexUsageSnapshot {
+        requests += 1
+        if scenario == "loading" || scenario == "partial" { try await Task.sleep(for: .seconds(10)) }
+        if scenario == "error" || (scenario == "stale" && requests > 1) { throw CodexMeterError.timeout }
+        if scenario == "nocodex" { throw CodexMeterError.codexNotFound }
+        if scenario == "signedout" {
+            return CodexUsageSnapshot(fetchedAt: Date(), account: nil, rateLimitBuckets: [], usageSummary: nil, dailyUsage: [])
         }
-        return backgrounds
+        return try await DebugDemoUsageLoader(usesEnvironmentOverrides: usesEnvironmentOverrides).fetchSnapshot()
     }
+}
 
-    private func makeDebugBackgroundImage() -> NSImage {
-        let size = QuotaBackgroundImageProcessor.outputSize
-        let image = NSImage(size: size)
-        image.lockFocus()
-        NSGradient(colors: [
-            NSColor.systemPink.withAlphaComponent(0.72),
-            NSColor.systemPurple.withAlphaComponent(0.88),
-            NSColor.systemBlue.withAlphaComponent(0.82),
-        ])?.draw(in: CGRect(origin: .zero, size: size), angle: 0)
-        NSColor.white.withAlphaComponent(0.28).setFill()
-        NSBezierPath(ovalIn: CGRect(x: 850, y: -130, width: 680, height: 680)).fill()
-        NSColor.white.withAlphaComponent(0.46).setFill()
-        NSBezierPath(ovalIn: CGRect(x: 1_070, y: 100, width: 300, height: 300)).fill()
-        image.unlockFocus()
-        return image
-    }
+private struct DebugIdentityLocalTokenUsageLoader: LocalTokenUsageLoading {
+    let delayed: Bool
 
-    private func exportMenuBarIconPreview() {
-        let renderer = ImageRenderer(
-            content: HStack(spacing: 0) {
-                menuBarIconSample(colorScheme: .light, background: .white)
-                menuBarIconSample(
-                    colorScheme: .dark,
-                    background: Color(red: 0.10, green: 0.105, blue: 0.12)
-                )
-            }
-        )
-        renderer.proposedSize = ProposedViewSize(width: 192, height: 32)
-        renderer.scale = 4
-
-        guard let image = renderer.nsImage,
-              let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:])
-        else { return }
-
-        try? png.write(
-            to: URL(fileURLWithPath: "/tmp/CodexMeter-menu-icon-preview.png"),
-            options: .atomic
-        )
-    }
-
-    private func menuBarIconSample(colorScheme: ColorScheme, background: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(nsImage: MenuBarProgressRingImage.make(
-                remainingPercent: 81,
-                size: 18,
-                colorScheme: colorScheme
-            ))
-            .renderingMode(.original)
-            Text("81%")
-                .font(.meter(size: 16))
+    func usage(at now: Date) async -> LocalTokenUsageSnapshot {
+        if delayed {
+            do { try await Task.sleep(for: .seconds(10)) }
+            catch { return LocalTokenUsageSnapshot(today: .zero, lifetime: nil) }
         }
-        .padding(.horizontal, 10)
-        .frame(width: 96, height: 32, alignment: .leading)
-        .background(background)
-        .environment(\.colorScheme, colorScheme)
+        return await DebugDemoLocalTokenUsageLoader(compact: true).usage(at: now)
     }
+}
+
+private struct DebugPreviewStartupManager: LaunchAtLoginManaging, CodexLifecycleManaging {
+    func setEnabled(_ isEnabled: Bool) throws {}
 }
 #endif

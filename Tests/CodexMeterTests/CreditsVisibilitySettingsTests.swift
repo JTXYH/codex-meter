@@ -26,19 +26,13 @@ struct CreditsVisibilitySettingsTests {
             localUsageLoader: CreditsVisibilityLocalUsageLoader(),
             settings: settings
         )
-        let backgrounds = QuotaBackgroundStore(
-            defaults: defaults,
-            storageDirectory: FileManager.default.temporaryDirectory
-                .appendingPathComponent("CodexMeterCreditsVisibility-\(UUID().uuidString)")
-        )
-        let content = SettingsPanelView(showDisplayInitially: true)
+        let content = SettingsPanelView(initialSection: .display)
             .environmentObject(settings)
             .environmentObject(store)
             .environmentObject(UpdateController())
-            .environmentObject(backgrounds)
             .environment(\.colorScheme, .light)
         let hosting = NSHostingView(rootView: content)
-        hosting.setFrameSize(NSSize(width: 760, height: 552))
+        hosting.setFrameSize(NSSize(width: 820, height: 620))
         let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = hosting
         hosting.layoutSubtreeIfNeeded()

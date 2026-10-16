@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 
 @MainActor
@@ -8,7 +9,8 @@ final class UsageStore: ObservableObject {
         if ProcessInfo.processInfo.environment["CODEX_METER_DEMO"] == "1" {
             return UsageStore(
                 loader: DebugDemoUsageLoader(),
-                localUsageLoader: DebugDemoLocalTokenUsageLoader()
+                localUsageLoader: DebugDemoLocalTokenUsageLoader(),
+                modelLoader: DebugDemoAccountModelLoader()
             )
         }
 #endif
@@ -27,41 +29,36 @@ final class UsageStore: ObservableObject {
     @Published private(set) var state: State = .idle
     @Published private(set) var isRefreshing = false
     @Published private(set) var localTodayUsage = LocalTokenUsage.zero
-    @Published private(set) var localLifetimeUsage: LocalTokenUsage?
-    @Published private(set) var localMonthlyUsage: [MonthlyTokenUsage] = []
-    @Published private(set) var localDailyModelUsage: [DailyModelTokenUsage] = []
-    @Published private(set) var localHourlyModelUsage: [HourlyModelTokenUsage] = []
-    @Published private(set) var localDailyUsage: [PeriodTokenUsage] = []
-    @Published private(set) var localHourlyUsage: [PeriodTokenUsage] = []
-    @Published private(set) var localStatisticsHour: Date?
-    @Published private(set) var localTodayQuotaUsage: [TodayQuotaUsage] = []
-    @Published private(set) var localTodayQuotaReadings: [LocalQuotaReading] = []
-    @Published private(set) var localHistoricalQuotaReadings: [LocalQuotaReading] = []
+    @Published private(set) var localTodayModelUsage: [DailyModelTokenUsage] = []
     @Published private(set) var hasLoadedLocalTodayUsage = false
-    @Published private(set) var hasLoadedLocalLifetimeUsage = false
 
     private let loader: CodexUsageLoading
     private let localUsageLoader: LocalTokenUsageLoading
-    private let lifetimeUsageLoader: LocalTokenUsageLoading
+    private let accountModelLoader: AccountModelUsageLoading
+    @Published private var accountModelCache: [AccountModelDateRange: ModelCacheEntry] = [:]
+    private var modelRequests: [AccountModelDateRange: UUID] = [:]
+    private var selectedModelPeriod: (period: UsagePeriod, date: Date)?
+
+    private struct ModelCacheEntry {
+        var list: AccountModelList
+        var fetchedAt: Date?
+    }
     private let settings: AppSettings
     private var refreshLoop: Task<Void, Never>?
     private var localUsageRefreshLoop: Task<Void, Never>?
-    private var lifetimeUsageRefreshLoop: Task<Void, Never>?
     private var isRefreshingLocalUsage = false
-    private var isRefreshingLifetimeUsage = false
+    @Published private var localTodayUsageDay: Date?
 
     init(
         loader: CodexUsageLoading = CodexAppServerClient(),
         localUsageLoader: LocalTokenUsageLoading? = nil,
-        lifetimeUsageLoader: LocalTokenUsageLoading? = nil,
-        settings: AppSettings? = nil
+        settings: AppSettings? = nil,
+        modelLoader: AccountModelUsageLoading = CodexAccountModelClient()
     ) {
         self.loader = loader
-        // Separate actors let today's scan finish while the history scan is still running.
         self.localUsageLoader = localUsageLoader ?? LocalTokenUsageScanner(scope: .today)
-        self.lifetimeUsageLoader = lifetimeUsageLoader ?? localUsageLoader
-            ?? LocalTokenUsageScanner(scope: .lifetime)
         self.settings = settings ?? .shared
+        self.accountModelLoader = modelLoader
     }
 
     func startIfNeeded() {
@@ -71,9 +68,13 @@ final class UsageStore: ObservableObject {
         if localUsageRefreshLoop == nil {
             localUsageRefreshLoop = localUsageTask()
         }
-        if lifetimeUsageRefreshLoop == nil {
-            lifetimeUsageRefreshLoop = localUsageTask(lifetime: true)
-        }
+    }
+
+    func stop() {
+        refreshLoop?.cancel()
+        refreshLoop = nil
+        localUsageRefreshLoop?.cancel()
+        localUsageRefreshLoop = nil
     }
 
     func rescheduleAutomaticRefresh() {
@@ -101,14 +102,11 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    private func localUsageTask(lifetime: Bool = false) -> Task<Void, Never> {
-        Task(priority: lifetime ? .utility : .userInitiated) { [weak self] in
+    private func localUsageTask() -> Task<Void, Never> {
+        Task(priority: .userInitiated) { [weak self] in
             while !Task.isCancelled {
-                if lifetime {
-                    await self?.refreshLifetimeUsage()
-                } else {
-                    await self?.refreshLocalUsage()
-                }
+                guard self != nil else { return }
+                await self?.refreshLocalUsage()
                 do {
                     try await Task.sleep(nanoseconds: 5 * 1_000_000_000)
                 } catch {
@@ -118,143 +116,154 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    func refreshLocalUsage(at now: Date = Date()) async {
+    func refreshLocalUsage(at date: Date? = nil) async {
         guard !isRefreshingLocalUsage else { return }
         isRefreshingLocalUsage = true
         defer { isRefreshingLocalUsage = false }
-        let usage = await localUsageLoader.usage(at: now)
-        if localTodayUsage != usage.today { localTodayUsage = usage.today }
-        if localTodayQuotaUsage != usage.todayQuotaUsage { localTodayQuotaUsage = usage.todayQuotaUsage }
-        if localTodayQuotaReadings != usage.quotaReadings { localTodayQuotaReadings = usage.quotaReadings }
-        if !hasLoadedLocalTodayUsage { hasLoadedLocalTodayUsage = true }
-    }
-
-    func refreshLifetimeUsage(at now: Date = Date()) async {
-        guard !isRefreshingLifetimeUsage else { return }
-        isRefreshingLifetimeUsage = true
-        defer { isRefreshingLifetimeUsage = false }
-        let usage = await lifetimeUsageLoader.usage(at: now)
-        if localLifetimeUsage != usage.lifetime { localLifetimeUsage = usage.lifetime }
-        if localMonthlyUsage != usage.monthlyUsage { localMonthlyUsage = usage.monthlyUsage }
-        if localDailyModelUsage != usage.dailyModelUsage { localDailyModelUsage = usage.dailyModelUsage }
-        if localHourlyModelUsage != usage.hourlyModelUsage { localHourlyModelUsage = usage.hourlyModelUsage }
-        if localHistoricalQuotaReadings != usage.quotaReadings { localHistoricalQuotaReadings = usage.quotaReadings }
-        if localDailyUsage != usage.dailyUsage { localDailyUsage = usage.dailyUsage }
-        if localHourlyUsage != usage.hourlyUsage { localHourlyUsage = usage.hourlyUsage }
-        // Advance the visible time windows even when no new token records arrive.
-        let hour = Calendar.current.dateInterval(of: .hour, for: now)?.start
-        if localStatisticsHour != hour { localStatisticsHour = hour }
-        if !hasLoadedLocalLifetimeUsage { hasLoadedLocalLifetimeUsage = true }
-    }
-
-    func monthlyUsage(count: Int, at date: Date = Date()) -> [MonthlyTokenUsage] {
-        MonthlyUsageBuilder.months(from: localMonthlyUsage, count: count, endingAt: date)
+        var now = date ?? Date()
+        while true {
+            let day = UsageCalendar.calendar.startOfDay(for: now)
+            if localTodayUsageDay != day {
+                localTodayUsageDay = day
+                localTodayUsage = .zero
+                localTodayModelUsage = []
+                hasLoadedLocalTodayUsage = false
+            }
+            let usage = await localUsageLoader.usage(at: now)
+            // A large first scan can cross midnight. Do not publish the preceding
+            // day's amount under the new day's label; rescan at the new boundary.
+            if date == nil {
+                let finishedAt = Date()
+                if UsageCalendar.calendar.startOfDay(for: finishedAt) != day {
+                    now = finishedAt
+                    continue
+                }
+            }
+            if localTodayUsage != usage.today { localTodayUsage = usage.today }
+            let todayModels = usage.dailyModelUsage.filter {
+                UsageCalendar.calendar.isDate($0.day, inSameDayAs: now)
+            }
+            if localTodayModelUsage != todayModels { localTodayModelUsage = todayModels }
+            if !hasLoadedLocalTodayUsage { hasLoadedLocalTodayUsage = true }
+            return
+        }
     }
 
     func modelUsage(_ period: UsagePeriod, containing date: Date) -> [ModelTokenUsage] {
-        if period == .hour {
-            return ModelUsageBuilder.models(from: localHourlyModelUsage, containing: date)
-        }
-        return ModelUsageBuilder.models(from: localDailyModelUsage, period: period, containing: date)
+        guard period == .day,
+              let localTodayUsageDay,
+              UsageCalendar.calendar.isDate(date, inSameDayAs: localTodayUsageDay)
+        else { return [] }
+        return ModelUsageBuilder.models(from: localTodayModelUsage, period: .day, containing: date)
     }
 
-    func periodUsage(_ period: UsagePeriod, count: Int, at date: Date = Date()) -> [PeriodTokenUsage] {
-        let records: [PeriodTokenUsage]
-        switch period {
-        case .hour: records = localHourlyUsage
-        case .day, .week: records = localDailyUsage
-        case .month, .year: records = localMonthlyUsage.map { PeriodTokenUsage(start: $0.month, usage: $0.usage) }
-        }
-        return PeriodUsageBuilder.periods(from: records, period: period, count: count, endingAt: date)
+    func periodUsage(_ period: UsagePeriod, count: Int, at date: Date = Date()) -> [AccountPeriodUsage] {
+        AccountUsageBuilder.periods(
+            from: snapshot?.dailyUsage ?? [], period: period, count: count, endingAt: date
+        )
     }
 
-    func statisticsUsage(_ period: UsagePeriod, count: Int, at date: Date = Date()) -> [PeriodTokenUsage] {
+    func statisticsUsage(_ period: UsagePeriod, count: Int, at date: Date = Date()) -> [AccountPeriodUsage] {
         // Today's details have their own section; daily statistics start yesterday.
-        // Calendar arithmetic preserves the day boundary across daylight-saving changes.
+        // Both sources use the same UTC boundary, independent of device time zone.
         if period == .day {
-            guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date) else { return [] }
+            guard let yesterday = UsageCalendar.calendar.date(byAdding: .day, value: -1, to: date) else { return [] }
             return periodUsage(period, count: count, at: yesterday)
         }
         return periodUsage(period, count: count, at: date)
     }
 
-    var localCurrentMonthUsage: LocalTokenUsage? {
-        monthlyUsage(count: 1).first?.usage
+    var currentMonthTokens: Int64? {
+        periodUsage(.month, count: 1).first?.tokens
     }
 
-    var localTodayTokens: Int64 {
-        localTodayUsage.totalTokens
-    }
-
-    var localTodayQuotaPercent: Double? {
-        guard hasLoadedLocalTodayUsage, localTodayTokens > 0 else { return nil }
-        return quotaPercent(for: .day, containing: Date())
-    }
-
-    func quotaPercent(for period: UsagePeriod, containing date: Date) -> Double? {
-        guard let snapshot,
-              let window = snapshot.quotaCardPrimaryWindow,
-              let duration = window.windowDurationMinutes,
-              let resetsAt = window.resetsAt,
-              let interval = period.interval(containing: date)
-        else { return nil }
-        if localHistoricalQuotaReadings.isEmpty && localTodayQuotaReadings.isEmpty {
-            guard period == .day, Calendar.current.isDateInToday(date) else { return nil }
-            return localTodayQuotaUsage.first {
-                $0.bucketID == window.bucketID && $0.windowDurationMinutes == duration
-            }?.usedPercentagePoints
+    func accountModels(for period: UsagePeriod, containing date: Date, at now: Date = Date()) -> AccountModelList {
+        guard let range = AccountModelDateRange(period: period, containing: date, now: now) else {
+            return AccountModelList(state: .loaded)
         }
-        var readings = localHistoricalQuotaReadings + localTodayQuotaReadings
-        if snapshot.fetchedAt <= Date() {
-            readings.append(LocalQuotaReading(
-                date: snapshot.fetchedAt,
-                bucketID: window.bucketID,
-                windowDurationMinutes: duration,
-                resetsAt: resetsAt,
-                usedPercent: window.usedPercent
-            ))
+        guard snapshot?.account?.type == "chatgpt" else {
+            return AccountModelList(state: hasLoadedRemoteSnapshot ? .unsupported : .idle)
         }
-        return QuotaUsageBuilder.percentagePoints(
-            from: readings,
-            bucketID: window.bucketID,
-            windowDurationMinutes: duration,
-            in: interval
+        return accountModelCache[range]?.list ?? AccountModelList()
+    }
+
+    func loadAccountModels(
+        for period: UsagePeriod, containing date: Date, force: Bool = false, at now: Date = Date()
+    ) async {
+        selectedModelPeriod = (period, date)
+        guard let account = snapshot?.account, account.type == "chatgpt",
+              let range = AccountModelDateRange(period: period, containing: date, now: now)
+        else { return }
+        guard modelRequests[range] == nil else { return }
+        let previous = accountModelCache[range]
+        if !force, let fetchedAt = previous?.fetchedAt,
+           previous?.list.state == .loaded, now.timeIntervalSince(fetchedAt) < 120 { return }
+        let requestID = UUID()
+        let identity = account.usageIdentity
+        modelRequests[range] = requestID
+        accountModelCache[range] = ModelCacheEntry(
+            list: AccountModelList(models: previous?.list.models ?? [], state: .loading,
+                                   isStale: previous?.fetchedAt != nil),
+            fetchedAt: previous?.fetchedAt
         )
+        // The cache owns this read. A view disappearing or selecting another
+        // date must not cancel a request that a later selection can share.
+        let fetch = Task { try await accountModelLoader.fetchModels(in: range, account: account) }
+        do {
+            let models = try await fetch.value
+            guard snapshot?.account?.usageIdentity == identity, modelRequests[range] == requestID else { return }
+            accountModelCache[range] = ModelCacheEntry(list: AccountModelList(models: models, state: .loaded), fetchedAt: now)
+        } catch {
+            guard snapshot?.account?.usageIdentity == identity, modelRequests[range] == requestID else { return }
+            if error is CancellationError {
+                accountModelCache[range] = previous
+            } else if error as? AccountModelUsageError == .accountChanged {
+                accountModelCache[range] = ModelCacheEntry(list: AccountModelList(state: .failed), fetchedAt: nil)
+            } else {
+                let unavailable = [AccountModelUsageError.unsupported, .authenticationUnavailable]
+                    .contains { $0 == error as? AccountModelUsageError }
+                accountModelCache[range] = ModelCacheEntry(
+                    list: AccountModelList(models: previous?.list.models ?? [],
+                                           state: unavailable ? .unsupported : .failed,
+                                           isStale: previous?.fetchedAt != nil),
+                    fetchedAt: previous?.fetchedAt
+                )
+            }
+        }
+        modelRequests[range] = nil
+        // Limit retained UI selections without writing account history to local storage.
+        if accountModelCache.count > 96 {
+            let oldest = accountModelCache.filter { $0.key != range && modelRequests[$0.key] == nil }
+                .min { ($0.value.fetchedAt ?? .distantPast) < ($1.value.fetchedAt ?? .distantPast) }?.key
+            if let oldest { accountModelCache[oldest] = nil }
+        }
     }
 
     var dashboardSnapshot: CodexUsageSnapshot? {
-        guard let snapshot else { return nil }
-        guard !hasLoadedRemoteSnapshot else { return snapshot }
-        let dailyUsage = localDailyUsage.compactMap { record -> DailyTokenUsage? in
-            guard let usage = record.usage else { return nil }
-            return DailyTokenUsage(date: record.start, tokens: usage.totalTokens)
-        }
-        .sorted { $0.date < $1.date }
-        return CodexUsageSnapshot(
-            fetchedAt: snapshot.fetchedAt,
-            account: snapshot.account,
-            rateLimitBuckets: snapshot.rateLimitBuckets,
-            usageSummary: snapshot.usageSummary,
-            dailyUsage: dailyUsage
-        )
+        snapshot
     }
 
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
-        if snapshot == nil { state = .loading }
+        if !hasLoadedRemoteSnapshot { state = .loading }
         defer { isRefreshing = false }
 
-        // The first historical scan must not delay showing the account and quota.
+        // Today's live details refresh independently of account statistics.
         async let localRefresh: Void = refreshLocalUsage()
-        Task(priority: .utility) { [weak self] in
-            await self?.refreshLifetimeUsage()
-        }
 
         do {
-            snapshot = try await loader.fetchSnapshot()
+            let updated = try await loader.fetchSnapshot()
+            if snapshot?.account?.usageIdentity != updated.account?.usageIdentity {
+                accountModelCache.removeAll()
+                modelRequests.removeAll()
+            }
+            snapshot = updated
             hasLoadedRemoteSnapshot = true
             state = .loaded
+            if let selectedModelPeriod {
+                await loadAccountModels(for: selectedModelPeriod.period, containing: selectedModelPeriod.date, force: true)
+            }
         } catch {
             if snapshot == nil {
                 snapshot = CodexUsageSnapshot(

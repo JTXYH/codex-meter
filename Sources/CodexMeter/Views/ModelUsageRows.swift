@@ -1,76 +1,38 @@
 import SwiftUI
 
+/// Today's model details use the local scan. Account history is rendered separately.
 struct ModelUsageRows: View {
     @EnvironmentObject private var settings: AppSettings
-
+    @Environment(\.meterFontSizes) private var fontSizes
     let rows: [ModelTokenUsage]
     let isLoaded: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Circle().fill(Color.meterAccent).frame(width: 5, height: 5)
-                Text(ModelUsageL10n.text(.title, language: settings.language))
-                    .meterText(.title)
-                Spacer(minLength: 8)
-                Text(ModelUsageL10n.text(.localLogs, language: settings.language))
-                    .meterText(.detail)
-                    .foregroundStyle(Color.meterSecondary)
-            }
-            .padding(.bottom, 4)
-
             if !isLoaded || rows.isEmpty {
-                Text(isLoaded
-                     ? ModelUsageL10n.text(.noRecords, language: settings.language)
+                Text(isLoaded ? ModelUsageL10n.text(.noRecords, language: settings.language)
                      : L10n.text(.calculatingUsage, language: settings.language))
-                    .meterText(.detail)
-                    .foregroundStyle(Color.meterSecondary)
-                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                    .meterText(.detail, size: 10).foregroundStyle(Color.meterSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
             } else {
-                let total = rows.reduce(LocalTokenUsage.zero) { $0.adding($1.usage) }.totalTokens
                 ForEach(rows) { row in
-                    modelRow(row, totalTokens: total)
-                    if row.id != rows.last?.id {
-                        Rectangle().fill(Color.meterBorder).frame(height: 1)
-                    }
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 10) {
+                            Text(row.model.isEmpty ? ModelUsageL10n.text(.unknownModel, language: settings.language) : row.model)
+                                .meterText(.title, size: 11).lineLimit(1).minimumScaleFactor(0.7)
+                            Spacer(minLength: 0)
+                            Text(PanelTokenAmount(row.usage.totalTokens, language: settings.language).text)
+                                .font(.system(size: 11 * CGFloat(fontSizes.value / 16), weight: .medium))
+                        }.frame(minHeight: 16.5)
+                        HStack(spacing: 18) {
+                            Text("\(RedesignL10n.text(.input, language: settings.language)) \(PanelTokenAmount(row.usage.inputTokens, language: settings.language).text)")
+                            Text("\(RedesignL10n.text(.output, language: settings.language)) \(PanelTokenAmount(row.usage.outputTokens, language: settings.language).text)")
+                        }.meterText(.detail, size: 9).foregroundStyle(Color.meterSecondary).frame(minHeight: 13.5)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }.padding(.top, 9).padding(.bottom, row.id == rows.last?.id ? 0 : 9)
+                    if row.id != rows.last?.id { PanelRule() }
                 }
             }
-        }
-        .accessibilityIdentifier("model-usage-rows")
-    }
-
-    private func modelRow(_ row: ModelTokenUsage, totalTokens: Int64) -> some View {
-        let share = totalTokens > 0 ? Double(row.usage.totalTokens) / Double(totalTokens) : 0
-        return VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 7) {
-                Circle().fill(Color.meterAccent).frame(width: 5, height: 5)
-                Text(row.model.isEmpty
-                     ? ModelUsageL10n.text(.unknownModel, language: settings.language) : row.model)
-                    .meterText(.title)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer(minLength: 8)
-                Text(MeterFormatters.tokens(row.usage.totalTokens, language: settings.language))
-                    .meterText(.title)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-
-            MeterProgressBar(progress: share, height: 4)
-
-            HStack(spacing: 5) {
-                Text("\(L10n.text(.inputTokens, language: settings.language)) \(MeterFormatters.tokens(row.usage.inputTokens, language: settings.language))")
-                Spacer(minLength: 3)
-                Text("\(L10n.text(.outputTokens, language: settings.language)) \(MeterFormatters.tokens(row.usage.outputTokens, language: settings.language))")
-                Spacer(minLength: 3)
-                Text(MeterFormatters.usd(row.usage.apiEquivalentCostUSD))
-            }
-            .meterText(.detail)
-            .foregroundStyle(Color.meterSecondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-        }
-        .padding(.vertical, 13)
+        }.accessibilityIdentifier("model-usage-rows")
     }
 }

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="orbit-tile" x1="43" y1="20" x2="204" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/>
+      <stop offset=".56" stop-color="#FBFBFE"/>
+      <stop offset="1" stop-color="#EDEDF6"/>
+    </linearGradient>
+    <linearGradient id="orbit-ink" x1="181" y1="57" x2="69" y2="192" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#988BFF"/>
+      <stop offset=".45" stop-color="#7463EE"/>
+      <stop offset="1" stop-color="#4D43C7"/>
+    </linearGradient>
+    <linearGradient id="orbit-dot" x1="187" y1="116" x2="201" y2="141" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9A8BFF"/>
+      <stop offset="1" stop-color="#6C5AE7"/>
+    </linearGradient>
+    <filter id="orbit-tile-shadow" x="0" y="0" width="256" height="256" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#25203E" flood-opacity=".14"/>
+    </filter>
+    <filter id="orbit-ink-shadow" x="30" y="35" width="192" height="190" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#5745C2" flood-opacity=".17"/>
+    </filter>
+  </defs>
+  <g filter="url(#orbit-tile-shadow)">
+    <rect x="16" y="16" width="224" height="224" rx="51" fill="url(#orbit-tile)"/>
+    <rect x="16.5" y="16.5" width="223" height="223" rx="50.5" stroke="#D9DBE7"/>
+    <rect x="18" y="18" width="220" height="220" rx="49" stroke="#fff" stroke-opacity=".9"/>
+  </g>
+  <g filter="url(#orbit-ink-shadow)">
+    <path d="M173.25 78.62A67 67 0 1 0 173.25 177.38" stroke="url(#orbit-ink)" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="194" cy="128" r="12" fill="url(#orbit-dot)"/>
+    <path d="M116 128H146" stroke="url(#orbit-ink)" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <path d="M128 84V90M84 128H90M128 166V172" stroke="#7664D7" stroke-opacity=".32" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

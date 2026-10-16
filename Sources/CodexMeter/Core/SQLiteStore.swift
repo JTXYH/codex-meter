@@ -59,7 +59,7 @@ final class SQLiteStore: @unchecked Sendable {
             try execute("PRAGMA journal_mode = WAL")
             try execute("PRAGMA synchronous = NORMAL")
             let version = try rows("PRAGMA user_version").first?.first?.int ?? 0
-            guard version <= 3 else { throw Failure(message: "This database requires a newer Codex Meter version.") }
+            guard version <= 4 else { throw Failure(message: "This database requires a newer Codex Meter version.") }
             try transaction {
                 try execute("CREATE TABLE IF NOT EXISTS records(namespace TEXT NOT NULL, key TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY(namespace,key))")
                 try execute("CREATE TABLE IF NOT EXISTS scan_files(scope TEXT NOT NULL, path TEXT NOT NULL, state BLOB NOT NULL, PRIMARY KEY(scope,path))")
@@ -68,7 +68,7 @@ final class SQLiteStore: @unchecked Sendable {
                       scope TEXT NOT NULL, path TEXT NOT NULL, day REAL NOT NULL,
                       total INTEGER NOT NULL, input INTEGER NOT NULL, cached INTEGER NOT NULL,
                       cache_write INTEGER NOT NULL, output INTEGER NOT NULL, reasoning INTEGER NOT NULL,
-                      cost REAL NOT NULL, PRIMARY KEY(scope,path,day),
+                      PRIMARY KEY(scope,path,day),
                       FOREIGN KEY(scope,path) REFERENCES scan_files(scope,path) ON DELETE CASCADE)
                     """)
                 try execute("CREATE INDEX IF NOT EXISTS daily_usage_day ON daily_usage(day,scope)")
@@ -77,7 +77,7 @@ final class SQLiteStore: @unchecked Sendable {
                       scope TEXT NOT NULL, path TEXT NOT NULL, hour REAL NOT NULL,
                       total INTEGER NOT NULL, input INTEGER NOT NULL, cached INTEGER NOT NULL,
                       cache_write INTEGER NOT NULL, output INTEGER NOT NULL, reasoning INTEGER NOT NULL,
-                      cost REAL NOT NULL, PRIMARY KEY(scope,path,hour),
+                      PRIMARY KEY(scope,path,hour),
                       FOREIGN KEY(scope,path) REFERENCES scan_files(scope,path) ON DELETE CASCADE)
                     """)
                 try execute("CREATE INDEX IF NOT EXISTS hourly_usage_hour ON hourly_usage(hour,scope)")
@@ -86,7 +86,7 @@ final class SQLiteStore: @unchecked Sendable {
                       scope TEXT NOT NULL, path TEXT NOT NULL, day REAL NOT NULL, model TEXT NOT NULL,
                       total INTEGER NOT NULL, input INTEGER NOT NULL, cached INTEGER NOT NULL,
                       cache_write INTEGER NOT NULL, output INTEGER NOT NULL, reasoning INTEGER NOT NULL,
-                      cost REAL NOT NULL, PRIMARY KEY(scope,path,day,model),
+                      PRIMARY KEY(scope,path,day,model),
                       FOREIGN KEY(scope,path) REFERENCES scan_files(scope,path) ON DELETE CASCADE)
                     """)
                 try execute("CREATE INDEX IF NOT EXISTS daily_model_usage_day ON daily_model_usage(day,scope)")
@@ -95,11 +95,22 @@ final class SQLiteStore: @unchecked Sendable {
                       scope TEXT NOT NULL, path TEXT NOT NULL, hour REAL NOT NULL, model TEXT NOT NULL,
                       total INTEGER NOT NULL, input INTEGER NOT NULL, cached INTEGER NOT NULL,
                       cache_write INTEGER NOT NULL, output INTEGER NOT NULL, reasoning INTEGER NOT NULL,
-                      cost REAL NOT NULL, PRIMARY KEY(scope,path,hour,model),
+                      PRIMARY KEY(scope,path,hour,model),
                       FOREIGN KEY(scope,path) REFERENCES scan_files(scope,path) ON DELETE CASCADE)
                     """)
                 try execute("CREATE INDEX IF NOT EXISTS hourly_model_usage_hour ON hourly_model_usage(hour,scope)")
-                try execute("PRAGMA user_version = 3")
+                if version < 4 {
+                    // Remove an obsolete column in place; all token rows, foreign
+                    // keys, indexes and scanner cursors remain intact.
+                    for table in ["daily_usage", "hourly_usage", "daily_model_usage", "hourly_model_usage"] {
+                        let columns = try rows("PRAGMA table_info(\(table))")
+                        if columns.contains(where: { $0[1].string == "cost" }) {
+                            try execute("ALTER TABLE \(table) DROP COLUMN cost")
+                        }
+                    }
+                    try execute("DELETE FROM records WHERE namespace='preferences' AND key='apiPriceConfiguration'")
+                }
+                try execute("PRAGMA user_version = 4")
             }
         } catch {
             sqlite3_close(connection)
@@ -213,14 +224,15 @@ final class SQLiteStore: @unchecked Sendable {
 
     func storageInfo() throws -> StorageInfo {
         try lock.withLock {
-            let row = try rows("SELECT COUNT(*), MIN(day), MAX(day) FROM daily_usage WHERE scope='lifetime'").first!
-            let images = try rows("SELECT COALESCE(SUM(length(value)),0) FROM records WHERE namespace='images'").first!.first!.int
+            // Current installs cache today's live usage; upgraded installs may also
+            // retain historical rows. Both occupy storage and must stay cleanable.
+            let row = try rows("SELECT COUNT(DISTINCT day), MIN(day), MAX(day) FROM daily_usage").first!
             let count = try rows("SELECT COUNT(*) FROM scan_files").first!.first!.int
             let bytes: Int64 = [url, url.map { URL(fileURLWithPath: $0.path + "-wal") }, url.map { URL(fileURLWithPath: $0.path + "-shm") }]
                 .compactMap { $0 }.reduce(0) { sum, file in
                     sum + ((try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0)
                 }
-            return StorageInfo(bytes: bytes, imageBytes: images, dailyRows: row[0].int, checkpoints: count,
+            return StorageInfo(bytes: bytes, dailyRows: row[0].int, checkpoints: count,
                                oldest: row[0].int > 0 ? Date(timeIntervalSinceReferenceDate: row[1].double) : nil,
                                newest: row[0].int > 0 ? Date(timeIntervalSinceReferenceDate: row[2].double) : nil)
         }
@@ -246,7 +258,6 @@ final class SQLiteStore: @unchecked Sendable {
 
 struct StorageInfo: Sendable {
     let bytes: Int64
-    let imageBytes: Int64
     let dailyRows: Int64
     let checkpoints: Int64
     let oldest: Date?
@@ -273,8 +284,7 @@ final class SQLitePreferences: PreferencesStore {
         "showQuotaCard", "showTokenActivityCard", "showActivityOverviewCard", "showMonthlyUsageCard",
         "monthlyUsageMonthCount", "showUsageHeatmapCard", "showUsageSummaryCard", "showCreditsBalanceCard",
         "dashboardSectionOrder", "automaticRefreshIntervalOption", "automaticRefreshIntervalMinutes",
-        "customRefreshIntervalMinutes", "codexExecutablePath", "quotaBackgroundsEnabled",
-        "quotaBackgroundProfiles", "selectedQuotaBackgroundProfileID"
+        "customRefreshIntervalMinutes", "codexExecutablePath", "panelTheme"
     ]
 
     init(database: SQLiteStore, legacy: UserDefaults? = nil) {

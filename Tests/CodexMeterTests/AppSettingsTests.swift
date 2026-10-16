@@ -5,6 +5,69 @@ import Testing
 
 struct AppSettingsTests {
     @Test @MainActor
+    func keepsPanelThemeIndependentFromAppearanceAcrossRestartAndDataCleanup() throws {
+        let originalAppearance = NSApplication.shared.appearance
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("CodexMeter.Theme.\(UUID())")
+        defer {
+            NSApplication.shared.appearance = originalAppearance
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let databaseURL = directory.appendingPathComponent("meter.sqlite")
+        let database = try SQLiteStore(url: databaseURL)
+        let settings = AppSettings(defaults: SQLitePreferences(database: database),
+                                   launchAtLoginManager: LaunchAtLoginManagerSpy(),
+                                   codexLifecycleManager: CodexLifecycleManagerSpy())
+        #expect(settings.panelTheme == .quiet)
+        #expect(settings.appearance == .system)
+
+        settings.appearance = .dark
+        settings.panelTheme = .instrument
+        #expect(settings.appearance == .dark)
+        #expect(NSApplication.shared.appearance?.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
+        settings.appearance = .light
+        #expect(settings.panelTheme == .instrument)
+        settings.panelTheme = .quiet
+        #expect(settings.appearance == .light)
+        settings.panelTheme = .instrument
+
+        let reopened = try SQLiteStore(url: databaseURL)
+        let restored = AppSettings(defaults: SQLitePreferences(database: reopened),
+                                   launchAtLoginManager: LaunchAtLoginManagerSpy(),
+                                   codexLifecycleManager: CodexLifecycleManagerSpy())
+        #expect(restored.panelTheme == .instrument)
+        #expect(restored.appearance == .light)
+
+        // Use the same cleanup operation as the settings center; a full cleanup
+        // must preserve theme/appearance preferences after another restart.
+        try reopened.cleanUsage(before: .distantFuture)
+        let afterCleanup = AppSettings(defaults: SQLitePreferences(database: try SQLiteStore(url: databaseURL)),
+                                      launchAtLoginManager: LaunchAtLoginManagerSpy(),
+                                      codexLifecycleManager: CodexLifecycleManagerSpy())
+        #expect(afterCleanup.panelTheme == .instrument)
+        #expect(afterCleanup.appearance == .light)
+    }
+
+    @Test(arguments: ["", "removed-theme", "INSTRUMENT"]) @MainActor
+    func invalidStoredThemesFallBackWithoutChangingAppearance(_ invalid: String) throws {
+        let originalAppearance = NSApplication.shared.appearance
+        defer { NSApplication.shared.appearance = originalAppearance }
+        let preferences = SQLitePreferences(database: try SQLiteStore())
+        preferences.set(invalid, forKey: "panelTheme")
+        preferences.set("dark", forKey: "appAppearance")
+        let settings = AppSettings(defaults: preferences,
+                                   launchAtLoginManager: LaunchAtLoginManagerSpy(),
+                                   codexLifecycleManager: CodexLifecycleManagerSpy())
+        #expect(settings.panelTheme == .quiet)
+        #expect(settings.appearance == .dark)
+        settings.panelTheme = .instrument
+        let restored = AppSettings(defaults: preferences,
+                                   launchAtLoginManager: LaunchAtLoginManagerSpy(),
+                                   codexLifecycleManager: CodexLifecycleManagerSpy())
+        #expect(restored.panelTheme == .instrument)
+        #expect(restored.appearance == .dark)
+    }
+
+    @Test @MainActor
     func persistsMenuBarSizeAcrossLaunches() {
         let suiteName = "CodexMeterTests.MenuBarSettings.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -144,6 +207,8 @@ struct AppSettingsTests {
         #expect(firstSettings.showUsageHeatmapCard)
         #expect(firstSettings.showUsageSummaryCard)
         #expect(firstSettings.showCreditsBalanceCard)
+        #expect(firstSettings.showResetCreditsCard)
+        #expect(firstSettings.isDashboardSectionVisible(.resetCredits))
         #expect(firstSettings.dashboardSectionOrder == DashboardSection.allCases)
 
         firstSettings.showQuotaCard = false
@@ -154,6 +219,7 @@ struct AppSettingsTests {
         firstSettings.showUsageHeatmapCard = false
         firstSettings.showUsageSummaryCard = false
         firstSettings.showCreditsBalanceCard = false
+        firstSettings.showResetCreditsCard = false
         #expect(!defaults.bool(forKey: "showQuotaCard"))
         #expect(!defaults.bool(forKey: "showTokenActivityCard"))
         #expect(!defaults.bool(forKey: "showUsageHeatmapCard"))
@@ -162,7 +228,7 @@ struct AppSettingsTests {
 
         let reorderedSections: [DashboardSection] = [
             .creditsBalance, .usageSummary, .quota, .usageHeatmap, .tokenActivity,
-            .activityOverview, .monthlyUsage,
+            .activityOverview, .monthlyUsage, .resetCredits,
         ]
         firstSettings.dashboardSectionOrder = reorderedSections
         #expect(
@@ -184,6 +250,8 @@ struct AppSettingsTests {
         #expect(!restoredSettings.showUsageHeatmapCard)
         #expect(!restoredSettings.showUsageSummaryCard)
         #expect(!restoredSettings.showCreditsBalanceCard)
+        #expect(!restoredSettings.showResetCreditsCard)
+        #expect(!restoredSettings.isDashboardSectionVisible(.resetCredits))
         #expect(restoredSettings.dashboardSectionOrder == reorderedSections)
     }
 
@@ -207,19 +275,19 @@ struct AppSettingsTests {
         )
         #expect(settings.dashboardSectionOrder == [
             .creditsBalance, .quota, .tokenActivity, .activityOverview, .monthlyUsage,
-            .usageHeatmap, .usageSummary,
+            .usageHeatmap, .usageSummary, .resetCredits,
         ])
 
         settings.moveDashboardSections(fromOffsets: IndexSet(integer: 0), toOffset: 5)
         #expect(settings.dashboardSectionOrder == [
             .quota, .tokenActivity, .activityOverview, .monthlyUsage, .creditsBalance,
-            .usageHeatmap, .usageSummary,
+            .usageHeatmap, .usageSummary, .resetCredits,
         ])
 
         settings.moveDashboardSections(fromOffsets: IndexSet(integer: 3), toOffset: 0)
         #expect(settings.dashboardSectionOrder == [
             .monthlyUsage, .quota, .tokenActivity, .activityOverview, .creditsBalance,
-            .usageHeatmap, .usageSummary,
+            .usageHeatmap, .usageSummary, .resetCredits,
         ])
     }
 

@@ -1,50 +1,21 @@
-# Codex Meter Update Worker
+# Codex Meter update service
 
-This Worker reads the latest public GitHub Release for `JTXYH/codex-meter`, selects the macOS ZIP asset, and returns a small update manifest to the app. Release metadata is cached at the Cloudflare edge; release binaries remain on GitHub.
-
-> Legacy compatibility: Codex Meter 1.7.0 uses the signed Sparkle appcast introduced in 1.2.0. The current release is documented in the [main README](../../README.en.md) and [release notes](../../docs/releases/v1.7.0.md). Keep this Worker available only for older app versions that still request the JSON update manifest.
+This Cloudflare Worker serves the JSON update manifest used by early Codex Meter releases. Codex Meter 2.0 uses the signed Sparkle feed on GitHub and does not call this service. Keep the Worker running so older installations can still discover the latest release.
 
 ## Endpoints
 
-- `GET /health`
-- `GET /v1/releases/latest`
+- `GET /health`: service health.
+- `GET /v1/releases/latest`: latest published, non-prerelease GitHub release and its matching `CodexMeter-<version>-macOS.zip` asset. `HEAD` is also supported.
 
-The latest-release endpoint returns `502` until the repository has its first
-published, non-prerelease GitHub Release with exactly one completed
-`CodexMeter-<version>-macOS.zip` asset.
-It does not accept query parameters; requests such as `?nonce=...` return `400`
-so callers cannot create unbounded edge-cache keys.
+The release endpoint rejects query parameters and returns `502` when GitHub is unavailable or a valid download is missing. ZIP files stay on GitHub; the Worker returns metadata only.
 
-## Caching
+## Configuration
 
-Workers Caching is enabled for the deployed Worker, including its `workers.dev`
-route. Successful update manifests are cached for 15 minutes at Cloudflare's
-edge while browsers receive a 5-minute TTL. The health response and all error
-responses are marked `no-store`.
+The repository and asset prefix are set in `wrangler.jsonc`. `GITHUB_TOKEN` is a Cloudflare secret with read-only Contents access to the configured repository. Do not commit the token or place it in the configuration file.
 
-The Worker also keeps a configuration-scoped Cache API entry as a fallback for
-custom-domain or routed deployments where the Cache API is functional. Cache
-API operations have no effect on `*.workers.dev`, so they are not the production
-cache layer for the URL below.
+The implementation validates the GitHub host, repository, tag and asset name, bounds response sizes, rejects redirects, and rate-limits requests. Successful manifests use a 15-minute edge cache and a 5-minute browser cache. Errors and health responses are not cached.
 
-## Security
-
-The Worker requires a fine-grained GitHub token with read-only `Contents`
-permission for this repository. Store it only as the `GITHUB_TOKEN` Cloudflare
-secret; never add its value to Wrangler configuration or Git. The repository
-configures a per-client rate limit, bounded upstream responses, manual redirect
-rejection, exact release-tag and macOS asset matching, reduced observability
-sampling, and a GitHub repository allowlist. Free-plan deployments use
-Cloudflare's built-in CPU and subrequest limits; do not add a `limits` block
-unless the Worker uses the Standard (paid) usage model. Keep the rate-limit
-`namespace_id` unique if the same Cloudflare account deploys other Workers with
-rate-limit bindings.
-
-For a paid Cloudflare account, also configure a budget alert in the dashboard.
-Application-level rate limiting reduces abusive work but cannot prevent every
-billable invocation from a distributed attack.
-
-## Development
+## Development and deployment
 
 ```bash
 npm ci
@@ -52,21 +23,13 @@ npm test
 npm run check
 ```
 
-## Deployment
+`check` validates TypeScript, generated bindings and a deployment dry run. To deploy an intentional Worker change:
 
 ```bash
 npx wrangler secret put GITHUB_TOKEN
 npx wrangler deploy
 ```
 
-The production Worker is deployed at `https://codex-meter-updates.tianxiang1314520.workers.dev`.
+Publishing a Codex Meter release does not require redeploying this Worker. It reads the repository's latest release automatically.
 
-## License
-
-This Worker is part of Codex Meter and is licensed under the [MIT License](../../LICENSE).
-
-## FAQ
-
-### Why isn't Claude Code supported?
-
-![Anthropic declined to reinstate the Claude Code account](../../docs/images/why-claude-code-is-not-supported.png)
+See the [app README](../../README.en.md), [2.0 release notes](../../docs/releases/v2.0.0.md) and [MIT License](../../LICENSE).

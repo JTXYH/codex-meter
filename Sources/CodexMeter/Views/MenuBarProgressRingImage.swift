@@ -6,11 +6,10 @@ enum MenuBarProgressRingImage {
     static func make(
         remainingPercent: Double?,
         size: CGFloat,
-        colorScheme: ColorScheme = .light
+        colorScheme: ColorScheme = .light,
+        theme: PanelTheme = .quiet
     ) -> NSImage {
-        let colors = remainingPercent.map {
-            QuotaVisualState(remainingPercent: $0).ringColors
-        } ?? [.meterAccent]
+        let colors = [remainingPercent.map { $0 < 30 ? Color.meterDanger : theme.accent } ?? theme.accent]
         let lineWidth = size / 7
         let renderer = ImageRenderer(
             content: QuotaRingStroke(

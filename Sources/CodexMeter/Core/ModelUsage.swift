@@ -23,13 +23,13 @@ enum ModelUsageBuilder {
         from records: [DailyModelTokenUsage],
         period: UsagePeriod,
         containing date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = UsageCalendar.calendar
     ) -> [ModelTokenUsage] {
         guard period != .hour else { return [] }
         guard let interval = period.interval(containing: date, calendar: calendar) else { return [] }
         var byModel: [String: LocalTokenUsage] = [:]
         for record in records where record.day >= interval.start && record.day < interval.end {
-            byModel[record.model] = (byModel[record.model] ?? .zero).adding(record.usage)
+            byModel[record.model] = byModel[record.model].map { $0.adding(record.usage) } ?? record.usage
         }
         return byModel.map { ModelTokenUsage(model: $0.key, usage: $0.value) }
             .sorted {
@@ -43,12 +43,12 @@ enum ModelUsageBuilder {
     static func models(
         from records: [HourlyModelTokenUsage],
         containing date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = UsageCalendar.calendar
     ) -> [ModelTokenUsage] {
         guard let interval = calendar.dateInterval(of: .hour, for: date) else { return [] }
         var byModel: [String: LocalTokenUsage] = [:]
         for record in records where record.hour >= interval.start && record.hour < interval.end {
-            byModel[record.model] = (byModel[record.model] ?? .zero).adding(record.usage)
+            byModel[record.model] = byModel[record.model].map { $0.adding(record.usage) } ?? record.usage
         }
         return byModel.map { ModelTokenUsage(model: $0.key, usage: $0.value) }
             .sorted {

@@ -18,12 +18,10 @@ struct CreditsBalanceCardTests {
             today: .zero,
             lifetime: LocalTokenUsage(
                 totalTokens: 128_640_000, inputTokens: 120_000_000, cachedInputTokens: 96_000_000,
-                cacheWriteInputTokens: 0, outputTokens: 8_640_000, reasoningOutputTokens: 0,
-                apiEquivalentCostUSD: 307.20
+                cacheWriteInputTokens: 0, outputTokens: 8_640_000, reasoningOutputTokens: 0
             )
         )), settings: settings)
         await store.refreshLocalUsage()
-        await store.refreshLifetimeUsage()
         let states: [(name: String, balance: String?, unlimited: Bool)] = [
             ("amount", "1905", false),
             ("zero", "0", false),
@@ -41,6 +39,8 @@ struct CreditsBalanceCardTests {
             let colorScheme: ColorScheme = appearance == .dark ? .dark : .light
             for language in AppLanguage.allCases {
                 settings.language = language
+                for theme in PanelTheme.allCases {
+                settings.panelTheme = theme
                 for state in states {
                     let snapshot = CodexUsageSnapshot(
                         fetchedAt: Date(timeIntervalSince1970: 1_788_177_600),
@@ -60,6 +60,7 @@ struct CreditsBalanceCardTests {
                     let card = CreditsBalanceCard(snapshot: snapshot)
                         .environmentObject(settings)
                         .environment(\.colorScheme, colorScheme)
+                        .environment(\.meterTheme, theme)
                         .frame(width: 392)
                         .foregroundStyle(Color.meterPrimary)
                     let image = try #require(ImageRenderer(content: card).nsImage)
@@ -79,15 +80,17 @@ struct CreditsBalanceCardTests {
                             .environmentObject(settings)
                             .environmentObject(store)
                             .environment(\.colorScheme, colorScheme)
+                        .environment(\.meterTheme, theme)
                         )
                         renderer.scale = 2
                         let rendered = try #require(renderer.nsImage)
                         let tiff = try #require(rendered.tiffRepresentation)
                         let bitmap = try #require(NSBitmapImageRep(data: tiff))
                         let png = try #require(bitmap.representation(using: .png, properties: [:]))
-                        let filename = "credits-\(language.rawValue)-\(appearance.rawValue)-\(state.name).png"
+                        let filename = "credits-\(theme.rawValue)-\(language.rawValue)-\(appearance.rawValue)-\(state.name).png"
                         try png.write(to: exportDirectory.appendingPathComponent(filename), options: .atomic)
                     }
+                }
                 }
             }
         }

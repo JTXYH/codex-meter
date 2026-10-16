@@ -223,29 +223,6 @@ struct CodexResponseParserTests {
     }
 
     @Test
-    func replacesDelayedTodayUsageWithLocalTokens() {
-        let today = DateOnlyParser.date(from: "2026-08-11")!
-        let yesterday = DateOnlyParser.date(from: "2026-08-10")!
-        let snapshot = CodexUsageSnapshot(
-            fetchedAt: today,
-            account: nil,
-            rateLimitBuckets: [],
-            usageSummary: nil,
-            dailyUsage: [
-                DailyTokenUsage(date: yesterday, tokens: 50),
-                DailyTokenUsage(date: today, tokens: 10),
-                DailyTokenUsage(date: today, tokens: 15),
-            ]
-        )
-
-        let updated = snapshot.replacingTokenUsage(on: today, with: 120)
-
-        #expect(updated.dailyUsage.count == 2)
-        #expect(updated.tokens(on: today) == 120)
-        #expect(updated.tokensInLastDays(2, endingAt: today) == 170)
-    }
-
-    @Test
     func formatsQuotaDurations() {
         let now = Date(timeIntervalSince1970: 1_786_600_000)
         let weekly = RateLimitWindow(
@@ -267,11 +244,6 @@ struct CodexResponseParserTests {
             resetsAt: now.addingTimeInterval(2 * 60 * 60 + 17 * 60)
         )
         #expect(MeterFormatters.quotaTitle(for: weekly) == "周额度")
-        #expect(MeterFormatters.tokens(1_253_637_101) == "12亿5千万")
-        #expect(MeterFormatters.tokens(22_000_000) == "2千2百万")
-        #expect(MeterFormatters.tokens(5_400_000) == "540万")
-        #expect(MeterFormatters.tokens(845_000) == "84.5万")
-        #expect(MeterFormatters.tokens(8_200) == "8.2千")
         #expect(
             MeterFormatters.quotaTitle(for: weekly, language: .traditionalChinese)
                 == "週額度"
@@ -280,28 +252,7 @@ struct CodexResponseParserTests {
             MeterFormatters.quotaTitle(for: weekly, language: .english)
                 == "Weekly quota"
         )
-        #expect(
-            MeterFormatters.tokens(1_253_637_101, language: .traditionalChinese)
-                == "12億5千萬"
-        )
-        #expect(
-            MeterFormatters.tokens(1_253_637_101, language: .english)
-                == "1.3B"
-        )
-        #expect(MeterFormatters.usd(2.47) == "$2.47")
-        #expect(MeterFormatters.usd(0.0042) == "$0.0042")
-        #expect(MeterFormatters.quotaStatus(remainingPercent: 88) == "剩余额度")
-        #expect(MeterFormatters.quotaStatus(remainingPercent: 16) == "额度偏低")
-        #expect(MeterFormatters.quotaStatus(remainingPercent: 0) == "额度已用完")
-        #expect(MeterFormatters.weeklyRemainingLabel() == "周额度剩余")
-        #expect(
-            MeterFormatters.quotaResetDescription(for: weekly, now: now)
-                == "\(MeterFormatters.resetDate(weekly.resetsAt!, now: now)) 重置"
-        )
-        #expect(MeterFormatters.quotaResetDescription(for: weekly, now: now)?.contains("2026") == false)
-        #expect(
-            MeterFormatters.quotaResetDescription(for: fiveHour, now: now)
-                == "2 小时 17 分后重置 · \(MeterFormatters.resetTime(fiveHour.resetsAt!))"
-        )
+        #expect(MeterFormatters.quotaTitle(for: fiveHour) == "5 小时额度")
+        #expect(MeterFormatters.quotaTitle(for: fiveHour, language: .english) == "5-hour quota")
     }
 }

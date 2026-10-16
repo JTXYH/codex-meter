@@ -144,6 +144,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Sendable {
     case usageHeatmap
     case usageSummary
     case creditsBalance
+    case resetCredits
 
     var id: String { rawValue }
 }
@@ -165,6 +166,17 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var quotaStatusMessages: QuotaStatusMessages {
+        didSet {
+            let sanitized = quotaStatusMessages.sanitized
+            if sanitized != quotaStatusMessages { quotaStatusMessages = sanitized }
+            guard sanitized != oldValue else { return }
+            if let data = try? JSONEncoder().encode(sanitized) {
+                defaults.set(data, forKey: Keys.quotaStatusMessages)
+            }
+        }
+    }
+
     @Published var menuBarIconSize: Double {
         didSet {
             let sanitized = Self.sanitizedMenuBarIconSize(menuBarIconSize)
@@ -173,6 +185,10 @@ final class AppSettings: ObservableObject {
             }
             defaults.set(sanitized, forKey: Keys.menuBarIconSize)
         }
+    }
+
+    @Published var panelTheme: PanelTheme {
+        didSet { defaults.set(panelTheme.rawValue, forKey: Keys.panelTheme) }
     }
 
     @Published var appearance: AppAppearance {
@@ -305,6 +321,10 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(showCreditsBalanceCard, forKey: Keys.showCreditsBalanceCard) }
     }
 
+    @Published var showResetCreditsCard: Bool {
+        didSet { defaults.set(showResetCreditsCard, forKey: Keys.showResetCreditsCard) }
+    }
+
     @Published var dashboardSectionOrder: [DashboardSection] {
         didSet {
             let sanitized = Self.sanitizedDashboardSectionOrder(dashboardSectionOrder)
@@ -427,10 +447,15 @@ final class AppSettings: ObservableObject {
         fontSettings = (defaults.object(forKey: Keys.fontSettings) as? Data)
             .flatMap { try? JSONDecoder().decode(MeterFontSettings.self, from: $0) }?
             .sanitized ?? MeterFontSettings()
+        quotaStatusMessages = (defaults.object(forKey: Keys.quotaStatusMessages) as? Data)
+            .flatMap { try? JSONDecoder().decode(QuotaStatusMessages.self, from: $0) }?
+            .sanitized ?? QuotaStatusMessages()
         menuBarIconSize = Self.sanitizedMenuBarIconSize(
             (defaults.object(forKey: Keys.menuBarIconSize) as? NSNumber)?.doubleValue
                 ?? Self.defaultMenuBarIconSize
         )
+        panelTheme = defaults.string(forKey: Keys.panelTheme)
+            .flatMap(PanelTheme.init(rawValue:)) ?? .quiet
         appearance = defaults.string(forKey: Keys.appearance)
             .flatMap(AppAppearance.init(rawValue:)) ?? .system
         language = defaults.string(forKey: Keys.language)
@@ -453,7 +478,7 @@ final class AppSettings: ObservableObject {
         )
         usageStatisticsPeriod = defaults.string(forKey: Keys.usageStatisticsPeriod)
             .flatMap(UsagePeriod.init(rawValue:))
-            .map { $0 == .hour ? .day : $0 } ?? .month
+            .map { $0 == .hour ? .day : $0 } ?? .day
         usageStatisticsHourCount = UsagePeriod.hour.sanitizedRange(
             (defaults.object(forKey: Keys.usageStatisticsHourCount) as? NSNumber)?.intValue ?? 24
         )
@@ -474,6 +499,9 @@ final class AppSettings: ObservableObject {
         )?.boolValue ?? true
         showCreditsBalanceCard = (
             defaults.object(forKey: Keys.showCreditsBalanceCard) as? NSNumber
+        )?.boolValue ?? true
+        showResetCreditsCard = (
+            defaults.object(forKey: Keys.showResetCreditsCard) as? NSNumber
         )?.boolValue ?? true
         dashboardSectionOrder = Self.sanitizedDashboardSectionOrder(
             (defaults.stringArray(forKey: Keys.dashboardSectionOrder) ?? [])
@@ -512,6 +540,7 @@ final class AppSettings: ObservableObject {
         defaults.set(showUsageHeatmapCard, forKey: Keys.showUsageHeatmapCard)
         defaults.set(showUsageSummaryCard, forKey: Keys.showUsageSummaryCard)
         defaults.set(showCreditsBalanceCard, forKey: Keys.showCreditsBalanceCard)
+        defaults.set(showResetCreditsCard, forKey: Keys.showResetCreditsCard)
         defaults.set(dashboardSectionOrder.map(\.rawValue), forKey: Keys.dashboardSectionOrder)
         do {
             try launchAtLoginManager.setEnabled(launchAtLogin)
@@ -543,6 +572,7 @@ final class AppSettings: ObservableObject {
         case .usageHeatmap: showUsageHeatmapCard
         case .usageSummary: showUsageSummaryCard
         case .creditsBalance: showCreditsBalanceCard
+        case .resetCredits: showResetCreditsCard
         }
     }
 
@@ -621,7 +651,9 @@ final class AppSettings: ObservableObject {
 
     private enum Keys {
         static let fontSettings = "meterFontSettings"
+        static let quotaStatusMessages = "quotaStatusMessages"
         static let menuBarIconSize = "menuBarIconSize"
+        static let panelTheme = "panelTheme"
         static let appearance = "appAppearance"
         static let language = "appLanguage"
         static let launchAtLogin = "launchAtLogin"
@@ -639,6 +671,7 @@ final class AppSettings: ObservableObject {
         static let showUsageHeatmapCard = "showUsageHeatmapCard"
         static let showUsageSummaryCard = "showUsageSummaryCard"
         static let showCreditsBalanceCard = "showCreditsBalanceCard"
+        static let showResetCreditsCard = "showResetCreditsCard"
         static let dashboardSectionOrder = "dashboardSectionOrder"
         static let automaticRefreshIntervalOption = "automaticRefreshIntervalOption"
         static let automaticRefreshIntervalMinutes = "automaticRefreshIntervalMinutes"

@@ -62,10 +62,6 @@ struct MeterFontSettings: Codable, Equatable, Sendable {
     var quota = MeterFontSizes()
     var overrides: [String: MeterFontSizes] = [:]
 
-    static var contentSections: [DashboardSection] {
-        DashboardSection.allCases.filter { $0 != .quota }
-    }
-
     func sizes(for section: DashboardSection?) -> MeterFontSizes {
         guard let section else { return content }
         return section == .quota ? quota : overrides[section.rawValue] ?? content

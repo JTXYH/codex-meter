@@ -5,7 +5,7 @@ import Testing
 
 struct SQLiteStorageTests {
     @Test @MainActor
-    func migratesPreferencesImagesAndIndependentCardSettingsAcrossRestart() throws {
+    func migratesPreferencesAndIndependentCardSettingsAcrossRestart() throws {
         let fixture = try StorageFixture()
         defer { fixture.remove() }
         let suite = "CodexMeter.SQLiteMigration.\(UUID())"
@@ -14,18 +14,6 @@ struct SQLiteStorageTests {
         legacy.set(false, forKey: "showTokenActivityCard")
         legacy.set(["monthlyUsage", "tokenActivity", "quota"], forKey: "dashboardSectionOrder")
         legacy.set("Keep", forKey: "unrelatedPreference")
-        let profile = QuotaBackgroundProfile(name: "Existing", assets: [.sufficient: QuotaBackgroundAsset(
-            originalFilename: "original.jpg", croppedFilename: "crop.jpg")])
-        legacy.set(try JSONEncoder().encode([profile]), forKey: "quotaBackgroundProfiles")
-        legacy.set(profile.id.uuidString, forKey: "selectedQuotaBackgroundProfileID")
-        let images = fixture.root.appendingPathComponent("images")
-        let directory = images.appendingPathComponent(profile.id.uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let image = NSImage(size: NSSize(width: 40, height: 40))
-        image.lockFocus(); NSColor.red.setFill(); NSRect(x: 0, y: 0, width: 40, height: 40).fill(); image.unlockFocus()
-        let data = try #require(image.tiffRepresentation)
-        try data.write(to: directory.appendingPathComponent("original.jpg"))
-        try data.write(to: directory.appendingPathComponent("crop.jpg"))
         let database = try SQLiteStore(url: fixture.databaseURL)
         let preferences = SQLitePreferences(database: database, legacy: legacy)
         #expect(legacy.object(forKey: "showTokenActivityCard") == nil)
@@ -38,26 +26,57 @@ struct SQLiteStorageTests {
         ])
         settings.showActivityOverviewCard = true
         settings.moveDashboardSections(fromOffsets: IndexSet(integer: 2), toOffset: 0)
-        let backgrounds = QuotaBackgroundStore(defaults: preferences, storageDirectory: images)
-        #expect(backgrounds.selectedImage(for: 90) != nil)
-        #expect(!FileManager.default.fileExists(atPath: directory.appendingPathComponent("original.jpg").path))
-        #expect(try database.storageInfo().imageBytes == Int64(data.count * 2))
         let reopened = try SQLiteStore(url: fixture.databaseURL)
         let restoredPreferences = SQLitePreferences(database: reopened, legacy: legacy)
         let restored = AppSettings(defaults: restoredPreferences, launchAtLoginManager: NoLoginChanges())
         #expect(restored.showActivityOverviewCard)
         #expect(!restored.showTokenActivityCard)
         #expect(restored.dashboardSectionOrder.first == .activityOverview)
-        let restoredImages = QuotaBackgroundStore(defaults: restoredPreferences, storageDirectory: images)
-        #expect(restoredImages.selectedImage(for: 90) != nil)
         try reopened.cleanUsage(before: fixture.now)
-        #expect(restoredPreferences.string(forKey: "selectedQuotaBackgroundProfileID") == profile.id.uuidString)
-        #expect(try reopened.storageInfo().imageBytes == Int64(data.count * 2))
+        #expect(restoredPreferences.object(forKey: "showActivityOverviewCard") as? Bool == true)
         #expect(try reopened.rows("PRAGMA integrity_check").first?.first?.string == "ok")
     }
 
     @Test
-    func importsLegacyJSONAndBackfillsHoursOnceWithoutDuplicatingCosts() async throws {
+    func upgradesVersionThreeWithoutLosingTokenRowsOrRereadingLogs() async throws {
+        let fixture = try StorageFixture()
+        defer { fixture.remove() }
+        _ = try fixture.write([
+            fixture.context("gpt-6.1-sol"),
+            fixture.event("2026-09-20T15:00:00Z", input: 1_000, output: 100),
+            fixture.event("2026-09-21T02:00:00Z", input: 2_000, output: 200),
+        ])
+        let database = try SQLiteStore(url: fixture.databaseURL)
+        let expected = await fixture.scanner(database).usage(at: fixture.now)
+        let tables = ["daily_usage", "hourly_usage", "daily_model_usage", "hourly_model_usage"]
+        let counts = try tables.map { try database.rows("SELECT COUNT(*) FROM \($0)")[0][0].int }
+        for table in tables {
+            try database.execute("ALTER TABLE \(table) ADD COLUMN cost REAL NOT NULL DEFAULT 1.25")
+        }
+        let identity = try #require(try database.data(namespace: "scanner", key: "lifetime"))
+        let location = String(decoding: identity, as: UTF8.self).split(separator: "|", maxSplits: 1)[1]
+        try database.setData(Data("3|obsolete-signature|\(location)".utf8), namespace: "scanner", key: "lifetime")
+        try database.setData(Data([1]), namespace: "preferences", key: "apiPriceConfiguration")
+        try database.setData(Data([2]), namespace: "preferences", key: "panelTheme")
+        try database.execute("PRAGMA user_version=3")
+
+        let upgraded = try SQLiteStore(url: fixture.databaseURL)
+        #expect(try upgraded.rows("PRAGMA user_version")[0][0].int == 4)
+        #expect(try upgraded.data(namespace: "preferences", key: "apiPriceConfiguration") == nil)
+        #expect(try upgraded.data(namespace: "preferences", key: "panelTheme") == Data([2]))
+        #expect(try upgraded.rows("PRAGMA foreign_key_check").isEmpty)
+        for (index, table) in tables.enumerated() {
+            #expect(try upgraded.rows("SELECT COUNT(*) FROM \(table)")[0][0].int == counts[index])
+            #expect(try upgraded.rows("PRAGMA table_info(\(table))").allSatisfy { $0[1].string != "cost" })
+        }
+        let restored = fixture.scanner(upgraded)
+        #expect(await restored.usage(at: fixture.now) == expected)
+        #expect(await restored.bytesReadDuringLastScan == 0)
+        #expect(await restored.storageError == nil)
+    }
+
+    @Test
+    func importsLegacyJSONAndBackfillsHoursOnceWithoutDuplicatingTokens() async throws {
         let f = try StorageFixture()
         defer { f.remove() }
         let file = try f.write([f.context("gpt-5.5"), f.event("2026-09-21T02:00:00Z", input: 100_000, output: 10_000)])
@@ -77,7 +96,6 @@ struct SQLiteStorageTests {
         let scanner = f.scanner(database, cache: cache)
         let first = await scanner.usage(at: f.now)
         #expect(first.today.totalTokens == 110_000)
-        #expect(abs(first.today.apiEquivalentCostUSD - 0.8) < 1e-10)
         #expect(first.hourlyUsage.first?.usage?.totalTokens == 110_000)
         let fileBytes = try UInt64(Data(contentsOf: file).count)
         #expect(await scanner.bytesReadDuringLastScan == fileBytes)
@@ -103,7 +121,6 @@ struct SQLiteStorageTests {
         let first = await f.scanner(database).usage(at: f.now)
         #expect(first.hourlyUsage.map { $0.usage?.totalTokens } == [0, 5_500, 1_100, 110_000])
         #expect(first.hourlyUsage.map { f.calendar.component(.hour, from: $0.start) } == [2, 0, 23, 10])
-        #expect(abs((first.hourlyUsage[1].usage?.apiEquivalentCostUSD ?? 0) - 0.04) < 1e-10)
         let cutoff = f.calendar.date(byAdding: .day, value: -30, to: f.now)!
         try database.cleanUsage(before: cutoff)
         try database.setData(Data("keep".utf8), namespace: "test", key: "preference")
@@ -118,7 +135,7 @@ struct SQLiteStorageTests {
         try database.execute("DROP TABLE hourly_usage")
         try database.execute("PRAGMA user_version=1")
         let upgraded = try SQLiteStore(url: f.databaseURL)
-        #expect(try upgraded.rows("PRAGMA user_version").first?.first?.int == 3)
+        #expect(try upgraded.rows("PRAGMA user_version").first?.first?.int == 4)
         #expect(try upgraded.data(namespace: "test", key: "preference") == Data("keep".utf8))
         let scanner = f.scanner(upgraded)
         let rebuilt = await scanner.usage(at: f.now)
@@ -176,13 +193,12 @@ struct SQLiteStorageTests {
         #expect(next.lifetime?.totalTokens == 1_100)
         #expect(next.hourlyUsage.map { $0.usage?.totalTokens } == [1_100])
         #expect(next.dailyModelUsage.map(\.usage.totalTokens) == [1_100])
-        #expect(abs(next.today.apiEquivalentCostUSD - 0.015) < 1e-10)
         #expect(await f.scanner(try SQLiteStore(url: f.databaseURL)).usage(at: f.now) == next)
         #expect(try database.rows("PRAGMA integrity_check").first?.first?.string == "ok")
     }
 
     @Test
-    func pricingBoundaryAndConcurrentCleanupKeepScopesConsistent() async throws {
+    func concurrentCleanupKeepsScopesConsistent() async throws {
         let f = try StorageFixture()
         defer { f.remove() }
         let a = f.event("2026-09-21T02:00:00Z", input: 272_000, cached: 200_000, write: 10_000, output: 10_000)
@@ -190,8 +206,7 @@ struct SQLiteStorageTests {
         _ = try f.write([f.context("gpt-6-astra"), a, b])
         let database = try SQLiteStore(url: f.databaseURL)
         let scanner = f.scanner(database)
-        let first = await scanner.usage(at: f.now)
-        #expect(abs(first.today.apiEquivalentCostUSD - 4.08502) < 1e-10)
+        _ = await scanner.usage(at: f.now)
         let today = f.scanner(database, scope: .today)
         async let one = scanner.usage(at: f.now)
         async let two = today.usage(at: f.now)
@@ -202,6 +217,37 @@ struct SQLiteStorageTests {
         #expect(try database.storageInfo().dailyRows == 0)
         #expect(try database.rows("SELECT COUNT(*) FROM hourly_usage").first?.first?.int == 0)
         #expect(try database.rows("SELECT COUNT(*) FROM daily_model_usage").first?.first?.int == 0)
+    }
+
+    @Test
+    func storageInfoIncludesTodaysCacheWithoutLegacyHistory() async throws {
+        let fixture = try StorageFixture()
+        defer { fixture.remove() }
+        _ = try fixture.write([
+            fixture.context("test-model"),
+            fixture.event("2026-09-20T02:00:00Z", input: 500, output: 50),
+            fixture.event("2026-09-21T02:00:00Z", input: 1_000, output: 100),
+        ])
+        let database = try SQLiteStore(url: fixture.databaseURL)
+        let scanner = fixture.scanner(database, scope: .today)
+        #expect(await scanner.usage(at: fixture.now).today.totalTokens == 1_100)
+        #expect(try database.rows("SELECT COUNT(*) FROM daily_usage WHERE scope='lifetime'")[0][0].int == 0)
+        let info = try database.storageInfo()
+        let day = fixture.calendar.startOfDay(for: fixture.now)
+        #expect(info.dailyRows == 1)
+        #expect(info.oldest == day && info.newest == day)
+        #expect(info.bytes > 0)
+
+        // An upgraded install can retain the same day in both scanner scopes.
+        _ = await fixture.scanner(database, scope: .lifetime).usage(at: fixture.now)
+        let combined = try database.storageInfo()
+        #expect(combined.dailyRows == 2)
+        #expect(combined.oldest == fixture.calendar.date(byAdding: .day, value: -1, to: day))
+        #expect(combined.newest == day)
+
+        try database.cleanUsage(before: fixture.now)
+        #expect(try database.storageInfo().dailyRows == 0)
+        #expect(await scanner.usage(at: fixture.now).today == .zero)
     }
 
     @Test

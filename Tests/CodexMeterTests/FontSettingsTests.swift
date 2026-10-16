@@ -26,7 +26,7 @@ struct FontSettingsTests {
         #expect(restored.fontSettings.quota.detail == 10)
 
         restored.fontSettings.applyToContentCards(from: .activityOverview)
-        #expect(MeterFontSettings.contentSections.allSatisfy {
+        #expect(DashboardSection.allCases.filter { $0 != .quota }.allSatisfy {
             restored.fontSettings.sizes(for: $0).value == 19
         })
         #expect(restored.fontSettings.quota.value == 22)
@@ -91,20 +91,15 @@ struct FontSettingsTests {
         let database = try SQLiteStore()
         let settings = makeSettings(database)
         settings.language = .simplifiedChinese
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let backgrounds = QuotaBackgroundStore(defaults: SQLitePreferences(database: database), storageDirectory: directory)
         let usage = LocalTokenUsage(totalTokens: 3_280_000, inputTokens: 3_096_000,
                                     cachedInputTokens: 2_600_000, cacheWriteInputTokens: 0,
-                                    outputTokens: 184_000, reasoningOutputTokens: 96_000,
-                                    apiEquivalentCostUSD: 8.25)
-        let month = Calendar.current.dateInterval(of: .month, for: Date())!.start
+                                    outputTokens: 184_000, reasoningOutputTokens: 96_000)
+        let month = UsageCalendar.calendar.dateInterval(of: .month, for: Date())!.start
         let store = UsageStore(localUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
             today: usage, lifetime: usage,
             monthlyUsage: [MonthlyTokenUsage(month: month, usage: usage)]
         )), settings: settings)
         await store.refreshLocalUsage()
-        await store.refreshLifetimeUsage()
         let snapshot = CodexUsageSnapshot(
             fetchedAt: Date(), account: nil,
             rateLimitBuckets: [RateLimitBucket(id: "codex", name: "Codex", planType: nil,
@@ -118,7 +113,7 @@ struct FontSettingsTests {
 
         func render<V: View>(_ view: V) throws -> (size: CGSize, pixels: Data) {
             let content = view.frame(width: 392)
-                .environmentObject(settings).environmentObject(store).environmentObject(backgrounds)
+                .environmentObject(settings).environmentObject(store)
             let image = try #require(ImageRenderer(content: content).nsImage)
             let tiff = try #require(image.tiffRepresentation)
             let bitmap = try #require(NSBitmapImageRep(data: tiff))
@@ -141,7 +136,7 @@ struct FontSettingsTests {
                 let root = FontCardPreview(section: section, snapshot: snapshot)
                     .padding(14).frame(width: 420).background(Color.meterPanel)
                     .foregroundStyle(Color.meterPrimary)
-                    .environmentObject(settings).environmentObject(store).environmentObject(backgrounds)
+                    .environmentObject(settings).environmentObject(store)
                 let hosting = NSHostingView(rootView: root)
                 hosting.setFrameSize(NSSize(width: 420, height: hosting.fittingSize.height))
                 let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -160,7 +155,7 @@ struct FontSettingsTests {
         settings.showCreditsBalanceCard = false
         settings.dashboardSectionOrder.reverse()
         let all = try render(FontCardPreview(section: nil, snapshot: snapshot))
-        let content = MeterFontSettings.contentSections
+        let content = DashboardSection.allCases.filter { $0 != .quota }
         let expectedHeight = content.reduce(CGFloat(0)) { $0 + (heights[$1] ?? 0) }
             + CGFloat(content.count - 1) * 12
         #expect(abs(all.size.height - expectedHeight) < 1)
@@ -171,16 +166,11 @@ struct FontSettingsTests {
         let originalAppearance = NSApplication.shared.appearance
         defer { NSApplication.shared.appearance = originalAppearance }
         let database = try SQLiteStore()
-        let preferences = SQLitePreferences(database: database)
         let settings = makeSettings(database)
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let backgrounds = QuotaBackgroundStore(defaults: preferences, storageDirectory: directory)
         let previewStore = UsageStore(localUsageLoader: FixedLocalUsageLoader(
             value: LocalTokenUsageSnapshot(today: .zero, lifetime: .zero)
         ), settings: settings)
         await previewStore.refreshLocalUsage()
-        await previewStore.refreshLifetimeUsage()
         for role in MeterTextRole.allCases {
             settings.fontSettings.setSize(role.range.upperBound, role: role, section: .quota)
         }
@@ -191,7 +181,8 @@ struct FontSettingsTests {
         for language in AppLanguage.allCases {
             settings.language = language
             if language == .simplifiedChinese || language == .traditionalChinese {
-                #expect(SettingsSection.allCases.allSatisfy { $0.sidebarTitle(language: language).count == 2 })
+                #expect(SettingsSection.allCases.count == 7)
+                #expect(SettingsSection.allCases.allSatisfy { !$0.sidebarTitle(language: language).isEmpty })
             }
             for quota in [false, true] {
                 let view = FontSettingsView(showQuotaInitially: quota, contentSectionInitially: .activityOverview)
@@ -201,7 +192,7 @@ struct FontSettingsTests {
                     .foregroundStyle(Color.meterPrimary)
                     .environmentObject(settings)
                     .environmentObject(previewStore)
-                    .environmentObject(backgrounds)
+
                 let hosting = NSHostingView(rootView: view)
                 hosting.setFrameSize(NSSize(width: 580, height: hosting.fittingSize.height))
                 let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -223,13 +214,13 @@ struct FontSettingsTests {
         if let output {
             settings.language = .simplifiedChinese
             let store = UsageStore(settings: settings)
-            let root = SettingsPanelView(showFontsInitially: true)
+            let root = SettingsPanelView(initialSection: .fonts)
                 .environmentObject(settings)
                 .environmentObject(store)
-                .environmentObject(backgrounds)
+
                 .environmentObject(UpdateController.shared)
             let hosting = NSHostingView(rootView: root)
-            hosting.setFrameSize(NSSize(width: 760, height: 552))
+            hosting.setFrameSize(NSSize(width: 820, height: 620))
             let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
             window.contentView = hosting
             hosting.layoutSubtreeIfNeeded()
@@ -244,22 +235,27 @@ struct FontSettingsTests {
             }
             let sampleUsage = LocalTokenUsage(
                 totalTokens: 3_280_000, inputTokens: 3_096_000, cachedInputTokens: 2_600_000,
-                cacheWriteInputTokens: 0, outputTokens: 184_000, reasoningOutputTokens: 96_000,
-                apiEquivalentCostUSD: 8.25
+                cacheWriteInputTokens: 0, outputTokens: 184_000, reasoningOutputTokens: 96_000
             )
-            let month = Calendar.current.dateInterval(of: .month, for: Date())!.start
+            let month = UsageCalendar.calendar.dateInterval(of: .month, for: Date())!.start
             let demoStore = UsageStore(localUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
                 today: sampleUsage, lifetime: sampleUsage,
                 monthlyUsage: [MonthlyTokenUsage(month: month, usage: sampleUsage)]
             )), settings: settings)
             await demoStore.refreshLocalUsage()
-            await demoStore.refreshLifetimeUsage()
             let snapshot = CodexUsageSnapshot(
                 fetchedAt: Date(), account: nil,
                 rateLimitBuckets: [RateLimitBucket(
                     id: "codex", name: "Codex", planType: nil, hasCredits: nil,
                     unlimitedCredits: false, creditBalance: "1905",
-                    windows: [BackgroundQuotaUsageCard.previewWindow(), BackgroundQuotaUsageCard.previewWeeklyWindow()]
+                    windows: [
+                        RateLimitWindow(id: "primary", bucketID: "codex", bucketName: "Codex",
+                                        kind: .primary, usedPercent: 36, windowDurationMinutes: 300,
+                                        resetsAt: Date().addingTimeInterval(8_280)),
+                        RateLimitWindow(id: "secondary", bucketID: "codex", bucketName: "Codex",
+                                        kind: .secondary, usedPercent: 57, windowDurationMinutes: 10_080,
+                                        resetsAt: Date().addingTimeInterval(172_800))
+                    ]
                 )],
                 usageSummary: TokenUsageSummary(lifetimeTokens: 128_640_000, peakDailyTokens: nil,
                                                longestRunningTurnSeconds: 7_842, currentStreakDays: 18, longestStreakDays: 31),
@@ -272,7 +268,7 @@ struct FontSettingsTests {
                 .foregroundStyle(Color.meterPrimary)
                 .environmentObject(settings)
                 .environmentObject(demoStore)
-                .environmentObject(backgrounds)
+
             let panel = NSHostingView(rootView: stack)
             panel.setFrameSize(NSSize(width: 420, height: panel.fittingSize.height))
             let panelWindow = NSWindow(contentRect: panel.frame, styleMask: [.borderless], backing: .buffered, defer: false)

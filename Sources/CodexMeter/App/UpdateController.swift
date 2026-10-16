@@ -19,13 +19,22 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     var isUpdateCheckingEnabled: Bool {
 #if DEBUG
-        false
+        isPreview
 #else
         true
 #endif
     }
 
     private var hasStarted = false
+#if DEBUG
+    private var isPreview = false
+
+    convenience init(previewState: State) {
+        self.init()
+        isPreview = true
+        state = previewState
+    }
+#endif
     private lazy var updaterController = SPUStandardUpdaterController(
         startingUpdater: false,
         updaterDelegate: self,
@@ -51,6 +60,7 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     func checkManually() {
 #if DEBUG
+        if isPreview { state = .upToDate }
         return
 #else
         startIfNeeded()

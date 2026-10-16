@@ -12,14 +12,14 @@ struct StorageViewTests {
         let originalAppearance = NSApplication.shared.appearance
         defer { NSApplication.shared.appearance = originalAppearance }
         let store = UsageStore(loader: StorageViewLoader(), localUsageLoader: StorageViewLocalLoader(), settings: settings)
-        let info = StorageInfo(bytes: 2_415_616, imageBytes: 1_064_960, dailyRows: 1_194, checkpoints: 1_195,
+        let info = StorageInfo(bytes: 2_415_616, dailyRows: 1_194, checkpoints: 1_195,
                                oldest: Date(timeIntervalSince1970: 1_780_000_000), newest: Date())
         for language in AppLanguage.allCases {
             settings.language = language
             for appearance in [AppAppearance.light, .dark] {
                 settings.appearance = appearance
                 let content = VStack(alignment: .leading, spacing: 18) {
-                    Text(StorageL10n.text(.title, language: language)).font(.system(size: 22, weight: .medium))
+                    Text(SettingsCopy.text("data", language: language)).font(.system(size: 22, weight: .medium))
                     DataSettingsView(database: database, initialInfo: info)
                 }
                 .padding(24)

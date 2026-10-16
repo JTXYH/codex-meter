@@ -4,6 +4,19 @@ struct CodexAccount: Equatable, Sendable {
     let type: String
     let email: String?
     let planType: String?
+    /// Selected ChatGPT workspace/account, when available from the current login.
+    let accountID: String?
+
+    init(type: String, email: String?, planType: String?, accountID: String? = nil) {
+        self.type = type
+        self.email = email
+        self.planType = planType
+        self.accountID = accountID
+    }
+
+    var usageIdentity: String {
+        "\(type)\u{1F}\(accountID ?? "")\u{1F}\(email?.lowercased() ?? "")"
+    }
 
     var displayPlan: String {
         guard let planType, !planType.isEmpty else { return "Codex" }
@@ -87,6 +100,18 @@ struct CodexUsageSnapshot: Equatable, Sendable {
     let rateLimitBuckets: [RateLimitBucket]
     let usageSummary: TokenUsageSummary?
     let dailyUsage: [DailyTokenUsage]
+    let resetCredits: RateLimitResetCredits?
+
+    init(fetchedAt: Date, account: CodexAccount?, rateLimitBuckets: [RateLimitBucket],
+         usageSummary: TokenUsageSummary?, dailyUsage: [DailyTokenUsage],
+         resetCredits: RateLimitResetCredits? = nil) {
+        self.fetchedAt = fetchedAt
+        self.account = account
+        self.rateLimitBuckets = rateLimitBuckets
+        self.usageSummary = usageSummary
+        self.dailyUsage = dailyUsage
+        self.resetCredits = resetCredits
+    }
 
     // Select one bucket before choosing windows; different buckets have independent quotas.
     private var preferredRateLimitBucket: RateLimitBucket? {
@@ -125,15 +150,15 @@ struct CodexUsageSnapshot: Equatable, Sendable {
         return weeklyWindow
     }
 
-    func tokenUsage(on date: Date, calendar: Calendar = .current) -> DailyTokenUsage? {
+    func tokenUsage(on date: Date, calendar: Calendar = UsageCalendar.calendar) -> DailyTokenUsage? {
         dailyUsage.first(where: { calendar.isDate($0.date, inSameDayAs: date) })
     }
 
-    func tokens(on date: Date, calendar: Calendar = .current) -> Int64 {
+    func tokens(on date: Date, calendar: Calendar = UsageCalendar.calendar) -> Int64 {
         tokenUsage(on: date, calendar: calendar)?.tokens ?? 0
     }
 
-    func tokensInLastDays(_ count: Int, endingAt endDate: Date = Date(), calendar: Calendar = .current) -> Int64 {
+    func tokensInLastDays(_ count: Int, endingAt endDate: Date = Date(), calendar: Calendar = UsageCalendar.calendar) -> Int64 {
         guard count > 0,
               let startDate = calendar.date(byAdding: .day, value: -(count - 1), to: calendar.startOfDay(for: endDate)),
               let endExclusive = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate))
@@ -145,27 +170,6 @@ struct CodexUsageSnapshot: Equatable, Sendable {
                 let (sum, overflow) = total.addingReportingOverflow(max(0, usage.tokens))
                 return overflow ? .max : sum
             }
-    }
-
-    func replacingTokenUsage(
-        on date: Date,
-        with tokens: Int64,
-        calendar: Calendar = .current
-    ) -> CodexUsageSnapshot {
-        let replacementDate = calendar.startOfDay(for: date)
-        var updatedUsage = dailyUsage.filter {
-            !calendar.isDate($0.date, inSameDayAs: replacementDate)
-        }
-        updatedUsage.append(DailyTokenUsage(date: replacementDate, tokens: max(tokens, 0)))
-        updatedUsage.sort { $0.date < $1.date }
-
-        return CodexUsageSnapshot(
-            fetchedAt: fetchedAt,
-            account: account,
-            rateLimitBuckets: rateLimitBuckets,
-            usageSummary: usageSummary,
-            dailyUsage: updatedUsage
-        )
     }
 }
 
@@ -187,14 +191,15 @@ enum HeatmapBuilder {
         from usage: [DailyTokenUsage],
         endingAt endDate: Date = Date(),
         dayCount: Int = 90,
-        calendar inputCalendar: Calendar = .current
+        calendar inputCalendar: Calendar = UsageCalendar.calendar
     ) -> [[HeatmapDay?]] {
         guard dayCount > 0 else { return [] }
 
         var calendar = inputCalendar
         calendar.locale = Locale(identifier: "zh_CN")
         let end = calendar.startOfDay(for: endDate)
-        guard let start = calendar.date(byAdding: .day, value: -(dayCount - 1), to: end) else { return [] }
+        guard let start = calendar.date(byAdding: .day, value: -(dayCount - 1), to: end),
+              let endExclusive = calendar.date(byAdding: .day, value: 1, to: end) else { return [] }
 
         let weekday = calendar.component(.weekday, from: start)
         let daysSinceMonday = (weekday + 5) % 7
@@ -205,9 +210,8 @@ enum HeatmapBuilder {
         guard let alignedEnd = calendar.date(byAdding: .day, value: daysUntilSunday, to: end) else { return [] }
 
         var tokenByDay: [Date: Int64] = [:]
-        for item in usage {
+        for item in usage where item.date >= start && item.date < endExclusive {
             let date = calendar.startOfDay(for: item.date)
-            guard date >= start, date <= end else { continue }
             let tokens = max(0, item.tokens)
             let (sum, overflow) = tokenByDay[date, default: 0].addingReportingOverflow(tokens)
             tokenByDay[date] = overflow ? .max : sum

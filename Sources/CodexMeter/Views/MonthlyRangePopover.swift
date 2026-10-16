@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MonthlyRangePopover: View {
     @Environment(\.meterFontSizes) private var fontSizes
+    @Environment(\.meterTheme) private var theme
     let selection: Int
     let language: AppLanguage
     var period: UsagePeriod = .month
@@ -24,14 +25,14 @@ struct MonthlyRangePopover: View {
                             .opacity(isSelected ? 1 : 0)
                             .accessibilityHidden(true)
                     }
-                    .meterText(.detail)
-                    .foregroundStyle(isSelected ? Color.meterAccent : Color.meterPrimary)
-                    .padding(.horizontal, 10)
-                    .frame(height: 33)
+                    .meterText(.detail, size: 11)
+                    .foregroundStyle(isSelected ? theme.accent : Color.meterPrimary)
+                    .padding(.horizontal, 9)
+                    .frame(height: 30.5)
                     .background(
-                        isSelected ? Color.meterAccent.opacity(0.10)
+                        isSelected ? theme.accentSoft
                             : hoveredRange == count ? Color.meterControl : .clear,
-                        in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
                     )
                     .contentShape(Rectangle())
                 }
@@ -42,9 +43,9 @@ struct MonthlyRangePopover: View {
         }
         .padding(5)
         .frame(width: popoverWidth)
-        .background(Color.meterCard, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.meterCard, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.meterBorder, lineWidth: 1)
                 .allowsHitTesting(false)
         }
@@ -60,7 +61,7 @@ struct MonthlyRangePopover: View {
                 withAttributes: [.font: NSFont.systemFont(ofSize: CGFloat(fontSizes.detail))]
             ).width
         }.max() ?? 0
-        return max(146, ceil(longestLabel) + 50)
+        return max(132, ceil(longestLabel) + 50)
     }
 }
 

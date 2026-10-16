@@ -14,7 +14,7 @@ extension L10n {
 
     static func monthLabel(
         _ date: Date, now: Date = Date(), language: AppLanguage,
-        calendar: Calendar = .current
+        calendar: Calendar = UsageCalendar.calendar
     ) -> String {
         if calendar.isDate(date, equalTo: now, toGranularity: .month) {
             return text(.thisMonth, language: language)
@@ -35,22 +35,6 @@ extension L10n {
             formatter.setLocalizedDateFormatFromTemplate("MMM")
             return formatter.string(from: date)
         }
-    }
-
-    static func monthDateRange(
-        _ date: Date, now: Date = Date(), language: AppLanguage,
-        calendar: Calendar = .current
-    ) -> String {
-        guard let interval = calendar.dateInterval(of: .month, for: date),
-              let lastDay = calendar.date(byAdding: .day, value: -1, to: interval.end)
-        else { return "" }
-        let end = min(lastDay, now)
-        let formatter = DateFormatter()
-        formatter.locale = language.locale
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate("yMMMMd")
-        return "\(formatter.string(from: interval.start)) – \(formatter.string(from: end))"
     }
 
     static func monthUsageTitle(_ month: String, language: AppLanguage) -> String {

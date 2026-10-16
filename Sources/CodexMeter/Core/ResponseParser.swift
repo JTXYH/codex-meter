@@ -1,6 +1,14 @@
 import Foundation
 
 enum CodexResponseParser {
+    /// Read the effective server configuration, including managed settings. A
+    /// missing field or unsupported RPC never implies the default file mode.
+    static func usesFileCredentialStore(_ data: Data) -> Bool {
+        guard let response = try? JSONDecoder().decode(RPCEnvelope<CredentialConfigResult>.self, from: data),
+              response.error == nil else { return false }
+        return response.result?.config.storage == "file"
+    }
+
     static func parse(
         accountData: Data,
         rateLimitsData: Data,
@@ -13,7 +21,8 @@ enum CodexResponseParser {
         let usageResult: UsageResult = try decodeResult(usageData, decoder: decoder)
 
         let account = accountResult.account.map {
-            CodexAccount(type: $0.type, email: $0.email, planType: $0.planType)
+            CodexAccount(type: $0.type, email: $0.email, planType: $0.planType,
+                         accountID: accountResult.workspaceRouting?.chatgptAccountId)
         }
 
         let wireBuckets: [(String, WireRateLimitBucket)]
@@ -77,7 +86,8 @@ enum CodexResponseParser {
             account: account,
             rateLimitBuckets: buckets,
             usageSummary: summary,
-            dailyUsage: dailyUsage
+            dailyUsage: dailyUsage,
+            resetCredits: rateLimitsResult.rateLimitResetCredits
         )
     }
 
@@ -130,6 +140,11 @@ private struct RPCErrorPayload: Decodable {
 
 private struct AccountResult: Decodable {
     let account: WireAccount?
+    let workspaceRouting: WireWorkspaceRouting?
+}
+
+private struct WireWorkspaceRouting: Decodable {
+    let chatgptAccountId: String
 }
 
 private struct WireAccount: Decodable {
@@ -141,6 +156,20 @@ private struct WireAccount: Decodable {
 private struct RateLimitsResult: Decodable {
     let rateLimits: WireRateLimitBucket?
     let rateLimitsByLimitId: [String: WireRateLimitBucket]?
+    let rateLimitResetCredits: RateLimitResetCredits?
+
+    private enum CodingKeys: String, CodingKey {
+        case rateLimits, rateLimitsByLimitId, rateLimitResetCredits
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rateLimits = try container.decodeIfPresent(WireRateLimitBucket.self, forKey: .rateLimits)
+        rateLimitsByLimitId = try container.decodeIfPresent([String: WireRateLimitBucket].self, forKey: .rateLimitsByLimitId)
+        // Older servers omit this field. A malformed optional extension must not
+        // make the existing account quotas unavailable.
+        rateLimitResetCredits = try? container.decodeIfPresent(RateLimitResetCredits.self, forKey: .rateLimitResetCredits)
+    }
 }
 
 private struct WireRateLimitBucket: Decodable {
@@ -183,7 +212,7 @@ private struct WireDailyUsage: Decodable {
 }
 
 enum DateOnlyParser {
-    static func date(from value: String, timeZone: TimeZone = .current) -> Date? {
+    static func date(from value: String, timeZone: TimeZone = UsageCalendar.timeZone) -> Date? {
         let parts = value.split(separator: "-", omittingEmptySubsequences: false)
         guard parts.count == 3,
               parts[0].count == 4,
@@ -218,5 +247,13 @@ private extension Optional where Wrapped == String {
     var nonEmpty: String? {
         guard let self, !self.isEmpty else { return nil }
         return self
+    }
+}
+
+private struct CredentialConfigResult: Decodable {
+    let config: Config
+    struct Config: Decodable {
+        let storage: String?
+        enum CodingKeys: String, CodingKey { case storage = "cli_auth_credentials_store" }
     }
 }

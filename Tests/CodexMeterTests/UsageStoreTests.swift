@@ -114,221 +114,164 @@ struct UsageStoreTests {
         )
 
         await store.refresh()
+        #expect(!store.isRefreshing)
         #expect(store.snapshot == snapshot)
         #expect(store.refreshErrorMessage == nil)
 
         await store.refresh()
+        #expect(!store.isRefreshing)
         #expect(store.snapshot == snapshot)
         #expect(store.refreshErrorMessage?.isEmpty == false)
 
         await store.refresh()
+        #expect(!store.isRefreshing)
         #expect(store.refreshErrorMessage == nil)
     }
 
     @Test @MainActor
-    func keepsLocalCardsAvailableWhenTheFirstQuotaRequestFails() async throws {
-        let suiteName = "CodexMeterTests.RemoteFallback.\(UUID().uuidString)"
+    func remoteFailureKeepsOnlyTodaysRealtimeUsageAndNeverSynthesizesHistory() async throws {
+        let suiteName = "CodexMeterTests.RemoteFailure.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         let originalAppearance = NSApplication.shared.appearance
         defer {
             NSApplication.shared.appearance = originalAppearance
             defaults.removePersistentDomain(forName: suiteName)
         }
-        let day = Calendar.current.startOfDay(for: Date())
-        let local = LocalTokenUsage(
-            totalTokens: 120, inputTokens: 100, cachedInputTokens: 0,
-            cacheWriteInputTokens: 0, outputTokens: 20, reasoningOutputTokens: 0,
-            apiEquivalentCostUSD: 0.01
-        )
-        let localLoader = FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
+        let today = UsageCalendar.calendar.startOfDay(for: Date())
+        let yesterday = try #require(UsageCalendar.calendar.date(byAdding: .day, value: -1, to: today))
+        let local = tokenUsage(317_651_611)
+        let localLoader = RecordingLocalUsageLoader(value: LocalTokenUsageSnapshot(
             today: local, lifetime: local,
-            dailyUsage: [PeriodTokenUsage(start: day, usage: local)]
+            dailyModelUsage: [DailyModelTokenUsage(day: yesterday, model: "local-history", usage: local)],
+            monthlyUsage: [MonthlyTokenUsage(month: today, usage: local)],
+            dailyUsage: [PeriodTokenUsage(start: yesterday, usage: local)]
         ))
         let store = UsageStore(
-            loader: SequencedUsageLoader(results: [
-                .failure(CodexMeterError.server("rate limit request failed")),
-                .success(snapshot(windows: [])),
-            ]),
+            loader: SequencedUsageLoader(results: [.failure(CodexMeterError.timeout)]),
             localUsageLoader: localLoader,
-            lifetimeUsageLoader: localLoader,
             settings: AppSettings(defaults: defaults)
         )
-        await store.refreshLifetimeUsage()
+
         await store.refresh()
         #expect(!store.hasLoadedRemoteSnapshot)
-        #expect(store.snapshot != nil)
-        #expect(store.dashboardSnapshot?.dailyUsage.map(\.tokens) == [120])
-        #expect(store.localTodayTokens == 120)
-        #expect(store.refreshErrorMessage != nil)
-
-        await store.refresh()
-        #expect(store.hasLoadedRemoteSnapshot)
-        #expect(store.refreshErrorMessage == nil)
-        #expect(store.dashboardSnapshot == store.snapshot)
-    }
-
-    @Test @MainActor
-    func publishesTodayWithoutWaitingForLifetimeUsage() async throws {
-        let suiteName = "CodexMeterTests.LocalUsage.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        let originalAppearance = NSApplication.shared.appearance
-        defer {
-            NSApplication.shared.appearance = originalAppearance
-            defaults.removePersistentDomain(forName: suiteName)
-        }
-        let lifetime = LocalTokenUsage(
-            totalTokens: 1_100_000, inputTokens: 1_000_000, cachedInputTokens: 0,
-            cacheWriteInputTokens: 0, outputTokens: 100_000, reasoningOutputTokens: 0,
-            apiEquivalentCostUSD: 6
-        )
-        let historyLoader = SuspendedLocalUsageLoader(value: LocalTokenUsageSnapshot(today: .zero, lifetime: lifetime))
-        let store = UsageStore(
-            loader: SequencedUsageLoader(results: [.success(snapshot(windows: []))]),
-            localUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
-                today: lifetime, lifetime: nil
-            )),
-            lifetimeUsageLoader: historyLoader,
-            settings: AppSettings(defaults: defaults)
-        )
-        #expect(store.localLifetimeUsage == nil)
-        await store.refresh()
-        await historyLoader.waitUntilStarted()
-        #expect(store.localTodayTokens == lifetime.totalTokens)
+        #expect(store.localTodayUsage.totalTokens == 317_651_611)
         #expect(store.hasLoadedLocalTodayUsage)
-        #expect(!store.hasLoadedLocalLifetimeUsage)
-        #expect(!store.isRefreshing)
-        #expect(store.localLifetimeUsage == nil)
-        await historyLoader.resume()
-        // Observe the published completion without imposing machine-speed timing thresholds.
-        while !store.hasLoadedLocalLifetimeUsage { await Task.yield() }
-        #expect(store.localLifetimeUsage == lifetime)
+        #expect(store.refreshErrorMessage != nil)
+        #expect(store.dashboardSnapshot == store.snapshot)
+        #expect(store.dashboardSnapshot?.dailyUsage.isEmpty != false)
+        #expect(store.dashboardSnapshot?.usageSummary == nil)
+        #expect(store.currentMonthTokens == nil)
+        for period in UsagePeriod.statisticsPeriods {
+            #expect(store.statisticsUsage(period, count: period.defaultRange).allSatisfy { $0.tokens == nil })
+            #expect(store.modelUsage(period, containing: yesterday).isEmpty)
+        }
+        let requestedDates = await localLoader.requestedDates
+        #expect(requestedDates.count == 1)
     }
 
     @Test @MainActor
-    func publishesTodayTokenAndQuotaSummary() async throws {
-        let suiteName = "CodexMeterTests.TodayQuota.\(UUID().uuidString)"
+    func retryAfterInitialRemoteFailureLoadsAgainWithoutHidingCompletedLocalUsage() async throws {
+        let originalAppearance = NSApplication.shared.appearance
+        defer { NSApplication.shared.appearance = originalAppearance }
+        let local = tokenUsage(12_300)
+        let loader = ControlledRetryUsageLoader()
+        let store = UsageStore(loader: loader,
+            localUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(today: local, lifetime: nil)),
+            settings: AppSettings(defaults: SQLitePreferences(database: try SQLiteStore())))
+
+        await store.refresh()
+        #expect(store.snapshot != nil)
+        #expect(store.snapshot?.dailyUsage.isEmpty == true)
+        #expect(!store.hasLoadedRemoteSnapshot)
+        #expect(store.refreshErrorMessage != nil)
+        #expect(store.hasLoadedLocalTodayUsage)
+        #expect(store.localTodayUsage == local)
+
+        let retry = Task { await store.refresh() }
+        await loader.waitForRetry()
+        #expect(store.state == .loading)
+        #expect(store.isRefreshing)
+        #expect(!store.hasLoadedRemoteSnapshot)
+        #expect(store.hasLoadedLocalTodayUsage)
+        #expect(store.localTodayUsage == local)
+
+        let recovered = CodexUsageSnapshot(fetchedAt: Date(),
+            account: CodexAccount(type: "chatgpt", email: "test@example.com", planType: "pro"),
+            rateLimitBuckets: [], usageSummary: nil, dailyUsage: [])
+        await loader.completeRetry(with: recovered)
+        await retry.value
+        #expect(store.state == .loaded)
+        #expect(!store.isRefreshing)
+        #expect(store.hasLoadedRemoteSnapshot)
+        #expect(store.snapshot == recovered)
+        #expect(store.refreshErrorMessage == nil)
+        #expect(store.localTodayUsage == local)
+    }
+
+    @Test @MainActor
+    func allHistoricalStatisticsUseAccountAPIWhileTodayRemainsLocal() async throws {
+        let suiteName = "CodexMeterTests.AccountStatistics.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         let originalAppearance = NSApplication.shared.appearance
         defer {
             NSApplication.shared.appearance = originalAppearance
             defaults.removePersistentDomain(forName: suiteName)
         }
-
-        let reset = Date().addingTimeInterval(3 * 60 * 60)
-        let weeklyReset = Date().addingTimeInterval(5 * 24 * 60 * 60)
-        func windows(_ fiveHourUsed: Double, _ weeklyUsed: Double) -> [RateLimitWindow] {
-            [
-                RateLimitWindow(id: "five-hour", bucketID: "codex", bucketName: "Codex",
-                                kind: .primary, usedPercent: fiveHourUsed,
-                                windowDurationMinutes: 300, resetsAt: reset),
-                RateLimitWindow(id: "weekly", bucketID: "codex", bucketName: "Codex",
-                                kind: .secondary, usedPercent: weeklyUsed,
-                                windowDurationMinutes: 10_080, resetsAt: weeklyReset),
-            ]
-        }
-        let tokens = LocalTokenUsage(
-            totalTokens: 121_200, inputTokens: 100_000, cachedInputTokens: 70_000,
-            cacheWriteInputTokens: 0, outputTokens: 21_200, reasoningOutputTokens: 8_000,
-            apiEquivalentCostUSD: 0.52
-        )
-        let localLoader = FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
-            today: tokens,
-            lifetime: nil,
-            todayQuotaUsage: [
-                TodayQuotaUsage(bucketID: "codex", windowDurationMinutes: 300, usedPercentagePoints: 0.5),
-                TodayQuotaUsage(bucketID: "codex", windowDurationMinutes: 10_080, usedPercentagePoints: 0.1),
+        let calendar = UsageCalendar.calendar
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: today))
+        let remoteYesterday: Int64 = 764_709_144
+        let localYesterday = tokenUsage(317_651_611)
+        let localToday = tokenUsage(12_300)
+        let localLoader = RecordingLocalUsageLoader(value: LocalTokenUsageSnapshot(
+            today: localToday, lifetime: localYesterday.adding(localToday),
+            dailyModelUsage: [
+                DailyModelTokenUsage(day: today, model: "today-model", usage: localToday),
+                DailyModelTokenUsage(day: yesterday, model: "local-history", usage: localYesterday),
+            ],
+            monthlyUsage: [MonthlyTokenUsage(month: today, usage: localYesterday.adding(localToday))],
+            dailyUsage: [
+                PeriodTokenUsage(start: today, usage: localToday),
+                PeriodTokenUsage(start: yesterday, usage: localYesterday),
             ]
         ))
-        let settings = AppSettings(defaults: defaults)
-        let store = UsageStore(
-            loader: SequencedUsageLoader(results: [.success(snapshot(windows: windows(10.5, 20.1)))]),
-            localUsageLoader: localLoader,
-            lifetimeUsageLoader: FixedLocalUsageLoader(),
-            settings: settings
+        let remote = CodexUsageSnapshot(
+            fetchedAt: Date(), account: nil, rateLimitBuckets: [],
+            usageSummary: TokenUsageSummary(lifetimeTokens: 9_000_000_000, peakDailyTokens: remoteYesterday,
+                                            longestRunningTurnSeconds: 600, currentStreakDays: 3,
+                                            longestStreakDays: 6),
+            dailyUsage: [DailyTokenUsage(date: yesterday, tokens: remoteYesterday),
+                         DailyTokenUsage(date: today, tokens: 50)]
         )
+        let store = UsageStore(loader: SequencedUsageLoader(results: [.success(remote)]),
+                               localUsageLoader: localLoader, settings: AppSettings(defaults: defaults))
 
         await store.refresh()
-        #expect(store.localTodayTokens == 121_200)
-        #expect(store.localTodayQuotaPercent == 0.5)
-        #expect(TodayQuotaUsageL10n.title(.simplifiedChinese) == "额度消耗")
-        #expect(TodayQuotaUsageL10n.summary(
-            tokens: store.localTodayTokens,
-            percent: store.localTodayQuotaPercent,
-            language: .simplifiedChinese
-        ) == "0.5%")
-        let weeklyOnlyStore = UsageStore(
-            loader: SequencedUsageLoader(results: [.success(snapshot(windows: [windows(10.5, 20.1)[1]]))]),
-            localUsageLoader: localLoader,
-            lifetimeUsageLoader: FixedLocalUsageLoader(),
-            settings: settings
-        )
-        await weeklyOnlyStore.refresh()
-        #expect(weeklyOnlyStore.localTodayQuotaPercent == 0.1)
-
-        if let path = ProcessInfo.processInfo.environment["CODEX_METER_TODAY_QUOTA_SNAPSHOT"] {
-            settings.language = .simplifiedChinese
-            settings.appearance = .light
-            let currentSnapshot = try #require(store.snapshot)
-            let renderer = ImageRenderer(content:
-                TokenActivityCard(snapshot: currentSnapshot)
-                    .frame(width: 392)
-                    .padding(14)
-                    .background(Color.meterPanel)
-                    .foregroundStyle(Color.meterPrimary)
-                    .environmentObject(settings)
-                    .environmentObject(store)
-                    .environment(\.colorScheme, .light)
-            )
-            renderer.scale = 2
-            let image = try #require(renderer.nsImage)
-            let tiff = try #require(image.tiffRepresentation)
-            let bitmap = try #require(NSBitmapImageRep(data: tiff))
-            let png = try #require(bitmap.representation(using: .png, properties: [:]))
-            try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+        #expect(store.dashboardSnapshot == remote)
+        #expect(store.dashboardSnapshot?.usageSummary?.lifetimeTokens == 9_000_000_000)
+        #expect(store.statisticsUsage(.day, count: 7).first?.tokens == remoteYesterday)
+        #expect(store.dashboardSnapshot?.tokens(on: yesterday) == remoteYesterday)
+        #expect(store.periodUsage(.day, count: 1).first?.tokens == 50)
+        for period in [UsagePeriod.week, .month, .year] {
+            let interval = try #require(period.interval(containing: today))
+            let expected = remote.dailyUsage.filter { interval.contains($0.date) }.reduce(Int64(0)) { $0 + $1.tokens }
+            #expect(store.statisticsUsage(period, count: 3).first?.tokens == expected)
+            #expect(store.modelUsage(period, containing: today).isEmpty)
         }
+        #expect(store.currentMonthTokens == store.periodUsage(.month, count: 1).first?.tokens)
+        #expect(store.localTodayUsage == localToday)
+        #expect(store.modelUsage(.day, containing: today) == [ModelTokenUsage(model: "today-model", usage: localToday)])
+        #expect(store.modelUsage(.day, containing: yesterday).isEmpty)
+        #expect(store.modelUsage(.hour, containing: today).isEmpty)
+        // Reading account statistics must never trigger another local scan for history.
+        let requestedDates = await localLoader.requestedDates
+        #expect(requestedDates.count == 1)
+        #expect(requestedDates.allSatisfy { calendar.isDate($0, inSameDayAs: today) })
     }
 
-    @Test @MainActor
-    func quotaSummaryUsesTheSelectedStatisticsPeriod() async throws {
-        let suiteName = "CodexMeterTests.PeriodQuota.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let calendar = Calendar.current
-        let firstDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 24)))
-        let secondDay = try #require(calendar.date(byAdding: .day, value: 1, to: firstDay))
-        let sunday = try #require(calendar.date(byAdding: .day, value: 3, to: firstDay))
-        let monday = try #require(calendar.date(byAdding: .day, value: 4, to: firstDay))
-        let reset = try #require(calendar.date(byAdding: .day, value: 6, to: firstDay))
-        let readings = [
-            (firstDay.addingTimeInterval(8 * 3_600), 30.0),
-            (firstDay.addingTimeInterval(23 * 3_600), 32.0),
-            (secondDay.addingTimeInterval(9 * 3_600), 33.0),
-            (secondDay.addingTimeInterval(10 * 3_600), 40.0),
-            (secondDay.addingTimeInterval(11 * 3_600), 49.0),
-            (sunday.addingTimeInterval(23 * 3_600), 60.0),
-            (monday, 80.0),
-        ].map { time, used in
-            LocalQuotaReading(date: time, bucketID: "codex", windowDurationMinutes: 10_080,
-                              resetsAt: reset, usedPercent: used)
-        }
-        let window = RateLimitWindow(id: "weekly", bucketID: "codex", bucketName: "Codex",
-                                     kind: .primary, usedPercent: 49,
-                                     windowDurationMinutes: 10_080, resetsAt: reset)
-        let store = UsageStore(
-            loader: SequencedUsageLoader(results: [.success(snapshot(windows: [window]))]),
-            localUsageLoader: FixedLocalUsageLoader(),
-            lifetimeUsageLoader: FixedLocalUsageLoader(value: LocalTokenUsageSnapshot(
-                today: .zero, lifetime: .zero, quotaReadings: readings
-            )),
-            settings: AppSettings(defaults: defaults)
-        )
-        await store.refreshLifetimeUsage()
-        await store.refresh()
-        #expect(store.quotaPercent(for: .day, containing: firstDay) == 2)
-        #expect(store.quotaPercent(for: .day, containing: secondDay) == 17)
-        #expect(store.quotaPercent(for: .hour, containing: secondDay.addingTimeInterval(10 * 3_600)) == 7)
-        #expect(store.quotaPercent(for: .week, containing: sunday) == 60)
-        #expect(store.quotaPercent(for: .week, containing: monday) == 20)
+    private func tokenUsage(_ tokens: Int64) -> LocalTokenUsage {
+        LocalTokenUsage(totalTokens: tokens, inputTokens: tokens, cachedInputTokens: 0,
+                        cacheWriteInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0)
     }
 
     private func snapshot(
@@ -355,30 +298,43 @@ struct UsageStoreTests {
     }
 }
 
-private actor SuspendedLocalUsageLoader: LocalTokenUsageLoading {
+private actor ControlledRetryUsageLoader: CodexUsageLoading {
+    private var hasFailed = false
+    private var retry: CheckedContinuation<CodexUsageSnapshot, Never>?
+    private var retryWaiter: CheckedContinuation<Void, Never>?
+
+    func fetchSnapshot() async throws -> CodexUsageSnapshot {
+        if !hasFailed {
+            hasFailed = true
+            throw CodexMeterError.timeout
+        }
+        return await withCheckedContinuation { continuation in
+            retry = continuation
+            retryWaiter?.resume()
+            retryWaiter = nil
+        }
+    }
+
+    func waitForRetry() async {
+        guard retry == nil else { return }
+        await withCheckedContinuation { retryWaiter = $0 }
+    }
+
+    func completeRetry(with snapshot: CodexUsageSnapshot) {
+        retry?.resume(returning: snapshot)
+        retry = nil
+    }
+}
+
+private actor RecordingLocalUsageLoader: LocalTokenUsageLoading {
     let value: LocalTokenUsageSnapshot
-    private var continuation: CheckedContinuation<Void, Never>?
-    private var started: CheckedContinuation<Void, Never>?
+    private(set) var requestedDates: [Date] = []
 
     init(value: LocalTokenUsageSnapshot) { self.value = value }
 
     func usage(at now: Date) async -> LocalTokenUsageSnapshot {
-        await withCheckedContinuation { continuation in
-            self.continuation = continuation
-            started?.resume()
-            started = nil
-        }
+        requestedDates.append(now)
         return value
-    }
-
-    func waitUntilStarted() async {
-        if continuation != nil { return }
-        await withCheckedContinuation { started = $0 }
-    }
-
-    func resume() {
-        continuation?.resume()
-        continuation = nil
     }
 }
 

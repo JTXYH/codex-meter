@@ -38,12 +38,6 @@ struct CreditsBalanceTests {
     func localizesBalanceStates(language: AppLanguage) {
         for key: L10n.Key in [
             .creditsBalance, .creditsBalanceUnavailable, .unlimitedCredits,
-            .display, .displayHint,
-            .showQuotaCard, .showQuotaCardHint,
-            .showTokenActivityCard, .showTokenActivityCardHint,
-            .showUsageHeatmapCard, .showUsageHeatmapCardHint,
-            .showUsageSummaryCard, .showUsageSummaryCardHint,
-            .showCreditsBalanceCard, .showCreditsBalanceCardHint,
         ] {
             #expect(!L10n.text(key, language: language).isEmpty)
         }

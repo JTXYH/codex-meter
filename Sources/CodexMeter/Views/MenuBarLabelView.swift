@@ -7,11 +7,12 @@ struct MenuBarLabelView: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 5) {
             Image(nsImage: MenuBarProgressRingImage.make(
                 remainingPercent: store.menuBarRemainingPercent,
                 size: settings.menuBarIconSize,
-                colorScheme: colorScheme
+                colorScheme: colorScheme,
+                theme: settings.panelTheme
             ))
             .renderingMode(.original)
 

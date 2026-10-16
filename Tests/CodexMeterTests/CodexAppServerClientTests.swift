@@ -5,7 +5,7 @@ import Testing
 struct CodexAppServerClientTests {
     @Test
     func prefersTheDesktopCliUnlessTheUserChoseAnExecutable() {
-        let desktop = "/Applications/ChatGPT.app/Contents/Resources/codex"
+        let desktop = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
         let paths = CodexExecutableLocator.candidatePaths(
             override: nil, saved: nil,
             environmentPath: "/Users/example/.local/bin:/usr/local/bin",
@@ -22,7 +22,7 @@ struct CodexAppServerClientTests {
     }
 
     @Test
-    func drainsFinalResponsesFromAProcessThatExitsImmediately() async throws {
+    func drainsFinalResponsesWithoutRequiringOptionalCredentialConfiguration() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory.appendingPathComponent(
             "CodexMeterTests.\(UUID().uuidString)",
@@ -39,6 +39,7 @@ struct CodexAppServerClientTests {
         IFS= read -r request3
         IFS= read -r request4
         IFS= read -r request5
+        IFS= read -r request6
         printf '%s\n' '{"id":1,"result":{"account":null}}'
         printf '%s\n' '{"id":2,"result":{"rateLimits":{"limitId":"codex","primary":{"usedPercent":25,"windowDurationMins":300,"resetsAt":1786604934}}}}'
         printf '%s\n' '{"id":3,"result":{"summary":null}}'

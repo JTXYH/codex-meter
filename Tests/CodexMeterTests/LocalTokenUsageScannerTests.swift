@@ -36,7 +36,6 @@ struct LocalTokenUsageScannerTests {
         )
         #expect(year.map { $0.usage.totalTokens } == [440, 220])
         #expect(year.map { $0.usage.outputTokens } == [40, 20])
-        #expect(year.allSatisfy { $0.usage.apiEquivalentCostUSD > 0 })
 
         let restored = LocalTokenUsageScanner(
             sessionsDirectory: fixture.sessionsDirectory, cacheURL: cacheURL, calendar: fixture.calendar
@@ -135,6 +134,7 @@ struct LocalTokenUsageScannerTests {
         let fixture = try LocalUsageFixture()
         defer { fixture.remove() }
         let recent = try fixture.makeRolloutFile(lines: [
+            turnContextEntry(timestamp: "2026-08-11T01:00:00Z", model: "gpt-5.6-sol"),
             tokenEntry(timestamp: "2026-08-11T02:00:00Z", tokens: 120, inputTokens: 100, outputTokens: 20),
         ])
         try fixture.markModified(recent, at: fixture.now)
@@ -146,83 +146,109 @@ struct LocalTokenUsageScannerTests {
         )
         let result = await scanner.usage(at: fixture.now)
         #expect(result.today.totalTokens == 120)
-        #expect(result.today.apiEquivalentCostUSD > 0)
         #expect(result.lifetime == nil)
         #expect(await scanner.bytesReadDuringLastScan == UInt64(try Data(contentsOf: recent).count))
     }
 
     @Test
-    func todayQuotaUsageCombinesObservedChangesAcrossResetsAndRestarts() async throws {
+    func todayModelsSurviveCacheMigrationAndRestartWithoutLeakingPreviousDays() async throws {
+        let fixture = try LocalUsageFixture()
+        defer { fixture.remove() }
+        let cacheURL = fixture.root.appendingPathComponent("today-model-cache.json")
+        let file = try fixture.makeRolloutFile(lines: [
+            turnContextEntry(timestamp: "2026-08-10T02:00:00Z", model: "yesterday-model"),
+            #"{"timestamp":"2026-08-10T02:00:01Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":800},"last_token_usage":{"total_tokens":800}}}}"#,
+            turnContextEntry(timestamp: "2026-08-11T02:00:00Z", model: "today-model"),
+            #"{"timestamp":"2026-08-11T02:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":800},"last_token_usage":{"total_tokens":800}}}}"#,
+            tokenEntry(timestamp: "2026-08-11T02:00:01Z", tokens: 120),
+        ])
+        try fixture.markModified(file, at: fixture.now)
+        func scanner() -> LocalTokenUsageScanner {
+            LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
+                                   scope: .today, cacheURL: cacheURL, calendar: fixture.calendar)
+        }
+
+        let first = await scanner().usage(at: fixture.now)
+        #expect(first.today.totalTokens == 120)
+        #expect(first.dailyModelUsage.map(\.model) == ["today-model"])
+        #expect(first.dailyModelUsage.map { $0.usage.totalTokens } == [120])
+        #expect(first.dailyModelUsage.allSatisfy { fixture.calendar.isDate($0.day, inSameDayAs: fixture.now) })
+        #expect(first.lifetime == nil)
+        #expect(first.dailyUsage.isEmpty && first.hourlyUsage.isEmpty && first.monthlyUsage.isEmpty)
+        #expect(first.hourlyModelUsage.isEmpty)
+
+        let restored = scanner()
+        #expect(await restored.usage(at: fixture.now) == first)
+        #expect(await restored.bytesReadDuringLastScan == 0)
+
+        // Earlier today checkpoints claimed model support but did not persist model rows.
+        let database = try SQLiteStore(url: cacheURL.appendingPathExtension("sqlite"))
+        let cachedDates = """
+            SELECT day FROM daily_usage WHERE scope='today'
+            UNION ALL SELECT day FROM daily_model_usage WHERE scope='today'
+            UNION ALL SELECT hour FROM hourly_usage WHERE scope='today'
+            UNION ALL SELECT hour FROM hourly_model_usage WHERE scope='today'
+            """
+        #expect(try database.rows(cachedDates).allSatisfy {
+            fixture.calendar.isDate(Date(timeIntervalSinceReferenceDate: $0[0].double), inSameDayAs: fixture.now)
+        })
+        let saved = try #require(database.rows("SELECT state FROM scan_files WHERE scope='today'").first?.first?.data)
+        var checkpoint = try #require(JSONSerialization.jsonObject(with: saved) as? [String: Any])
+        checkpoint.removeValue(forKey: "hasTodayModelUsage")
+        try database.execute("UPDATE scan_files SET state=? WHERE scope='today'", [
+            .blob(try JSONSerialization.data(withJSONObject: checkpoint)),
+        ])
+        try database.execute("DELETE FROM daily_model_usage WHERE scope='today'")
+        let upgraded = scanner()
+        #expect(await upgraded.usage(at: fixture.now) == first)
+        #expect(await upgraded.bytesReadDuringLastScan > 0)
+
+        let tomorrow = try #require(fixture.calendar.date(byAdding: .day, value: 1, to: fixture.now))
+        try append(turnContextEntry(timestamp: "2026-08-12T02:00:00Z", model: "next-day-model"),
+                   terminatedByNewline: true, to: file)
+        try append(tokenEntry(timestamp: "2026-08-12T02:00:01Z", tokens: 40),
+                   terminatedByNewline: true, to: file)
+        try fixture.markModified(file, at: tomorrow)
+        let nextDay = await upgraded.usage(at: tomorrow)
+        #expect(nextDay.today.totalTokens == 40)
+        #expect(nextDay.dailyModelUsage.map(\.model) == ["next-day-model"])
+        #expect(nextDay.dailyModelUsage.map { $0.usage.totalTokens } == [40])
+        #expect(nextDay.dailyUsage.isEmpty && nextDay.hourlyUsage.isEmpty && nextDay.monthlyUsage.isEmpty)
+        #expect(try database.rows(cachedDates).allSatisfy {
+            fixture.calendar.isDate(Date(timeIntervalSinceReferenceDate: $0[0].double), inSameDayAs: tomorrow)
+        })
+        let nextRestart = scanner()
+        #expect(await nextRestart.usage(at: tomorrow) == nextDay)
+        #expect(await nextRestart.bytesReadDuringLastScan == 0)
+        let followingDay = try #require(fixture.calendar.date(byAdding: .day, value: 1, to: tomorrow))
+        let emptyNextDay = await nextRestart.usage(at: followingDay)
+        #expect(emptyNextDay.today == .zero)
+        #expect(emptyNextDay.dailyModelUsage.isEmpty)
+    }
+
+    @Test
+    func ignoresQuotaMetadataWhilePreservingTokenCountsAndRestart() async throws {
         let fixture = try LocalUsageFixture()
         defer { fixture.remove() }
         let cacheURL = fixture.root.appendingPathComponent("today-cache.json")
-        let firstReset = Int64(try #require(ISO8601DateFormatter().date(from: "2026-08-10T20:00:00Z")).timeIntervalSince1970)
-        let secondReset = Int64(try #require(ISO8601DateFormatter().date(from: "2026-08-11T01:00:00Z")).timeIntervalSince1970)
-        let weeklyReset = Int64(try #require(ISO8601DateFormatter().date(from: "2026-08-15T00:00:00Z")).timeIntervalSince1970)
-        let file = try fixture.makeRolloutFile(lines: [
-            quotaTokenEntry("2026-08-10T16:30:00Z", tokens: 100, primary: 10, reset: firstReset,
-                            weekly: 20, weeklyReset: weeklyReset),
-            quotaTokenEntry("2026-08-10T17:30:00Z", tokens: 100, primary: 12, reset: firstReset,
-                            weekly: 21, weeklyReset: weeklyReset),
-            quotaTokenEntry("2026-08-10T20:30:00Z", tokens: 100, primary: 1, reset: secondReset,
-                            weekly: 21, weeklyReset: weeklyReset),
-            quotaTokenEntry("2026-08-10T21:30:00Z", tokens: 100, primary: 3, reset: secondReset + 1,
-                            weekly: 22, weeklyReset: weeklyReset),
+        _ = try fixture.makeRolloutFile(lines: [
+            quotaTokenEntry("2026-08-10T16:30:00Z", tokens: 100, primary: 10, reset: 1_786_392_000,
+                            weekly: 20, weeklyReset: 1_786_752_000),
+            quotaTokenEntry("2026-08-10T17:30:00Z", tokens: 200, primary: 12, reset: 1_786_392_000,
+                            weekly: 21, weeklyReset: 1_786_752_000),
         ])
         let scanner = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
                                              scope: .today, cacheURL: cacheURL, calendar: fixture.calendar)
         let first = await scanner.usage(at: fixture.now)
-        #expect(first.today.totalTokens == 400)
-        #expect(first.todayQuotaUsage.first(where: { $0.windowDurationMinutes == 300 })?.usedPercentagePoints == 5)
-        #expect(first.todayQuotaUsage.first(where: { $0.windowDurationMinutes == 10_080 })?.usedPercentagePoints == 2)
-
+        #expect(first.today.totalTokens == 300)
+        let database = try SQLiteStore(url: cacheURL.appendingPathExtension("sqlite"))
+        let stored = try #require(database.rows("SELECT state FROM scan_files WHERE scope='today'").first?.first?.data)
+        let checkpoint = try #require(JSONSerialization.jsonObject(with: stored) as? [String: Any])
+        #expect(checkpoint["quotaReadings"] == nil)
         let restored = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
                                               scope: .today, cacheURL: cacheURL, calendar: fixture.calendar)
         #expect(await restored.usage(at: fixture.now) == first)
         #expect(await restored.bytesReadDuringLastScan == 0)
-
-        try append(quotaTokenEntry("2026-08-10T22:00:00Z", tokens: 100, primary: 4,
-                                   reset: secondReset, weekly: 22.5, weeklyReset: weeklyReset),
-                   terminatedByNewline: true, to: file)
-        let updated = await restored.usage(at: fixture.now)
-        #expect(updated.today.totalTokens == 500)
-        #expect(updated.todayQuotaUsage.first(where: { $0.windowDurationMinutes == 300 })?.usedPercentagePoints == 6)
-        #expect(updated.todayQuotaUsage.first(where: { $0.windowDurationMinutes == 10_080 })?.usedPercentagePoints == 2.5)
-
-        let historical = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
-                                                scope: .lifetime, cacheURL: cacheURL, calendar: fixture.calendar)
-        let historicalUsage = await historical.usage(at: fixture.now)
-        #expect(historicalUsage.quotaReadings.count == 10)
-        #expect(historicalUsage.quotaReadings.contains { $0.usedPercent == 22.5 })
-        let historicalDatabase = try SQLiteStore(url: cacheURL.appendingPathExtension("sqlite"))
-        let historicalState = try #require(historicalDatabase.rows(
-            "SELECT state FROM scan_files WHERE scope='lifetime'").first?.first?.data)
-        var oldHistoricalCheckpoint = try #require(JSONSerialization.jsonObject(with: historicalState) as? [String: Any])
-        oldHistoricalCheckpoint.removeValue(forKey: "hasHistoricalQuotaReadings")
-        try historicalDatabase.execute("UPDATE scan_files SET state=? WHERE scope='lifetime'", [
-            .blob(try JSONSerialization.data(withJSONObject: oldHistoricalCheckpoint)),
-        ])
-        let historicalBackfill = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
-                                                       scope: .lifetime, cacheURL: cacheURL, calendar: fixture.calendar)
-        #expect(await historicalBackfill.usage(at: fixture.now) == historicalUsage)
-        #expect(await historicalBackfill.bytesReadDuringLastScan > 0)
-
-        // An older checkpoint has no quota fields. Only today's files need rebuilding.
-        let database = try SQLiteStore(url: cacheURL.appendingPathExtension("sqlite"))
-        let stored = try #require(database.rows("SELECT state FROM scan_files WHERE scope='today'").first?.first?.data)
-        var checkpoint = try #require(JSONSerialization.jsonObject(with: stored) as? [String: Any])
-        checkpoint.removeValue(forKey: "hasQuotaReadings")
-        checkpoint.removeValue(forKey: "quotaReadings")
-        let legacy = try JSONSerialization.data(withJSONObject: checkpoint)
-        try database.execute("UPDATE scan_files SET state=? WHERE scope='today'", [.blob(legacy)])
-        let upgraded = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
-                                              scope: .today, cacheURL: cacheURL, calendar: fixture.calendar)
-        let rebuilt = await upgraded.usage(at: fixture.now)
-        #expect(rebuilt.todayQuotaUsage == updated.todayQuotaUsage)
-        #expect(await upgraded.bytesReadDuringLastScan > 0)
-
-        let tomorrow = try #require(fixture.calendar.date(byAdding: .day, value: 1, to: fixture.now))
-        #expect(await upgraded.usage(at: tomorrow).todayQuotaUsage.isEmpty)
     }
 
     @Test
@@ -258,7 +284,6 @@ struct LocalTokenUsageScannerTests {
         try append("", terminatedByNewline: true, to: file)
         let completed = await restored.usage(at: fixture.now)
         #expect(completed.today.totalTokens == 220_000)
-        #expect(abs(try #require(completed.lifetime).apiEquivalentCostUSD - 1.6) < 0.000_001)
         #expect(await restored.bytesReadDuringLastScan == 1)
         #expect(await restored.usage(at: fixture.now) == completed)
         #expect(await restored.bytesReadDuringLastScan == 0)
@@ -325,7 +350,7 @@ struct LocalTokenUsageScannerTests {
     }
 
     @Test
-    func tracksTokenKindsAndUsesTheActiveModelsPublicRates() async throws {
+    func tracksTokenKindsAcrossModelChanges() async throws {
         let fixture = try LocalUsageFixture()
         defer { fixture.remove() }
 
@@ -362,12 +387,10 @@ struct LocalTokenUsageScannerTests {
         #expect(usage.cacheWriteInputTokens == 10_000)
         #expect(usage.outputTokens == 15_000)
         #expect(usage.reasoningOutputTokens == 4_000)
-        #expect(abs(usage.apiEquivalentCostUSD - 0.227) < 0.000_001)
-        #expect(abs(usage.cacheHitPercentage - 0.5) < 0.000_001)
     }
 
     @Test
-    func accumulatesHistoricalAndArchivedCostsAcrossDaysWithoutCountingCopiesTwice() async throws {
+    func accumulatesHistoricalAndArchivedTokensAcrossDaysWithoutCountingCopiesTwice() async throws {
         let fixture = try LocalUsageFixture()
         defer { fixture.remove() }
         let file = try fixture.makeRolloutFile(lines: [
@@ -394,7 +417,6 @@ struct LocalTokenUsageScannerTests {
         let first = await scanner.usage(at: fixture.now)
         #expect(first.today.totalTokens == 220_000)
         #expect(first.lifetime?.totalTokens == 440_000)
-        #expect(abs(try #require(first.lifetime).apiEquivalentCostUSD - 3.2) < 0.000_001)
         #expect(await scanner.usage(at: fixture.now) == first)
 
         // Archiving a session and crossing midnight must preserve the cumulative amount.
@@ -409,54 +431,61 @@ struct LocalTokenUsageScannerTests {
                    terminatedByNewline: true, to: movedFile)
         let updated = await scanner.usage(at: tomorrow)
         #expect(updated.today.totalTokens == 110_000)
-        #expect(abs(try #require(updated.lifetime).apiEquivalentCostUSD - 4) < 0.000_001)
     }
 
     @Test
-    func repeatedCumulativeEventsAndRewrittenFilesDoNotInflateCosts() async throws {
+    func repeatedCumulativeEventsAndRewrittenFilesDoNotInflateTokens() async throws {
         let fixture = try LocalUsageFixture()
         defer { fixture.remove() }
         let entry = #"{"timestamp":"2026-08-11T02:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":110000},"last_token_usage":{"input_tokens":100000,"output_tokens":10000,"total_tokens":110000}}}}"#
-        let file = try fixture.makeRolloutFile(lines: [entry, entry])
+        let file = try fixture.makeRolloutFile(lines: [
+            turnContextEntry(timestamp: "2026-08-11T01:00:00Z", model: "gpt-5.6-sol"), entry, entry,
+        ])
         let scanner = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
                                              calendar: fixture.calendar)
         let usage = await scanner.usage(at: fixture.now)
         #expect(usage.today.totalTokens == 110_000)
-        #expect(abs(try #require(usage.lifetime).apiEquivalentCostUSD - 0.6) < 0.000_001)
 
-        try Data((tokenEntry(timestamp: "2026-08-11T03:00:00Z", tokens: 1_000,
-                             inputTokens: 1_000) + "\n").utf8).write(to: file)
+        try Data((turnContextEntry(timestamp: "2026-08-11T01:00:00Z", model: "gpt-5.6-sol") + "\n"
+            + tokenEntry(timestamp: "2026-08-11T03:00:00Z", tokens: 1_000,
+                         inputTokens: 1_000) + "\n").utf8).write(to: file)
         let rewritten = await scanner.usage(at: fixture.now)
         #expect(rewritten.lifetime?.totalTokens == 1_000)
-        #expect(abs(try #require(rewritten.lifetime).apiEquivalentCostUSD - 0.004) < 0.000_001)
 
         fixture.remove()
         #expect(await scanner.usage(at: fixture.now).lifetime == nil)
     }
 
     @Test(arguments: [
-        ("gpt-6-astra", 6.75),
-        ("gpt-5.6-sol", 2.7),
-        ("gpt-5.6-terra", 1.38),
-        ("gpt-5.6-luna", 0.138),
-        ("gpt-5.5-2026-04-23", 3.45),
-        ("gpt-5.3-codex", 0.665),
-        ("gpt-5.1-codex-mini", 0.095),
-        ("internal-route", 2.7),
+        (100 as Int64, 90 as Int64, 20 as Int64, 0 as Int64, 100 as Int64),
+        (-1, 0, 0, 1, 1),
+        (0, 0, 0, 0, 100),
     ])
-    func appliesModelRatesAndOnlyApplicableLongContextPremiums(model: String, expected: Double) async throws {
+    func malformedTokenBreakdownsAreClampedAndSurviveRestart(input: Int64, cached: Int64,
+                                                           write: Int64, output: Int64, total: Int64) async throws {
         let fixture = try LocalUsageFixture()
         defer { fixture.remove() }
+        let cacheURL = fixture.root.appendingPathComponent("invalid-details.json")
         _ = try fixture.makeRolloutFile(lines: [
-            turnContextEntry(timestamp: "2026-08-11T01:00:00Z", model: model),
-            tokenEntry(timestamp: "2026-08-11T02:00:00Z", tokens: 310_000,
-                       inputTokens: 300_000, outputTokens: 10_000),
+            turnContextEntry(timestamp: "2026-08-11T01:00:00Z", model: "gpt-6.1-sol"),
+            tokenEntry(timestamp: "2026-08-11T01:00:01Z", tokens: total, inputTokens: input,
+                       cachedInputTokens: cached, cacheWriteInputTokens: write, outputTokens: output),
         ])
         let scanner = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
-                                             calendar: fixture.calendar)
-        let usage = await scanner.usage(at: fixture.now)
-        #expect(abs(try #require(usage.lifetime).apiEquivalentCostUSD - expected) < 0.000_001)
+                                              cacheURL: cacheURL, calendar: fixture.calendar)
+        let usage = await scanner.usage(at: fixture.now).today
+        #expect(usage.totalTokens == max(total, 0))
+        #expect(usage.inputTokens == max(input, 0))
+        #expect(usage.cachedInputTokens >= 0)
+        #expect(usage.cacheWriteInputTokens >= 0)
+        #expect(usage.cachedInputTokens + usage.cacheWriteInputTokens <= usage.inputTokens)
+        #expect(usage.outputTokens == max(output, 0))
+        let restored = LocalTokenUsageScanner(sessionsDirectory: fixture.sessionsDirectory,
+                                               cacheURL: cacheURL, calendar: fixture.calendar)
+        #expect(await restored.usage(at: fixture.now).today == usage)
+        #expect(await restored.bytesReadDuringLastScan == 0)
     }
+
 }
 
 private struct LocalUsageFixture {

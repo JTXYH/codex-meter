@@ -3,98 +3,38 @@ import Foundation
 enum L10n {
     enum Key {
         case menuBarHelp
-        case menuBar
-        case menuBarHint
-        case menuBarIconSize
-        case menuBarIconSizeHint
-        case menuBarPreview
-        case menuBarQuotaHint
-        case currentMacServer
         case showEmail
         case hideEmail
         case refreshQuota
         case settings
         case quit
-        case settingsHint
-        case general
-        case generalHint
-        case display
-        case displayHint
-        case launchAtLogin
-        case launchAtLoginHint
-        case followCodexApp
-        case followCodexAppHint
         case followCodexAppApprovalHint
-        case showQuotaCard
-        case showQuotaCardHint
-        case showTokenActivityCard
-        case showTokenActivityCardHint
-        case showUsageHeatmapCard
-        case showUsageHeatmapCardHint
-        case showUsageSummaryCard
-        case showUsageSummaryCardHint
-        case showCreditsBalanceCard
-        case showCreditsBalanceCardHint
-        case refresh
-        case refreshHint
         case appearance
-        case appearanceHint
         case appearanceSystem
         case appearanceLight
         case appearanceDark
         case language
-        case languageHint
         case searchLanguage
         case noLanguagesFound
-        case automaticRefresh
-        case automaticRefreshHint
-        case customMinutes
-        case minuteRangeHint
         case custom
-        case loadingQuota
-        case loadingDetail
-        case loadFailed
         case retry
         case remainingQuota
-        case currentPeriod
         case noQuotaWindow
         case noQuotaExplanation
-        case tokenActivity
-        case today
         case todayDetails
-        case statisticsCurrent
         case calculatingUsage
         case monthlyUsage
-        case showMonthlyUsageCard
-        case showMonthlyUsageCardHint
         case monthlyUsageRange
-        case monthlyUsageRangeHint
         case thisMonth
-        case thisMonthTokens
-        case thisMonthAPIEquivalentCost
-        case monthStatisticsCurrent
-        case monthStatisticsComplete
-        case monthStatisticsUnavailable
         case activityOverview
-        case activityOverviewHint
-        case inputTokens
-        case outputTokens
-        case apiEquivalentCost
-        case cachedInput
-        case yesterday
         case lastSevenDays
-        case lastOneHundredTwentyDays
         case hoverHeatmap
         case less
         case more
-        case streakUnavailable
-        case usageOverview
         case creditsBalance
         case creditsBalanceUnavailable
         case unlimitedCredits
         case lifetimeTokens
-        case lifetimeAPIEquivalentCost
-        case lifetimeAPIEquivalentCostHint
         case longestStreak
         case longestTask
         case notAvailable
@@ -171,27 +111,6 @@ enum L10n {
         }
     }
 
-    static func totalTokens(_ value: String, language: AppLanguage) -> String {
-        switch language {
-        case .simplifiedChinese, .traditionalChinese: "合计 \(value) Token"
-        case .english: "Total \(value) tokens"
-        case .japanese: "合計 \(value) Token"
-        case .korean: "합계 \(value) Token"
-        case .spanish: "Total: \(value) tokens"
-        }
-    }
-
-    static func hitRate(_ percent: Int, language: AppLanguage) -> String {
-        switch language {
-        case .simplifiedChinese: "命中率 \(percent)%"
-        case .traditionalChinese: "命中率 \(percent)%"
-        case .english: "\(percent)% hit rate"
-        case .japanese: "ヒット率 \(percent)%"
-        case .korean: "적중률 \(percent)%"
-        case .spanish: "\(percent)% de aciertos"
-        }
-    }
-
     static func weekdaySymbols(language: AppLanguage) -> [String] {
         switch language {
         case .simplifiedChinese, .traditionalChinese:
@@ -216,17 +135,6 @@ enum L10n {
         case .japanese: "\(time) に更新"
         case .korean: "\(time) 업데이트"
         case .spanish: "Actualizado a las \(time)"
-        }
-    }
-
-    static func longestStreakValue(_ days: Int?, language: AppLanguage) -> String {
-        guard let days else { return text(.notAvailable, language: language) }
-        return switch language {
-        case .simplifiedChinese, .traditionalChinese: "\(days) 天"
-        case .english: days == 1 ? "1 day" : "\(days) days"
-        case .japanese: "\(days) 日"
-        case .korean: "\(days)일"
-        case .spanish: days == 1 ? "1 día" : "\(days) días"
         }
     }
 
@@ -326,99 +234,39 @@ enum L10n {
 
     private static func simplifiedChinese(_ key: Key) -> String {
         switch key {
-        case .menuBar: "菜单栏"
-        case .menuBarHint: "调整圆环大小，实时显示剩余额度"
-        case .menuBarIconSize: "图标大小"
-        case .menuBarIconSizeHint: "调整直径，立即生效"
-        case .menuBarPreview: "实时预览"
-        case .menuBarQuotaHint: "优先显示 5 小时剩余额度，仅有周额度时自动回退"
         case .menuBarHelp: "Codex 每周剩余额度"
-        case .currentMacServer: "当前 Mac / Codex App Server"
         case .showEmail: "显示完整邮箱"
         case .hideEmail: "隐藏邮箱"
         case .refreshQuota: "刷新额度"
         case .settings: "设置"
         case .quit: "退出 Codex Meter"
-        case .settingsHint: "更改会立即生效并自动保存"
-        case .general: "通用"
-        case .generalHint: "调整应用行为、外观和显示语言"
-        case .display: "显示"
-        case .displayHint: "拖动调整主面板顺序，并选择显示的数据区域"
-        case .launchAtLogin: "登录时启动"
-        case .launchAtLoginHint: "登录这台 Mac 后自动启动 Codex Meter"
-        case .followCodexApp: "随 Codex 启停"
-        case .followCodexAppHint: "Codex 桌面应用打开时启动，退出时关闭；开启后会关闭“登录时启动”"
         case .followCodexAppApprovalHint: "请在系统设置的登录项中允许 Codex Meter 后台运行"
-        case .showQuotaCard: "显示额度概览"
-        case .showQuotaCardHint: "显示 5 小时和周额度区域"
-        case .showTokenActivityCard: "显示 Token 活跃度"
-        case .showTokenActivityCardHint: "显示今日输入、输出、缓存与费用"
-        case .showUsageHeatmapCard: "显示用量热力图"
-        case .showUsageHeatmapCardHint: "显示近 120 天 Token 使用热力图"
-        case .showUsageSummaryCard: "显示使用概览"
-        case .showUsageSummaryCardHint: "显示累计 Token、API 等效费用、最长连续和最长任务"
-        case .showCreditsBalanceCard: "显示 Credits 余额"
-        case .showCreditsBalanceCardHint: "在主面板中显示 Credits 余额卡片"
-        case .refresh: "刷新"
-        case .refreshHint: "设置 Codex 数据的自动刷新频率"
         case .appearance: "外观"
-        case .appearanceHint: "选择跟随系统、浅色或深色模式"
         case .appearanceSystem: "跟随系统"
         case .appearanceLight: "浅色"
         case .appearanceDark: "深色"
         case .language: "语言"
-        case .languageHint: "选择 Codex Meter 的界面语言"
         case .searchLanguage: "搜索语言"
         case .noLanguagesFound: "没有匹配的语言"
-        case .automaticRefresh: "Codex 自动刷新"
-        case .automaticRefreshHint: "按选定的分钟数定期获取最新额度"
-        case .customMinutes: "自定义分钟数"
-        case .minuteRangeHint: "可设置 1 到 1440 分钟"
         case .custom: "自定义"
-        case .loadingQuota: "正在读取当前 Codex 额度..."
-        case .loadingDetail: "通过本机 Codex App Server 复用已有登录态"
-        case .loadFailed: "暂时无法读取额度"
         case .retry: "重试"
         case .remainingQuota: "剩余额度"
-        case .currentPeriod: "当前周期"
         case .noQuotaWindow: "当前账户未返回额度窗口"
         case .noQuotaExplanation: "API Key 或 Bedrock 登录通常不会返回 ChatGPT 额度。"
-        case .tokenActivity: "Token 活跃度"
-        case .today: "今日"
         case .todayDetails: "今日明细"
-        case .statisticsCurrent: "统计截至当前时刻"
         case .calculatingUsage: "统计中…"
         case .monthlyUsage: "用量统计"
-        case .showMonthlyUsageCard: "显示用量统计"
-        case .showMonthlyUsageCardHint: "按小时、日、月、年查看 Token 和 API 等效费用"
         case .monthlyUsageRange: "显示范围"
-        case .monthlyUsageRangeHint: "包含本月，按月份从新到旧排列"
         case .thisMonth: "本月"
-        case .thisMonthTokens: "本月 Token"
-        case .thisMonthAPIEquivalentCost: "本月 API 等效费用"
-        case .monthStatisticsCurrent: "本月统计截至当前时刻"
-        case .monthStatisticsComplete: "该月统计已完成"
-        case .monthStatisticsUnavailable: "该月没有本机用量记录"
         case .activityOverview: "活跃度概览"
-        case .activityOverviewHint: "昨日、近 7 天和本月用量"
-        case .inputTokens: "输入"
-        case .outputTokens: "输出"
-        case .apiEquivalentCost: "API 等效费用"
-        case .cachedInput: "缓存输入"
-        case .yesterday: "昨日"
         case .lastSevenDays: "近 7 天"
-        case .lastOneHundredTwentyDays: "近 120 天用量"
         case .hoverHeatmap: "鼠标移到方格上查看当天用量"
         case .less: "少"
         case .more: "多"
-        case .streakUnavailable: "连续使用暂无数据"
-        case .usageOverview: "使用概览"
         case .creditsBalance: "Credits 余额"
         case .creditsBalanceUnavailable: "暂无数据"
         case .unlimitedCredits: "无限"
         case .lifetimeTokens: "累计 Token"
-        case .lifetimeAPIEquivalentCost: "累计 API 等效费用"
-        case .lifetimeAPIEquivalentCostHint: "按本机现存会话及归档记录，以当前标准 API 费率折算的累计美元估算，不代表实际账单；统计范围可能与账户累计 Token 不同。未知模型按 GPT-5.6 Sol 估算，不含工具费用与加速附加费。"
         case .longestStreak: "最长连续"
         case .longestTask: "最长任务"
         case .notAvailable: "暂无"
@@ -427,99 +275,39 @@ enum L10n {
 
     private static func traditionalChinese(_ key: Key) -> String {
         switch key {
-        case .menuBar: "選單列"
-        case .menuBarHint: "調整圓環大小，即時顯示剩餘額度"
-        case .menuBarIconSize: "圖示大小"
-        case .menuBarIconSizeHint: "調整直徑，立即生效"
-        case .menuBarPreview: "即時預覽"
-        case .menuBarQuotaHint: "優先顯示 5 小時剩餘額度，僅有週額度時自動切換"
         case .menuBarHelp: "Codex 每週剩餘額度"
-        case .currentMacServer: "目前 Mac / Codex App Server"
         case .showEmail: "顯示完整電子郵件"
         case .hideEmail: "隱藏電子郵件"
         case .refreshQuota: "重新整理額度"
         case .settings: "設定"
         case .quit: "結束 Codex Meter"
-        case .settingsHint: "變更會立即生效並自動儲存"
-        case .general: "一般"
-        case .generalHint: "調整應用程式行為、外觀和顯示語言"
-        case .display: "顯示"
-        case .displayHint: "拖曳調整主面板順序，並選擇顯示的資料區域"
-        case .launchAtLogin: "登入時啟動"
-        case .launchAtLoginHint: "登入這台 Mac 後自動啟動 Codex Meter"
-        case .followCodexApp: "隨 Codex 啟停"
-        case .followCodexAppHint: "Codex 桌面應用程式開啟時啟動，結束時關閉；開啟後會關閉「登入時啟動」"
         case .followCodexAppApprovalHint: "請在系統設定的登入項目中允許 Codex Meter 在背景執行"
-        case .showQuotaCard: "顯示額度概覽"
-        case .showQuotaCardHint: "顯示 5 小時和週額度區域"
-        case .showTokenActivityCard: "顯示 Token 活躍度"
-        case .showTokenActivityCardHint: "顯示今日輸入、輸出、快取與費用"
-        case .showUsageHeatmapCard: "顯示用量熱力圖"
-        case .showUsageHeatmapCardHint: "顯示近 120 天 Token 使用熱力圖"
-        case .showUsageSummaryCard: "顯示使用概覽"
-        case .showUsageSummaryCardHint: "顯示累計 Token、API 等效費用、最長連續和最長任務"
-        case .showCreditsBalanceCard: "顯示 Credits 餘額"
-        case .showCreditsBalanceCardHint: "在主面板中顯示 Credits 餘額卡片"
-        case .refresh: "重新整理"
-        case .refreshHint: "設定 Codex 資料的自動重新整理頻率"
         case .appearance: "外觀"
-        case .appearanceHint: "選擇跟隨系統、淺色或深色模式"
         case .appearanceSystem: "跟隨系統"
         case .appearanceLight: "淺色"
         case .appearanceDark: "深色"
         case .language: "語言"
-        case .languageHint: "選擇 Codex Meter 的介面語言"
         case .searchLanguage: "搜尋語言"
         case .noLanguagesFound: "沒有符合的語言"
-        case .automaticRefresh: "Codex 自動重新整理"
-        case .automaticRefreshHint: "依選定的分鐘數定期取得最新額度"
-        case .customMinutes: "自訂分鐘數"
-        case .minuteRangeHint: "可設定 1 到 1440 分鐘"
         case .custom: "自訂"
-        case .loadingQuota: "正在讀取目前 Codex 額度..."
-        case .loadingDetail: "透過本機 Codex App Server 使用現有登入狀態"
-        case .loadFailed: "暫時無法讀取額度"
         case .retry: "再試一次"
         case .remainingQuota: "剩餘額度"
-        case .currentPeriod: "目前週期"
         case .noQuotaWindow: "目前帳戶未傳回額度視窗"
         case .noQuotaExplanation: "API Key 或 Bedrock 登入通常不會傳回 ChatGPT 額度。"
-        case .tokenActivity: "Token 活躍度"
-        case .today: "今日"
         case .todayDetails: "今日明細"
-        case .statisticsCurrent: "統計截至目前時刻"
         case .calculatingUsage: "統計中…"
         case .monthlyUsage: "用量統計"
-        case .showMonthlyUsageCard: "顯示用量統計"
-        case .showMonthlyUsageCardHint: "按小時、日、月、年查看 Token 和 API 等效費用"
         case .monthlyUsageRange: "顯示範圍"
-        case .monthlyUsageRangeHint: "包含本月，依月份由新到舊排列"
         case .thisMonth: "本月"
-        case .thisMonthTokens: "本月 Token"
-        case .thisMonthAPIEquivalentCost: "本月 API 等效費用"
-        case .monthStatisticsCurrent: "本月統計截至目前"
-        case .monthStatisticsComplete: "該月統計已完成"
-        case .monthStatisticsUnavailable: "該月沒有本機用量紀錄"
         case .activityOverview: "活躍度概覽"
-        case .activityOverviewHint: "昨日、近 7 天與本月用量"
-        case .inputTokens: "輸入"
-        case .outputTokens: "輸出"
-        case .apiEquivalentCost: "API 等效費用"
-        case .cachedInput: "快取輸入"
-        case .yesterday: "昨日"
         case .lastSevenDays: "近 7 天"
-        case .lastOneHundredTwentyDays: "近 120 天用量"
         case .hoverHeatmap: "將滑鼠移到方格上查看當天用量"
         case .less: "少"
         case .more: "多"
-        case .streakUnavailable: "連續使用暫無資料"
-        case .usageOverview: "使用概覽"
         case .creditsBalance: "Credits 餘額"
         case .creditsBalanceUnavailable: "暫無資料"
         case .unlimitedCredits: "無限"
         case .lifetimeTokens: "累計 Token"
-        case .lifetimeAPIEquivalentCost: "累計 API 等效費用"
-        case .lifetimeAPIEquivalentCostHint: "依本機現存對話及封存紀錄，以目前標準 API 費率換算的累計美元估算，不代表實際帳單；統計範圍可能與帳戶累計 Token 不同。未知模型依 GPT-5.6 Sol 估算，不含工具費用與加速附加費。"
         case .longestStreak: "最長連續"
         case .longestTask: "最長任務"
         case .notAvailable: "暫無"
@@ -528,99 +316,39 @@ enum L10n {
 
     private static func english(_ key: Key) -> String {
         switch key {
-        case .menuBar: "Menu Bar"
-        case .menuBarHint: "Adjust the ring size and see your remaining quota"
-        case .menuBarIconSize: "Icon size"
-        case .menuBarIconSizeHint: "Change the diameter instantly"
-        case .menuBarPreview: "Live preview"
-        case .menuBarQuotaHint: "Shows the 5-hour quota, or the weekly quota when that is all the account provides"
         case .menuBarHelp: "Codex weekly quota remaining"
-        case .currentMacServer: "This Mac / Codex App Server"
         case .showEmail: "Show full email"
         case .hideEmail: "Hide email"
         case .refreshQuota: "Refresh quota"
         case .settings: "Settings"
         case .quit: "Quit Codex Meter"
-        case .settingsHint: "Changes apply immediately and save automatically"
-        case .general: "General"
-        case .generalHint: "Adjust app behavior, appearance, and display language"
-        case .display: "Display"
-        case .displayHint: "Drag to reorder main-panel sections and choose which ones appear"
-        case .launchAtLogin: "Launch at login"
-        case .launchAtLoginHint: "Open Codex Meter automatically when you log in to this Mac"
-        case .followCodexApp: "Follow Codex app"
-        case .followCodexAppHint: "Open with the Codex desktop app and quit when it closes; turns off Launch at login"
         case .followCodexAppApprovalHint: "Allow Codex Meter to run in the background in System Settings → Login Items"
-        case .showQuotaCard: "Show quota overview"
-        case .showQuotaCardHint: "Show the 5-hour and weekly quota section"
-        case .showTokenActivityCard: "Show token activity"
-        case .showTokenActivityCardHint: "Today's input, output, cache and cost"
-        case .showUsageHeatmapCard: "Show usage heatmap"
-        case .showUsageHeatmapCardHint: "Show the 120-day token usage heatmap"
-        case .showUsageSummaryCard: "Show usage overview"
-        case .showUsageSummaryCardHint: "Show lifetime tokens, API-equivalent cost, streak, and longest task"
-        case .showCreditsBalanceCard: "Show Credits balance"
-        case .showCreditsBalanceCardHint: "Show the Credits balance card in the main panel"
-        case .refresh: "Refresh"
-        case .refreshHint: "Choose how often Codex data refreshes automatically"
         case .appearance: "Appearance"
-        case .appearanceHint: "Use the system, light, or dark appearance"
         case .appearanceSystem: "System"
         case .appearanceLight: "Light"
         case .appearanceDark: "Dark"
         case .language: "Language"
-        case .languageHint: "Choose the language used throughout Codex Meter"
         case .searchLanguage: "Search languages"
         case .noLanguagesFound: "No matching languages"
-        case .automaticRefresh: "Codex auto-refresh"
-        case .automaticRefreshHint: "Fetch the latest quota on the selected schedule"
-        case .customMinutes: "Custom minutes"
-        case .minuteRangeHint: "Enter a value from 1 to 1440 minutes"
         case .custom: "Custom"
-        case .loadingQuota: "Reading your Codex quota..."
-        case .loadingDetail: "Using your existing sign-in through the local Codex App Server"
-        case .loadFailed: "Could not read quota"
         case .retry: "Retry"
         case .remainingQuota: "Remaining quota"
-        case .currentPeriod: "Current period"
         case .noQuotaWindow: "No quota window was returned for this account"
         case .noQuotaExplanation: "API Key and Bedrock sign-ins usually do not return ChatGPT quota data."
-        case .tokenActivity: "Token activity"
-        case .today: "Today"
         case .todayDetails: "Today details"
-        case .statisticsCurrent: "Stats through now"
         case .calculatingUsage: "Calculating…"
         case .monthlyUsage: "Usage statistics"
-        case .showMonthlyUsageCard: "Show usage statistics"
-        case .showMonthlyUsageCardHint: "Hourly, daily, monthly and yearly tokens and API-equivalent cost"
         case .monthlyUsageRange: "Display range"
-        case .monthlyUsageRangeHint: "Includes this month, newest first"
         case .thisMonth: "This month"
-        case .thisMonthTokens: "This month’s tokens"
-        case .thisMonthAPIEquivalentCost: "This month’s API cost"
-        case .monthStatisticsCurrent: "This month, up to now"
-        case .monthStatisticsComplete: "Completed month"
-        case .monthStatisticsUnavailable: "No local usage records for this month"
         case .activityOverview: "Activity overview"
-        case .activityOverviewHint: "Yesterday, last 7 days and this month"
-        case .inputTokens: "Input"
-        case .outputTokens: "Output"
-        case .apiEquivalentCost: "API-equivalent cost"
-        case .cachedInput: "Cached input"
-        case .yesterday: "Yesterday"
         case .lastSevenDays: "Last 7 days"
-        case .lastOneHundredTwentyDays: "Last 120 days"
         case .hoverHeatmap: "Hover over a square to view that day's usage"
         case .less: "Less"
         case .more: "More"
-        case .streakUnavailable: "Streak data unavailable"
-        case .usageOverview: "Usage overview"
         case .creditsBalance: "Credits balance"
         case .creditsBalanceUnavailable: "Not available"
         case .unlimitedCredits: "Unlimited"
         case .lifetimeTokens: "Lifetime tokens"
-        case .lifetimeAPIEquivalentCost: "Total API-equivalent cost"
-        case .lifetimeAPIEquivalentCostHint: "Estimated USD cost of locally available sessions and archives at current standard API rates, not an actual bill. Coverage may differ from account lifetime tokens. Unknown models use GPT-5.6 Sol rates; tool fees and Fast mode premiums are excluded."
         case .longestStreak: "Longest streak"
         case .longestTask: "Longest task"
         case .notAvailable: "N/A"
@@ -629,99 +357,39 @@ enum L10n {
 
     private static func japanese(_ key: Key) -> String {
         switch key {
-        case .menuBar: "メニューバー"
-        case .menuBarHint: "リングのサイズを調整し、残りの割り当てを表示"
-        case .menuBarIconSize: "アイコンのサイズ"
-        case .menuBarIconSizeHint: "直径の変更をすぐに反映"
-        case .menuBarPreview: "ライブプレビュー"
-        case .menuBarQuotaHint: "5 時間枠の残量を優先し、週間枠のみの場合はその残量を表示"
         case .menuBarHelp: "Codex の週間割り当て残量"
-        case .currentMacServer: "この Mac / Codex App Server"
         case .showEmail: "メールアドレスを表示"
         case .hideEmail: "メールアドレスを隠す"
         case .refreshQuota: "割り当てを更新"
         case .settings: "設定"
         case .quit: "Codex Meter を終了"
-        case .settingsHint: "変更はすぐに反映され、自動保存されます"
-        case .general: "一般"
-        case .generalHint: "アプリの動作、外観、表示言語を調整します"
-        case .display: "表示"
-        case .displayHint: "ドラッグしてメインパネルの順序を変更し、表示する項目を選択します"
-        case .launchAtLogin: "ログイン時に起動"
-        case .launchAtLoginHint: "この Mac へのログイン時に Codex Meter を自動起動します"
-        case .followCodexApp: "Codex と連動して起動・終了"
-        case .followCodexAppHint: "Codex デスクトップアプリの起動時に開き、終了時に閉じます。ログイン時の起動はオフになります"
         case .followCodexAppApprovalHint: "システム設定のログイン項目で Codex Meter のバックグラウンド実行を許可してください"
-        case .showQuotaCard: "割り当て概要を表示"
-        case .showQuotaCardHint: "5 時間と週間の割り当て領域を表示します"
-        case .showTokenActivityCard: "Token アクティビティを表示"
-        case .showTokenActivityCardHint: "今日の入力・出力・キャッシュ・費用"
-        case .showUsageHeatmapCard: "使用量ヒートマップを表示"
-        case .showUsageHeatmapCardHint: "過去 120 日間の Token 使用量を表示します"
-        case .showUsageSummaryCard: "使用状況を表示"
-        case .showUsageSummaryCardHint: "累計 Token、API 換算料金、連続使用、最長タスクを表示します"
-        case .showCreditsBalanceCard: "クレジット残高を表示"
-        case .showCreditsBalanceCardHint: "メインパネルにクレジット残高カードを表示します"
-        case .refresh: "更新"
-        case .refreshHint: "Codex データの自動更新間隔を設定します"
         case .appearance: "外観"
-        case .appearanceHint: "システム、ライト、ダークから選択します"
         case .appearanceSystem: "システム"
         case .appearanceLight: "ライト"
         case .appearanceDark: "ダーク"
         case .language: "言語"
-        case .languageHint: "Codex Meter 全体で使う言語を選択します"
         case .searchLanguage: "言語を検索"
         case .noLanguagesFound: "一致する言語がありません"
-        case .automaticRefresh: "Codex の自動更新"
-        case .automaticRefreshHint: "選択した間隔で最新の割り当てを取得します"
-        case .customMinutes: "カスタム分数"
-        case .minuteRangeHint: "1 から 1440 分の範囲で入力してください"
         case .custom: "カスタム"
-        case .loadingQuota: "Codex の割り当てを読み込み中..."
-        case .loadingDetail: "ローカルの Codex App Server で既存のサインインを使用しています"
-        case .loadFailed: "割り当てを読み込めません"
         case .retry: "再試行"
         case .remainingQuota: "残り割り当て"
-        case .currentPeriod: "現在の期間"
         case .noQuotaWindow: "このアカウントの割り当て期間が返されませんでした"
         case .noQuotaExplanation: "API Key または Bedrock のサインインでは、通常 ChatGPT の割り当ては返されません。"
-        case .tokenActivity: "Token アクティビティ"
-        case .today: "今日"
         case .todayDetails: "今日の内訳"
-        case .statisticsCurrent: "現在時点まで"
         case .calculatingUsage: "集計中…"
         case .monthlyUsage: "使用量の統計"
-        case .showMonthlyUsageCard: "使用量の統計を表示"
-        case .showMonthlyUsageCardHint: "時間別・日別・月別・年別の Token と API 換算料金"
         case .monthlyUsageRange: "表示期間"
-        case .monthlyUsageRangeHint: "今月を含め、新しい月から表示"
         case .thisMonth: "今月"
-        case .thisMonthTokens: "今月の Token"
-        case .thisMonthAPIEquivalentCost: "今月の API 換算料金"
-        case .monthStatisticsCurrent: "今月の現在までの集計"
-        case .monthStatisticsComplete: "この月の集計は完了しました"
-        case .monthStatisticsUnavailable: "この月のローカル使用記録はありません"
         case .activityOverview: "アクティビティ概要"
-        case .activityOverviewHint: "昨日・過去7日間・今月の使用量"
-        case .inputTokens: "入力"
-        case .outputTokens: "出力"
-        case .apiEquivalentCost: "API 換算料金"
-        case .cachedInput: "キャッシュ入力"
-        case .yesterday: "昨日"
         case .lastSevenDays: "過去 7 日間"
-        case .lastOneHundredTwentyDays: "過去 120 日間"
         case .hoverHeatmap: "マスにポインタを置くとその日の使用量を表示します"
         case .less: "少"
         case .more: "多"
-        case .streakUnavailable: "連続使用データなし"
-        case .usageOverview: "使用状況"
         case .creditsBalance: "クレジット残高"
         case .creditsBalanceUnavailable: "データなし"
         case .unlimitedCredits: "無制限"
         case .lifetimeTokens: "累計 Token"
-        case .lifetimeAPIEquivalentCost: "累計 API 換算料金"
-        case .lifetimeAPIEquivalentCostHint: "この Mac に残るセッションとアーカイブを現在の標準 API 料金で換算した米ドルの累計見積もりです。実際の請求額ではなく、アカウントの累計 Token とは集計範囲が異なる場合があります。不明なモデルは GPT-5.6 Sol 料金で換算し、ツール料金や高速モードの追加料金は含みません。"
         case .longestStreak: "最長連続"
         case .longestTask: "最長タスク"
         case .notAvailable: "データなし"
@@ -730,99 +398,39 @@ enum L10n {
 
     private static func korean(_ key: Key) -> String {
         switch key {
-        case .menuBar: "메뉴 막대"
-        case .menuBarHint: "링 크기를 조정하고 남은 할당량을 확인하세요"
-        case .menuBarIconSize: "아이콘 크기"
-        case .menuBarIconSizeHint: "지름 변경 즉시 적용"
-        case .menuBarPreview: "실시간 미리보기"
-        case .menuBarQuotaHint: "5시간 할당량을 우선 표시하고, 주간 할당량만 있으면 주간 잔량 표시"
         case .menuBarHelp: "Codex 주간 할당량 잔여"
-        case .currentMacServer: "이 Mac / Codex App Server"
         case .showEmail: "전체 이메일 표시"
         case .hideEmail: "이메일 숨기기"
         case .refreshQuota: "할당량 새로 고침"
         case .settings: "설정"
         case .quit: "Codex Meter 종료"
-        case .settingsHint: "변경 사항은 즉시 적용되고 자동으로 저장됩니다"
-        case .general: "일반"
-        case .generalHint: "앱 동작, 모양 및 표시 언어를 조정합니다"
-        case .display: "표시"
-        case .displayHint: "드래그하여 메인 패널 순서를 바꾸고 표시할 영역을 선택합니다"
-        case .launchAtLogin: "로그인 시 실행"
-        case .launchAtLoginHint: "이 Mac에 로그인하면 Codex Meter를 자동으로 실행합니다"
-        case .followCodexApp: "Codex 실행 상태에 맞춰 실행"
-        case .followCodexAppHint: "Codex 데스크톱 앱이 열리면 실행하고 종료되면 닫습니다. 로그인 시 실행은 꺼집니다"
         case .followCodexAppApprovalHint: "시스템 설정의 로그인 항목에서 Codex Meter의 백그라운드 실행을 허용하세요"
-        case .showQuotaCard: "할당량 개요 표시"
-        case .showQuotaCardHint: "5시간 및 주간 할당량 영역을 표시합니다"
-        case .showTokenActivityCard: "Token 활동 표시"
-        case .showTokenActivityCardHint: "오늘의 입력, 출력, 캐시 및 비용"
-        case .showUsageHeatmapCard: "사용량 히트맵 표시"
-        case .showUsageHeatmapCardHint: "최근 120일 Token 사용량 히트맵을 표시합니다"
-        case .showUsageSummaryCard: "사용 개요 표시"
-        case .showUsageSummaryCardHint: "누적 Token, API 환산 비용, 연속 사용, 최장 작업을 표시합니다"
-        case .showCreditsBalanceCard: "크레딧 잔액 표시"
-        case .showCreditsBalanceCardHint: "메인 패널에 크레딧 잔액 카드를 표시합니다"
-        case .refresh: "새로 고침"
-        case .refreshHint: "Codex 데이터 자동 새로 고침 간격을 설정합니다"
         case .appearance: "모양"
-        case .appearanceHint: "시스템, 라이트 또는 다크 모드를 선택합니다"
         case .appearanceSystem: "시스템"
         case .appearanceLight: "라이트"
         case .appearanceDark: "다크"
         case .language: "언어"
-        case .languageHint: "Codex Meter 전체에서 사용할 언어를 선택합니다"
         case .searchLanguage: "언어 검색"
         case .noLanguagesFound: "일치하는 언어가 없습니다"
-        case .automaticRefresh: "Codex 자동 새로 고침"
-        case .automaticRefreshHint: "선택한 간격으로 최신 할당량을 가져옵니다"
-        case .customMinutes: "사용자 지정 분"
-        case .minuteRangeHint: "1분에서 1440분 사이의 값을 입력하세요"
         case .custom: "사용자 지정"
-        case .loadingQuota: "현재 Codex 할당량을 읽는 중..."
-        case .loadingDetail: "로컬 Codex App Server를 통해 기존 로그인을 사용합니다"
-        case .loadFailed: "할당량을 읽을 수 없습니다"
         case .retry: "다시 시도"
         case .remainingQuota: "남은 할당량"
-        case .currentPeriod: "현재 기간"
         case .noQuotaWindow: "이 계정에 대한 할당량 기간이 반환되지 않았습니다"
         case .noQuotaExplanation: "API Key 또는 Bedrock 로그인은 일반적으로 ChatGPT 할당량을 반환하지 않습니다."
-        case .tokenActivity: "Token 활동"
-        case .today: "오늘"
         case .todayDetails: "오늘 상세"
-        case .statisticsCurrent: "현재 시각 기준"
         case .calculatingUsage: "집계 중…"
         case .monthlyUsage: "사용량 통계"
-        case .showMonthlyUsageCard: "사용량 통계 표시"
-        case .showMonthlyUsageCardHint: "시간별, 일별, 월별, 연도별 Token 및 API 환산 비용"
         case .monthlyUsageRange: "표시 기간"
-        case .monthlyUsageRangeHint: "이번 달을 포함하여 최신순으로 표시"
         case .thisMonth: "이번 달"
-        case .thisMonthTokens: "이번 달 Token"
-        case .thisMonthAPIEquivalentCost: "이번 달 API 환산 비용"
-        case .monthStatisticsCurrent: "이번 달 현재까지 집계"
-        case .monthStatisticsComplete: "집계가 완료된 달"
-        case .monthStatisticsUnavailable: "이 달의 로컬 사용 기록이 없습니다"
         case .activityOverview: "활동 개요"
-        case .activityOverviewHint: "어제, 최근 7일 및 이번 달 사용량"
-        case .inputTokens: "입력"
-        case .outputTokens: "출력"
-        case .apiEquivalentCost: "API 환산 비용"
-        case .cachedInput: "캐시 입력"
-        case .yesterday: "어제"
         case .lastSevenDays: "최근 7일"
-        case .lastOneHundredTwentyDays: "최근 120일"
         case .hoverHeatmap: "칸 위에 마우스를 올려 해당 날짜의 사용량을 확인하세요"
         case .less: "적음"
         case .more: "많음"
-        case .streakUnavailable: "연속 사용 데이터 없음"
-        case .usageOverview: "사용 개요"
         case .creditsBalance: "크레딧 잔액"
         case .creditsBalanceUnavailable: "데이터 없음"
         case .unlimitedCredits: "무제한"
         case .lifetimeTokens: "누적 Token"
-        case .lifetimeAPIEquivalentCost: "누적 API 환산 비용"
-        case .lifetimeAPIEquivalentCostHint: "이 Mac에 남아 있는 세션 및 보관 기록을 현재 표준 API 요금으로 환산한 누적 미국 달러 추정치이며 실제 청구액이 아닙니다. 계정 누적 Token과 집계 범위가 다를 수 있습니다. 알 수 없는 모델에는 GPT-5.6 Sol 요금을 적용하며 도구 요금과 고속 모드 할증은 제외합니다."
         case .longestStreak: "최장 연속"
         case .longestTask: "가장 긴 작업"
         case .notAvailable: "데이터 없음"
@@ -831,99 +439,39 @@ enum L10n {
 
     private static func spanish(_ key: Key) -> String {
         switch key {
-        case .menuBar: "Barra de menús"
-        case .menuBarHint: "Ajusta el tamaño del anillo y consulta la cuota restante"
-        case .menuBarIconSize: "Tamaño del icono"
-        case .menuBarIconSizeHint: "Ajusta el diámetro al instante"
-        case .menuBarPreview: "Vista previa en directo"
-        case .menuBarQuotaHint: "Muestra la cuota de 5 horas, o la semanal si es la única disponible"
         case .menuBarHelp: "Cuota semanal restante de Codex"
-        case .currentMacServer: "Este Mac / Codex App Server"
         case .showEmail: "Mostrar correo completo"
         case .hideEmail: "Ocultar correo"
         case .refreshQuota: "Actualizar cuota"
         case .settings: "Configuración"
         case .quit: "Salir de Codex Meter"
-        case .settingsHint: "Los cambios se aplican al instante y se guardan automáticamente"
-        case .general: "General"
-        case .generalHint: "Ajusta el comportamiento, la apariencia y el idioma de la aplicación"
-        case .display: "Visualización"
-        case .displayHint: "Arrastra para ordenar el panel principal y elige qué secciones mostrar"
-        case .launchAtLogin: "Abrir al iniciar sesión"
-        case .launchAtLoginHint: "Abre Codex Meter automáticamente al iniciar sesión en este Mac"
-        case .followCodexApp: "Seguir a la app Codex"
-        case .followCodexAppHint: "Abre con Codex y se cierra al salir; desactiva Abrir al iniciar sesión"
         case .followCodexAppApprovalHint: "Permite que Codex Meter se ejecute en segundo plano en Ajustes del Sistema → Ítems de inicio"
-        case .showQuotaCard: "Mostrar resumen de cuota"
-        case .showQuotaCardHint: "Muestra las cuotas de 5 horas y semanal"
-        case .showTokenActivityCard: "Mostrar actividad de tokens"
-        case .showTokenActivityCardHint: "Entrada, salida, caché y coste de hoy"
-        case .showUsageHeatmapCard: "Mostrar mapa de uso"
-        case .showUsageHeatmapCardHint: "Muestra el mapa de uso de tokens de los últimos 120 días"
-        case .showUsageSummaryCard: "Mostrar resumen de uso"
-        case .showUsageSummaryCardHint: "Muestra tokens acumulados, coste API equivalente, racha y tarea más larga"
-        case .showCreditsBalanceCard: "Mostrar saldo de créditos"
-        case .showCreditsBalanceCardHint: "Muestra la tarjeta de saldo de créditos en el panel principal"
-        case .refresh: "Actualización"
-        case .refreshHint: "Elige con qué frecuencia se actualizan los datos de Codex"
         case .appearance: "Apariencia"
-        case .appearanceHint: "Usa la apariencia del sistema, clara u oscura"
         case .appearanceSystem: "Sistema"
         case .appearanceLight: "Clara"
         case .appearanceDark: "Oscura"
         case .language: "Idioma"
-        case .languageHint: "Elige el idioma utilizado en Codex Meter"
         case .searchLanguage: "Buscar idiomas"
         case .noLanguagesFound: "No hay idiomas coincidentes"
-        case .automaticRefresh: "Actualización automática de Codex"
-        case .automaticRefreshHint: "Obtén la cuota más reciente con el intervalo seleccionado"
-        case .customMinutes: "Minutos personalizados"
-        case .minuteRangeHint: "Introduce un valor entre 1 y 1440 minutos"
         case .custom: "Personalizado"
-        case .loadingQuota: "Leyendo tu cuota de Codex..."
-        case .loadingDetail: "Usando tu sesión existente mediante Codex App Server local"
-        case .loadFailed: "No se pudo leer la cuota"
         case .retry: "Reintentar"
         case .remainingQuota: "Cuota restante"
-        case .currentPeriod: "Periodo actual"
         case .noQuotaWindow: "No se devolvió ningún periodo de cuota para esta cuenta"
         case .noQuotaExplanation: "Los inicios de sesión con API Key o Bedrock normalmente no devuelven datos de cuota de ChatGPT."
-        case .tokenActivity: "Actividad de tokens"
-        case .today: "Hoy"
         case .todayDetails: "Detalle de hoy"
-        case .statisticsCurrent: "Datos hasta ahora"
         case .calculatingUsage: "Calculando…"
         case .monthlyUsage: "Estadísticas de uso"
-        case .showMonthlyUsageCard: "Mostrar estadísticas de uso"
-        case .showMonthlyUsageCardHint: "Tokens y coste API equivalente por hora, día, mes y año"
         case .monthlyUsageRange: "Periodo"
-        case .monthlyUsageRangeHint: "Incluye el mes actual, del más reciente al más antiguo"
         case .thisMonth: "Este mes"
-        case .thisMonthTokens: "Tokens de este mes"
-        case .thisMonthAPIEquivalentCost: "Coste API de este mes"
-        case .monthStatisticsCurrent: "Este mes, hasta ahora"
-        case .monthStatisticsComplete: "Mes completado"
-        case .monthStatisticsUnavailable: "Sin registros locales de uso de este mes"
         case .activityOverview: "Resumen de actividad"
-        case .activityOverviewHint: "Uso de ayer, últimos 7 días y este mes"
-        case .inputTokens: "Entrada"
-        case .outputTokens: "Salida"
-        case .apiEquivalentCost: "Coste API equivalente"
-        case .cachedInput: "Entrada en caché"
-        case .yesterday: "Ayer"
         case .lastSevenDays: "Últimos 7 días"
-        case .lastOneHundredTwentyDays: "Últimos 120 días"
         case .hoverHeatmap: "Pasa el cursor sobre un cuadro para ver el uso de ese día"
         case .less: "Menos"
         case .more: "Más"
-        case .streakUnavailable: "Datos de racha no disponibles"
-        case .usageOverview: "Resumen de uso"
         case .creditsBalance: "Saldo de créditos"
         case .creditsBalanceUnavailable: "No disponible"
         case .unlimitedCredits: "Ilimitados"
         case .lifetimeTokens: "Tokens acumulados"
-        case .lifetimeAPIEquivalentCost: "Coste API equivalente total"
-        case .lifetimeAPIEquivalentCostHint: "Estimación acumulada en USD de las sesiones y archivos locales con las tarifas API estándar actuales; no es una factura real. La cobertura puede diferir de los tokens acumulados de la cuenta. Los modelos desconocidos usan tarifas de GPT-5.6 Sol; se excluyen herramientas y recargos del modo rápido."
         case .longestStreak: "Racha más larga"
         case .longestTask: "Tarea más larga"
         case .notAvailable: "No disponible"
