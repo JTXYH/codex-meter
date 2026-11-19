@@ -14,7 +14,7 @@ struct DashboardCardStack: View {
     var body: some View {
         VStack(spacing: 0) {
             ForEach(Array(visibleSections.enumerated()), id: \.element) { index, section in
-                DashboardCard(section: section, snapshot: snapshot)
+                DashboardCard(section: section, snapshot: snapshot, clockDate: snapshot.fetchedAt)
                     .environment(\.meterCardHasBottomBorder, section != visibleSections.last)
                     .id(section)
                     .modifier(PanelModuleEntrance(isPresented: isPresented, index: index))
@@ -32,7 +32,7 @@ struct FontCardPreview: View {
     var body: some View {
         VStack(spacing: 12) {
             ForEach(section.map { [$0] } ?? settings.dashboardSectionOrder.filter { $0 != .quota }) { section in
-                DashboardCard(section: section, snapshot: snapshot).accessibilityIdentifier("font-preview-\(section.rawValue)")
+                DashboardCard(section: section, snapshot: snapshot, clockDate: snapshot.fetchedAt).accessibilityIdentifier("font-preview-\(section.rawValue)")
             }
         }
     }

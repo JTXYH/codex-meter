@@ -43,8 +43,12 @@ struct HeroUsageCard: View {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(String(Int(window.remainingPercent.rounded())))
                         .meterText(.value, size: 36, weight: .medium).tracking(-1.8)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                     Text("%").meterText(.detail, size: 13)
-                }.foregroundStyle(window.remainingPercent < 30 ? Color.meterDanger : theme.accent)
+                        .fixedSize()
+                }
+                .padding(.horizontal, 12)
+                .foregroundStyle(window.remainingPercent < 30 ? Color.meterDanger : theme.accent)
             }.frame(width: 97.1, height: 97.1).frame(width: 112, height: 112)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(L10n.remaining(Int(window.remainingPercent.rounded()), language: settings.language))

@@ -53,6 +53,9 @@ enum SettingsCopy {
         "historyDetail": ["按日、周、月、年查看用量和模型", "按日、週、月、年查看用量和模型", "Usage and models by day, week, month or year", "日・週・月・年別の使用量とモデル", "일, 주, 월, 연도별 사용량과 모델", "Uso y modelos por día, semana, mes o año"],
         "heatmapDetail": ["近 120 天的使用分布", "近 120 天的使用分布", "Usage over the last 120 days", "過去 120 日間の利用分布", "최근 120일 사용 분포", "Uso de los últimos 120 días"],
         "summaryDetail": ["累计用量、峰值与使用纪录", "累計用量、峰值與使用紀錄", "Totals, peaks and activity records", "累計、ピーク、利用記録", "누적 사용량, 최고치 및 기록", "Totales, picos y registros"],
+        "pacificClock": ["太平洋时间", "太平洋時間", "Pacific time", "太平洋時間", "태평양 시간", "Hora del Pacífico"],
+        "pacificClockDetail": ["当前太平洋时间与本地时间，自动切换夏令时", "目前太平洋時間與本地時間，自動切換夏令時間", "Pacific and local time, with automatic daylight saving adjustment", "太平洋時間と現地時刻。夏時間は自動調整", "태평양 및 현지 시간, 서머타임 자동 적용", "Hora del Pacífico y local, con cambio automático al horario de verano"],
+        "localTime": ["本地时间", "本地時間", "Local time", "現地時刻", "현지 시간", "Hora local"],
         "resetCredits": ["充值卡", "充值卡", "Reset cards", "リセットカード", "초기화 카드", "Tarjetas de reinicio"],
         "resetCreditsDetail": ["可用数量与逐张到期时间", "可用數量與每張到期時間", "Available count and expiry of each card", "利用可能枚数と各カードの有効期限", "사용 가능한 수량과 각 카드의 만료 시간", "Cantidad disponible y caducidad de cada tarjeta"],
         "creditsDetail": ["账号额外 Credits", "帳號額外 Credits", "Additional account Credits", "アカウントの追加 Credits", "계정 추가 Credits", "Credits adicionales"],
@@ -161,6 +164,7 @@ enum SettingsCopy {
     static func sectionKey(_ section: DashboardSection) -> String {
         switch section {
         case .quota: "quota"
+        case .pacificClock: "pacificClock"
         case .tokenActivity: "today"
         case .activityOverview: "overview"
         case .monthlyUsage: "history"

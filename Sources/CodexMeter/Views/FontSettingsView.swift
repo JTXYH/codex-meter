@@ -41,23 +41,33 @@ struct FontSettingsView: View {
             }
             Text(text(.preview)).font(.system(size: 10)).tracking(0.5)
                 .foregroundStyle(Color.meterTertiary).padding(.top, 4)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 8) {
-                    Circle().fill(theme.accent).frame(width: 6, height: 6)
-                    Text(copy(activeSection == .quota ? "currentQuota" : "yesterdayUsage"))
-                        .font(.system(size: sizes.title, weight: .semibold)).frame(minHeight: sizes.title * 1.5)
+            if activeSection == .pacificClock {
+                PacificClockCard(fixedDate: Date(timeIntervalSince1970: 1_793_197_928))
+                    .meterTypography(for: .pacificClock)
+                    .environment(\.meterCardHasBottomBorder, false)
+                    .frame(width: 350)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.meterBorder, lineWidth: 1))
+                    .accessibilityIdentifier("font-preview")
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 8) {
+                        Circle().fill(theme.accent).frame(width: 6, height: 6)
+                        Text(copy(activeSection == .quota ? "currentQuota" : "yesterdayUsage"))
+                            .font(.system(size: sizes.title, weight: .semibold)).frame(minHeight: sizes.title * 1.5)
+                    }
+                    Text(activeSection == .quota ? "64%" : previewTokens)
+                        .font(.system(size: sizes.value, weight: .medium)).monospacedDigit().tracking(-0.5)
+                        .frame(minHeight: sizes.value * 1.5)
+                        .padding(.top, 20)
+                    Text(previewDetail).font(.system(size: sizes.detail)).foregroundStyle(Color.meterSecondary)
+                        .frame(minHeight: sizes.detail * 1.5).padding(.top, 8)
                 }
-                Text(activeSection == .quota ? "64%" : previewTokens)
-                    .font(.system(size: sizes.value, weight: .medium)).monospacedDigit().tracking(-0.5)
-                    .frame(minHeight: sizes.value * 1.5)
-                    .padding(.top, 20)
-                Text(previewDetail).font(.system(size: sizes.detail)).foregroundStyle(Color.meterSecondary)
-                    .frame(minHeight: sizes.detail * 1.5).padding(.top, 8)
+                .padding(.vertical, 22).padding(.horizontal, 24).padding(1).frame(width: 350, alignment: .leading)
+                .background(Color.meterPanel, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.meterBorder, lineWidth: 1))
+                .accessibilityIdentifier("font-preview")
             }
-            .padding(.vertical, 22).padding(.horizontal, 24).padding(1).frame(width: 350, alignment: .leading)
-            .background(Color.meterPanel, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.meterBorder, lineWidth: 1))
-            .accessibilityIdentifier("font-preview")
         }
     }
 

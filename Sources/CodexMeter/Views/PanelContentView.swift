@@ -34,7 +34,9 @@ struct PanelContentView: View {
             }
             ForEach(Array(sections.enumerated()), id: \.element) { index, section in
                 Group {
-                    if section == .tokenActivity, store.hasLoadedLocalTodayUsage {
+                    if section == .pacificClock {
+                        PacificClockCard(isPresented: isPresented)
+                    } else if section == .tokenActivity, store.hasLoadedLocalTodayUsage {
                         TokenActivityCard()
                     } else if section != .tokenActivity, remoteReady, let snapshot = store.dashboardSnapshot {
                         DashboardCard(section: section, snapshot: snapshot)

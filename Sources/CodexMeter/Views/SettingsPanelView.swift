@@ -456,6 +456,7 @@ struct SettingsPanelView: View {
     private func visibilityBinding(_ section: DashboardSection) -> Binding<Bool> {
         switch section {
         case .quota: $settings.showQuotaCard
+        case .pacificClock: $settings.showPacificClockCard
         case .tokenActivity: $settings.showTokenActivityCard
         case .activityOverview: $settings.showActivityOverviewCard
         case .monthlyUsage: $settings.showMonthlyUsageCard

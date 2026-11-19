@@ -296,7 +296,7 @@ struct DebugPreviewHost: View {
             try? Data("Compact views exported successfully\n".utf8).write(to: directory.appendingPathComponent("complete.txt"))
             return
         }
-        let cardNames: [DashboardSection: String] = [.quota: "quota", .tokenActivity: "today", .activityOverview: "overview",
+        let cardNames: [DashboardSection: String] = [.quota: "quota", .pacificClock: "pacific-clock", .tokenActivity: "today", .activityOverview: "overview",
                                                     .monthlyUsage: "history", .usageHeatmap: "heatmap", .usageSummary: "summary", .creditsBalance: "credits", .resetCredits: "reset-cards"]
         for appearance in [AppAppearance.light, .dark] {
             settings.appearance = appearance

@@ -200,6 +200,8 @@ struct AppSettingsTests {
             launchAtLoginManager: LaunchAtLoginManagerSpy()
         )
         #expect(firstSettings.showQuotaCard)
+        #expect(firstSettings.showPacificClockCard)
+        #expect(firstSettings.isDashboardSectionVisible(.pacificClock))
         #expect(firstSettings.showTokenActivityCard)
         #expect(firstSettings.showActivityOverviewCard)
         #expect(firstSettings.showMonthlyUsageCard)
@@ -212,6 +214,7 @@ struct AppSettingsTests {
         #expect(firstSettings.dashboardSectionOrder == DashboardSection.allCases)
 
         firstSettings.showQuotaCard = false
+        firstSettings.showPacificClockCard = false
         firstSettings.showTokenActivityCard = false
         firstSettings.showActivityOverviewCard = false
         firstSettings.showMonthlyUsageCard = false
@@ -228,7 +231,7 @@ struct AppSettingsTests {
 
         let reorderedSections: [DashboardSection] = [
             .creditsBalance, .usageSummary, .quota, .usageHeatmap, .tokenActivity,
-            .activityOverview, .monthlyUsage, .resetCredits,
+            .activityOverview, .monthlyUsage, .resetCredits, .pacificClock,
         ]
         firstSettings.dashboardSectionOrder = reorderedSections
         #expect(
@@ -241,6 +244,8 @@ struct AppSettingsTests {
             launchAtLoginManager: LaunchAtLoginManagerSpy()
         )
         #expect(!restoredSettings.showQuotaCard)
+        #expect(!restoredSettings.showPacificClockCard)
+        #expect(!restoredSettings.isDashboardSectionVisible(.pacificClock))
         #expect(!restoredSettings.showTokenActivityCard)
         #expect(!restoredSettings.showActivityOverviewCard)
         #expect(!restoredSettings.showMonthlyUsageCard)
@@ -274,19 +279,19 @@ struct AppSettingsTests {
             launchAtLoginManager: LaunchAtLoginManagerSpy()
         )
         #expect(settings.dashboardSectionOrder == [
-            .creditsBalance, .quota, .tokenActivity, .activityOverview, .monthlyUsage,
+            .creditsBalance, .quota, .pacificClock, .tokenActivity, .activityOverview, .monthlyUsage,
             .usageHeatmap, .usageSummary, .resetCredits,
         ])
 
-        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 0), toOffset: 5)
+        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 0), toOffset: 6)
         #expect(settings.dashboardSectionOrder == [
-            .quota, .tokenActivity, .activityOverview, .monthlyUsage, .creditsBalance,
+            .quota, .pacificClock, .tokenActivity, .activityOverview, .monthlyUsage, .creditsBalance,
             .usageHeatmap, .usageSummary, .resetCredits,
         ])
 
-        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 3), toOffset: 0)
+        settings.moveDashboardSections(fromOffsets: IndexSet(integer: 4), toOffset: 0)
         #expect(settings.dashboardSectionOrder == [
-            .monthlyUsage, .quota, .tokenActivity, .activityOverview, .creditsBalance,
+            .monthlyUsage, .quota, .pacificClock, .tokenActivity, .activityOverview, .creditsBalance,
             .usageHeatmap, .usageSummary, .resetCredits,
         ])
     }

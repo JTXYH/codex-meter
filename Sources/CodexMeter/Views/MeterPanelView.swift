@@ -5,11 +5,13 @@ import SwiftUI
 struct DashboardCard: View {
     let section: DashboardSection
     let snapshot: CodexUsageSnapshot
+    var clockDate: Date?
     var body: some View { content.meterTypography(for: section) }
 
     @ViewBuilder private var content: some View {
         switch section {
         case .quota: HeroUsageCard(snapshot: snapshot)
+        case .pacificClock: PacificClockCard(fixedDate: clockDate)
         case .tokenActivity: TokenActivityCard()
         case .activityOverview: ActivityOverviewCard(snapshot: snapshot)
         case .monthlyUsage: MonthlyUsageCard()

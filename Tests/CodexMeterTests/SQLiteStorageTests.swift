@@ -21,8 +21,8 @@ struct SQLiteStorageTests {
         let settings = AppSettings(defaults: preferences, launchAtLoginManager: NoLoginChanges())
         #expect(!settings.showTokenActivityCard)
         #expect(!settings.showActivityOverviewCard)
-        #expect(Array(settings.dashboardSectionOrder.prefix(5)) == [
-            .monthlyUsage, .tokenActivity, .activityOverview, .quota, .usageHeatmap,
+        #expect(Array(settings.dashboardSectionOrder.prefix(6)) == [
+            .monthlyUsage, .tokenActivity, .activityOverview, .quota, .pacificClock, .usageHeatmap,
         ])
         settings.showActivityOverviewCard = true
         settings.moveDashboardSections(fromOffsets: IndexSet(integer: 2), toOffset: 0)

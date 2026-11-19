@@ -138,6 +138,8 @@ enum AutomaticRefreshInterval: String, CaseIterable, Identifiable, Sendable {
 
 enum DashboardSection: String, CaseIterable, Identifiable, Sendable {
     case quota
+    // Keep the installed clock module's storage identity when changing its time zone.
+    case pacificClock = "utcClock"
     case tokenActivity
     case activityOverview
     case monthlyUsage
@@ -232,6 +234,10 @@ final class AppSettings: ObservableObject {
 
     @Published var showTokenActivityCard: Bool {
         didSet { defaults.set(showTokenActivityCard, forKey: Keys.showTokenActivityCard) }
+    }
+
+    @Published var showPacificClockCard: Bool {
+        didSet { defaults.set(showPacificClockCard, forKey: Keys.showPacificClockCard) }
     }
 
     @Published var showActivityOverviewCard: Bool {
@@ -467,6 +473,7 @@ final class AppSettings: ObservableObject {
             : (defaults.object(forKey: Keys.launchAtLogin) as? NSNumber)?.boolValue ?? true
         followCodexApp = storedFollowCodexApp
         showQuotaCard = (defaults.object(forKey: Keys.showQuotaCard) as? NSNumber)?.boolValue ?? true
+        showPacificClockCard = (defaults.object(forKey: Keys.showPacificClockCard) as? NSNumber)?.boolValue ?? true
         showTokenActivityCard = (
             defaults.object(forKey: Keys.showTokenActivityCard) as? NSNumber
         )?.boolValue ?? true
@@ -528,6 +535,7 @@ final class AppSettings: ObservableObject {
         defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
         defaults.set(followCodexApp, forKey: Keys.followCodexApp)
         defaults.set(showQuotaCard, forKey: Keys.showQuotaCard)
+        defaults.set(showPacificClockCard, forKey: Keys.showPacificClockCard)
         defaults.set(showTokenActivityCard, forKey: Keys.showTokenActivityCard)
         defaults.set(showActivityOverviewCard, forKey: Keys.showActivityOverviewCard)
         defaults.set(showMonthlyUsageCard, forKey: Keys.showMonthlyUsageCard)
@@ -566,6 +574,7 @@ final class AppSettings: ObservableObject {
     func isDashboardSectionVisible(_ section: DashboardSection) -> Bool {
         switch section {
         case .quota: showQuotaCard
+        case .pacificClock: showPacificClockCard
         case .tokenActivity: showTokenActivityCard
         case .activityOverview: showActivityOverviewCard
         case .monthlyUsage: showMonthlyUsageCard
@@ -636,6 +645,13 @@ final class AppSettings: ObservableObject {
     ) -> [DashboardSection] {
         var seen = Set<DashboardSection>()
         var result = sections.filter { seen.insert($0).inserted }
+        // Preserve existing relative order and place the new clock below quota on upgrade.
+        if !result.isEmpty, !seen.contains(.pacificClock) {
+            let index = result.firstIndex(of: .quota).map { $0 + 1 }
+                ?? result.firstIndex(of: .tokenActivity) ?? 0
+            result.insert(.pacificClock, at: index)
+            seen.insert(.pacificClock)
+        }
         // Insert the new card beside token activity when migrating an existing order.
         if !result.isEmpty, !seen.contains(.monthlyUsage), let index = result.firstIndex(of: .tokenActivity) {
             result.insert(.monthlyUsage, at: index + 1)
@@ -659,6 +675,7 @@ final class AppSettings: ObservableObject {
         static let launchAtLogin = "launchAtLogin"
         static let followCodexApp = "followCodexApp"
         static let showQuotaCard = "showQuotaCard"
+        static let showPacificClockCard = "showUTCClockCard"
         static let showTokenActivityCard = "showTokenActivityCard"
         static let showActivityOverviewCard = "showActivityOverviewCard"
         static let showMonthlyUsageCard = "showMonthlyUsageCard"

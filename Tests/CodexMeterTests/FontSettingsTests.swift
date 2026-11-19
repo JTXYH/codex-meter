@@ -124,7 +124,7 @@ struct FontSettingsTests {
         var heights: [DashboardSection: CGFloat] = [:]
         for section in DashboardSection.allCases {
             let actual = try render(FontCardPreview(section: section, snapshot: snapshot))
-            let expected = try render(DashboardCard(section: section, snapshot: snapshot))
+            let expected = try render(DashboardCard(section: section, snapshot: snapshot, clockDate: snapshot.fetchedAt))
             #expect(actual.size == expected.size, "Preview size for \(section.rawValue)")
             #expect(actual.pixels.count == expected.pixels.count)
             let difference = zip(actual.pixels, expected.pixels).reduce(0) { $0 + abs(Int($1.0) - Int($1.1)) }
